@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Partner pairing. Wording copied from index.html (partner request popup, settings cards); pairing_title / pairing_skip / waiting body are new. -->
+<resources>
+    <string name="pairing_title">Connect with your partner</string>
+    <string name="pairing_phone_label">Partner\'s phone number</string>
+    <string name="pairing_phone_placeholder">e.g. 1234567890</string>
+    <string name="pairing_send_button">Send Connection Request ❤️</string>
+    <string name="pairing_sending">Sending...</string>
+    <string name="pairing_skip">Skip for now</string>
+
+    <string name="pairing_err_enter_phone">Enter your partner\'s phone number</string>
+    <string name="pairing_info_sent">Invitation sent ❤️ Waiting for your partner to accept.</string>
+    <string name="pairing_info_declined">Invitation declined</string>
+    <string name="pairing_info_connected">Connected with %1$s! 💕</string>
+
+    <string name="pairing_waiting_title">Waiting for Partner ❤️</string>
+    <string name="pairing_waiting_body">Invitation sent to %1$s</string>
+    <string name="pairing_cancel">Cancel Request</string>
+
+    <string name="pairing_requests_title">Partner Requests</string>
+    <string name="pairing_requests_empty">No pending partner requests.</string>
+    <string name="pairing_request_title">Connection Request</string>
+    <string name="pairing_wants_to_connect">%1$s wants to connect with you.</string>
+    <string name="pairing_accept">Accept ❤️</string>
+    <string name="pairing_decline">Decline</string>
+
+    <string name="pairing_connected_title">Connected ❤️</string>
+    <string name="pairing_connected_body">You and %1$s are linked.</string>
+    <string name="pairing_continue">Continue</string>
+
+    <string name="pairing_sent_just_now">Sent just now</string>
+    <plurals name="pairing_sent_minutes">
+        <item quantity="one">Sent %d min ago</item>
+        <item quantity="other">Sent %d mins ago</item>
+    </plurals>
+    <plurals name="pairing_sent_hours">
+        <item quantity="one">Sent %d hour ago</item>
+        <item quantity="other">Sent %d hours ago</item>
+    </plurals>
+    <plurals name="pairing_sent_days">
+        <item quantity="one">Sent %d day ago</item>
+        <item quantity="other">Sent %d days ago</item>
+    </plurals>
+</resources>

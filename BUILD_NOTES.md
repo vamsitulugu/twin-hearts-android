@@ -1,24 +1,16 @@
-# BUILD_NOTES — Phase 1: Get Started + Sign In / Sign Up / Forgot Password
+# BUILD_NOTES — Phase 1.3 Partner pairing
 
 **Not compiled here.** Build in Android Studio; send me the first red error if there is one.
 
 ## Apply
-1. Unzip `th-p1-entry-v1.zip` over `C:\Users\vamsi\AndroidStudioProjects\TwinHearts` (replace files).
-2. Android Studio: **File → Sync Project with Gradle Files**, then ▶ Run on your phone.
-3. If you are already signed in from an earlier test you will see the stand-in Home page. Otherwise you start on Get Started.
+Unzip `th-p1-pairing-v1.zip` over your project folder (replace files), **Sync Project with Gradle Files**, ▶ Run.
 
-## Expected result
-Dark wine screen with the couple picture, "Stay Connected", and a white slider. Slide it to the end → Sign In.
-
-## Manual tests
-1. **Slider:** drag halfway and let go → knob springs back. Drag to the end → Sign In opens, phone gives a small tick. Press Back → Get Started again.
-2. **Sign Up:** leave a field empty → "Fill in all fields". Try PIN 1234 → "...avoid sequences like 1234". Use two different PINs → mismatch message. Use a real new email, phone, PIN like 2580 → the app opens the Home stand-in page.
-3. **Sign In (second account or after clearing app data):** wrong password → "Incorrect password." in red. Correct → Home. Close the app and reopen → it opens Home directly.
-4. **Forgot Password:** Sign In → "Forgot Password?" → your email + registered phone → "Choose a new password" → set one → green message → back at Sign In → sign in with the new password.
-5. **Offline:** turn on airplane mode, tap Sign In → "Can't reach the server..." message. Turn it off and try again. The first try after a long idle may take up to a minute and shows the "Waking up the server" line.
-
-Tip: to test Get Started again after signing in, uninstall the app (or Settings → Apps → Twin Hearts → Storage → Clear data).
+## Test with two accounts (two phones, or one phone + the website)
+1. Make account A and account B (Sign Up). Each Sign Up opens the Pairing screen.
+2. On A: type B's phone number → **Send Connection Request ❤️** → green "Invitation sent ❤️ ..." and the card changes to **Waiting for Partner ❤️**.
+3. On B (Pairing screen, or the web Settings): "Partner Requests" shows A with **Accept ❤️ / Decline** (appears within ~5 s).
+4. Tap **Accept ❤️** on B → B sees "Connected with A! 💕" and the Connected card. A's card becomes Connected within ~5 s.
+5. Also try: your own phone number → "You cannot connect with yourself."; an unknown number → "No Twin Hearts account found..."; **Cancel Request**; **Decline**; **Skip for now** (opens Home stand-in).
 
 ## Known gaps
-- Home, Chat, etc. are still stand-in pages (next phases).
-- Check the Privacy Policy address in `strings_auth.xml` (`auth_privacy_url`).
+No push notifications yet (Phase 2.5). Home is still a stand-in page.

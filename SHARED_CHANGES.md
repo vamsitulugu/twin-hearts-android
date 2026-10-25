@@ -1,21 +1,21 @@
-# SHARED_CHANGES — Phase 1 (1.1 Get Started, 1.2 Sign In / Sign Up / Forgot Password)
+# SHARED_CHANGES — Phase 1.3 Partner pairing
 
 ## Gradle/catalog lines
 None.
 
 ## Manifest entries
-None. (INTERNET is already there.)
+None.
 
 ## AppNavHost line
-`FeatureGraphs.kt` is the one designated plug-in file (R-43). To save you hand-editing, the zip contains the finished file:
-`app/src/main/java/com/twinhearts/app/core/navigation/FeatureGraphs.kt`
-It only does two things: adds `getStartedGraph(navController)` and `authGraph(navController)`, and removes the four stand-in screens (GetStarted, SignIn, SignUp, ForgotPassword) from the pending list.
+Included as finished files (replace the old ones):
+- `core/navigation/FeatureGraphs.kt` — adds `pairingGraph(navController)` and removes the stand-in Pairing screen.
+- `feature/auth/AuthRoute.kt` — one change: after **Sign Up** the app opens Pairing instead of Home.
 
 ## TwinDatabase entities
 None.
 
 ## Strings/permissions
-New files: `strings_getstarted.xml`, `strings_auth.xml`. No permissions.
+New file `strings_pairing.xml`. No permissions.
 
 ## Backend changes
 None.
