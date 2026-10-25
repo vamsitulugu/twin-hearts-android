@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Get Started screen. Wording copied from landing.html (#mobileStart). -->
+<resources>
+    <string name="getstarted_stay">Stay</string>
+    <string name="getstarted_connected">Connected</string>
+    <string name="getstarted_tagline">No distance, just us</string>
+    <string name="getstarted_slide_label">Get Started</string>
+    <string name="getstarted_slide_description">Slide to get started</string>
+    <string name="getstarted_couple_description">A couple sitting together</string>
+</resources>

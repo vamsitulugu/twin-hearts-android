@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sign In, Sign Up and Forgot Password. Wording copied from landing.html (#authModal). -->
+<resources>
+    <string name="auth_logo_tagline">Everything Together.</string>
+    <string name="auth_tab_sign_in">Sign In</string>
+    <string name="auth_tab_sign_up">Sign Up</string>
+
+    <string name="auth_email_label">Email</string>
+    <string name="auth_email_placeholder">your@email.com</string>
+    <string name="auth_password_label">Password</string>
+    <string name="auth_password_placeholder">Your password</string>
+
+    <!-- Sign in -->
+    <string name="auth_welcome_back">Welcome back 💕</string>
+    <string name="auth_forgot_link">Forgot Password?</string>
+    <string name="auth_sign_in_button">Sign In 💕</string>
+    <string name="auth_signing_in">Signing in...</string>
+    <string name="auth_or">— or —</string>
+    <string name="auth_create_new_account">Create new account →</string>
+
+    <!-- Sign up -->
+    <string name="auth_create_account_title">Create your account ✨</string>
+    <string name="auth_signup_password_label">Password (min 6 chars)</string>
+    <string name="auth_signup_password_placeholder">Create a password</string>
+    <string name="auth_name_label">Your Name</string>
+    <string name="auth_name_placeholder">Your name</string>
+    <string name="auth_gender_label">I am</string>
+    <string name="auth_gender_girl">👩 Girl</string>
+    <string name="auth_gender_boy">👨 Boy</string>
+    <string name="auth_phone_label">Phone Number</string>
+    <string name="auth_phone_placeholder">e.g. 1234567890</string>
+    <string name="auth_phone_help">This number is only used so your partner can find you. It is never used for login.</string>
+    <string name="auth_pin_label">Secret Vault PIN (4 digits)</string>
+    <string name="auth_pin_placeholder">Choose a 4-digit PIN</string>
+    <string name="auth_pin_confirm_label">Confirm Vault PIN</string>
+    <string name="auth_pin_confirm_placeholder">Re-enter your PIN</string>
+    <string name="auth_pin_help">This locks your Secret Vault. You set it once, here. If you ever forget it, you can reset it with your account password.</string>
+    <string name="auth_create_account_button">Create Account ✨</string>
+    <string name="auth_creating">Creating...</string>
+    <string name="auth_have_account">Already have an account?</string>
+    <string name="auth_sign_in_arrow">Sign In →</string>
+
+    <!-- Forgot password -->
+    <string name="auth_forgot_title">Reset your password 🔑</string>
+    <string name="auth_forgot_intro">Enter the email and phone number you registered with to verify it\'s you.</string>
+    <string name="auth_forgot_phone_placeholder">Your registered phone number</string>
+    <string name="auth_continue">Continue</string>
+    <string name="auth_checking">Checking...</string>
+    <string name="auth_remembered">Remembered your password?</string>
+    <string name="auth_back_to_login">Back to Login →</string>
+    <string name="auth_new_password_title">Choose a new password 🔒</string>
+    <string name="auth_new_password_label">New Password</string>
+    <string name="auth_new_password_placeholder">At least 6 characters</string>
+    <string name="auth_confirm_password_label">Confirm Password</string>
+    <string name="auth_confirm_password_placeholder">Re-enter password</string>
+    <string name="auth_update_password">Update Password</string>
+    <string name="auth_updating">Updating...</string>
+    <string name="auth_password_updated">Password updated successfully.</string>
+
+    <!-- Messages -->
+    <string name="auth_err_enter_credentials">Enter your email and password</string>
+    <string name="auth_err_fill_all">Fill in all fields</string>
+    <string name="auth_err_password_short">Password must be at least 6 characters</string>
+    <string name="auth_err_gender">Please choose Girl or Boy</string>
+    <string name="auth_err_pin_digits">Vault PIN must be exactly 4 digits</string>
+    <string name="auth_err_pin_repeated">That vault PIN is too easy to guess — avoid repeated digits like 1111</string>
+    <string name="auth_err_pin_sequence">That vault PIN is too easy to guess — avoid sequences like 1234</string>
+    <string name="auth_err_pin_mismatch">The two vault PINs do not match</string>
+    <string name="auth_err_forgot_both">Enter both your email and phone number</string>
+    <string name="auth_err_new_both">Enter and confirm your new password</string>
+    <string name="auth_err_pass_mismatch">Passwords do not match</string>
+    <string name="auth_err_session_expired">Your session expired. Please start over.</string>
+
+    <!-- Footer and extras -->
+    <string name="auth_terms_prefix">By continuing, you agree to our </string>
+    <string name="auth_privacy_policy">Privacy Policy</string>
+    <string name="auth_terms_suffix">.</string>
+    <string name="auth_slow_hint">Waking up the server. The first request can take up to a minute.</string>
+    <string name="auth_privacy_url" translatable="false">https://twinhearts.vercel.app/privacy-policy.html</string>
+</resources>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only used for the window behind Compose, so there is no white flash at launch. -->
+<resources>
+    <color name="twin_window_background">#14030E</color>
+</resources>
