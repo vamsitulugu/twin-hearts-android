@@ -1,5 +1,7 @@
 package com.twinhearts.app.feature.home.data.mapper
 
+import com.twinhearts.app.feature.home.domain.model.CardPhoto
+import com.twinhearts.app.feature.home.domain.model.CardPhotoSlot
 import com.twinhearts.app.feature.home.domain.model.EventTarget
 import com.twinhearts.app.feature.home.domain.model.EventTitle
 import com.twinhearts.app.feature.home.domain.model.HomeOverview
@@ -31,6 +33,7 @@ fun JsonElement?.toHomeOverview(myRole: String, fallbackAnniversary: String, tod
         loveCard = toLoveCardState(myRole),
         events = toUpcomingEvents(fallbackAnniversary, today),
         mood = toMoodBoard(myRole),
+        cardPhotos = toCardPhotos(),
     )
 
 /** First 10 characters "YYYY-MM-DD" of a saved date, or null when it is not a date. */
@@ -116,5 +119,17 @@ private fun JsonObject.moodsOf(key: String): Map<String, MoodKind> {
     val moods = ((this[key] as? JsonObject)?.get("moods") as? JsonObject) ?: return emptyMap()
     return buildMap {
         moods.forEach { (date, value) -> MoodKind.fromKey(value.asText())?.let { put(date, it) } }
+    }
+}
+
+/** `dashImgs`: `{ idle|hug|touch|miss: { url, path } }`. A slot without a usable url is ignored. */
+fun JsonElement?.toCardPhotos(): Map<CardPhotoSlot, CardPhoto> {
+    val images = (this as? JsonObject)?.get("dashImgs") as? JsonObject ?: return emptyMap()
+    return buildMap {
+        CardPhotoSlot.entries.forEach { slot ->
+            val entry = images[slot.key] as? JsonObject ?: return@forEach
+            val url = entry["url"].asText()?.takeIf { it.isNotBlank() } ?: return@forEach
+            put(slot, CardPhoto(url = url, path = entry["path"].asText().orEmpty()))
+        }
     }
 }

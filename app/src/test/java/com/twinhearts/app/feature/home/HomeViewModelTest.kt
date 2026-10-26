@@ -8,6 +8,8 @@ import com.twinhearts.app.core.data.SessionStore
 import com.twinhearts.app.feature.auth.MainDispatcherRule
 import com.twinhearts.app.feature.auth.testSession
 import com.twinhearts.app.feature.home.data.HomeRepository
+import com.twinhearts.app.feature.home.domain.model.CardPhoto
+import com.twinhearts.app.feature.home.domain.model.CardPhotoSlot
 import com.twinhearts.app.feature.home.domain.model.LoveCardState
 import com.twinhearts.app.feature.home.domain.model.HomeOverview
 import com.twinhearts.app.feature.home.domain.model.LoveKind
@@ -90,5 +92,31 @@ class HomeViewModelTest {
         val vm = viewModel(testSession().copy(paired = true))
         vm.setMood(LocalDate.of(2026, 10, 26), null)
         assertEquals(HomeMessage.Failure(error), vm.state.value.message)
+    }
+
+    @Test
+    fun useDefaultCardPhoto_success_showsMessage() {
+        coEvery { repository.resetCardPhoto(CardPhotoSlot.Hug) } returns AppResult.Success(Unit)
+        val vm = viewModel(testSession().copy(paired = true))
+        vm.useDefaultCardPhoto(CardPhotoSlot.Hug)
+        assertEquals(HomeMessage.Info(R.string.home_photo_back_to_default), vm.state.value.message)
+    }
+
+    @Test
+    fun useDefaultCardPhoto_failure_showsError() {
+        val error = AppError.Network
+        coEvery { repository.resetCardPhoto(any()) } returns AppResult.Failure(error)
+        val vm = viewModel(testSession().copy(paired = true))
+        vm.useDefaultCardPhoto(CardPhotoSlot.Idle)
+        assertEquals(HomeMessage.Failure(error), vm.state.value.message)
+    }
+
+    @Test
+    fun overview_cardPhotos_reachTheState() {
+        val photos = mapOf(CardPhotoSlot.Touch to CardPhoto("https://x/t.jpg", "c1/t.jpg"))
+        every { sessionStore.session } returns flowOf(testSession().copy(paired = true))
+        coEvery { repository.overview() } returns AppResult.Success(HomeOverview(cardPhotos = photos))
+        val vm = HomeViewModel(repository, sessionStore)
+        assertEquals(photos, vm.state.value.cardPhotos)
     }
 }

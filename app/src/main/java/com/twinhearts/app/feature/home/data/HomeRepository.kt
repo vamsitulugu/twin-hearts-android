@@ -9,12 +9,17 @@ import com.twinhearts.app.feature.home.data.mapper.asLong
 import com.twinhearts.app.feature.home.data.mapper.asText
 import com.twinhearts.app.feature.home.data.mapper.profileKey
 import com.twinhearts.app.feature.home.data.mapper.toHomeOverview
+import com.twinhearts.app.feature.home.data.remote.DeleteMediaBody
 import com.twinhearts.app.feature.home.data.remote.HomeApi
 import com.twinhearts.app.feature.home.data.remote.SaveStateBody
+import com.twinhearts.app.feature.home.domain.model.CardPhotoSlot
 import com.twinhearts.app.feature.home.domain.model.HomeOverview
 import com.twinhearts.app.feature.home.domain.model.LoveKind
 import com.twinhearts.app.feature.home.domain.model.MoodKind
 import kotlinx.coroutines.flow.first
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -38,6 +43,12 @@ interface HomeRepository {
 
     /** Accepts the hug my partner sent. */
     suspend fun acceptHug(): AppResult<Unit>
+
+    /** Uploads [jpeg] as the couple's own picture for [slot] and saves it in the shared state. */
+    suspend fun saveCardPhoto(slot: CardPhotoSlot, jpeg: ByteArray): AppResult<Unit>
+
+    /** Goes back to the built-in picture for [slot]. */
+    suspend fun resetCardPhoto(slot: CardPhotoSlot): AppResult<Unit>
 }
 
 class HomeRepositoryImpl @Inject constructor(
@@ -134,6 +145,51 @@ class HomeRepositoryImpl @Inject constructor(
             putJsonObject("hugStats") { put("total", total); put("user1", user1); put("user2", user2) }
         }
         return save(session, patch)
+    }
+
+    /**
+     * Same order as the web: upload, save `dashImgs`, then delete the old file (best effort).
+     * The server merges only top-level keys, so `dashImgs` is sent as a whole object.
+     */
+    override suspend fun saveCardPhoto(slot: CardPhotoSlot, jpeg: ByteArray): AppResult<Unit> {
+        val session = session() ?: return notSignedIn
+        val filePart = MultipartBody.Part.createFormData(
+            "file", "dashboard-${slot.key}.jpg", jpeg.toRequestBody("image/jpeg".toMediaType()),
+        )
+        val coupleId = session.coupleId.toRequestBody("text/plain".toMediaType())
+        val uploaded = when (val result = safeApiCall { api.uploadMedia(filePart, coupleId) }) {
+            is AppResult.Success -> result.data
+            is AppResult.Failure -> return result
+        }
+        val state = when (val read = readState(session)) {
+            is AppResult.Success -> read.data
+            is AppResult.Failure -> return read
+        }
+        val images = (state["dashImgs"] as? JsonObject).orEmpty()
+        val oldPath = (images[slot.key] as? JsonObject)?.get("path").asText().orEmpty()
+        val entry = buildJsonObject { put("url", uploaded.url); put("path", uploaded.path.orEmpty()) }
+        val saved = save(session, buildJsonObject { put("dashImgs", JsonObject(images + (slot.key to entry))) })
+        if (saved is AppResult.Success) deleteOldPhoto(session, oldPath)
+        return saved
+    }
+
+    override suspend fun resetCardPhoto(slot: CardPhotoSlot): AppResult<Unit> {
+        val session = session() ?: return notSignedIn
+        val state = when (val read = readState(session)) {
+            is AppResult.Success -> read.data
+            is AppResult.Failure -> return read
+        }
+        val images = (state["dashImgs"] as? JsonObject).orEmpty()
+        val old = images[slot.key] as? JsonObject ?: return AppResult.Success(Unit) // already default
+        val saved = save(session, buildJsonObject { put("dashImgs", JsonObject(images - slot.key)) })
+        if (saved is AppResult.Success) deleteOldPhoto(session, old["path"].asText().orEmpty())
+        return saved
+    }
+
+    /** A failed clean-up only leaves an unused file in storage, so its result is ignored. */
+    private suspend fun deleteOldPhoto(session: Session, path: String) {
+        if (path.isBlank()) return
+        safeApiCall { api.deleteMedia(DeleteMediaBody(path, session.coupleId)) }
     }
 
     private suspend fun readState(session: Session): AppResult<JsonObject> =

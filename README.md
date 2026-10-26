@@ -311,6 +311,7 @@ Performance pass (Baseline Profile, jank check), signing, release APK, crash rep
 | 2026-10-25 | Phase 1.3 Partner pairing | th-p1-pairing-v1.zip | Not compiled in sandbox. Sign Up now opens Pairing (AuthRoute.kt change included). User confirmed pairing works (✅). |
 | 2026-10-26 | Phase 2.1 Home | th-p2-home-v1.zip | Not compiled in sandbox. Stay Connected card works through shared state (/api/data/state). Events + mood widgets not built yet. |
 | 2026-10-26 | Phase 2.1 Home v2 — Coming up, Mood card, Mood Calendar | th-p2-home-v2.zip | Not compiled in sandbox. Left: card photo menu (3 dots). Search/chips/grid wait for their pages. |
+| 2026-10-26 | Phase 2.1 Home v3 — card photo menu + Card photos editor, caption pill/buttons restyled, "Memories" chip | th-p2-home-v3.zip | Not compiled in sandbox. Home is now complete except taps that open pages built later (search, chips, grid, shortcuts). Change Request: card overlay tokens. |
 
 ---
 

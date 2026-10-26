@@ -78,4 +78,6 @@ data class HomeOverview(
     val loveCard: LoveCardState = LoveCardState(),
     val events: List<UpcomingEvent> = emptyList(),
     val mood: MoodBoard = MoodBoard(),
+    /** The couple's own card pictures (`dashImgs`); a slot that is missing uses the built-in picture. */
+    val cardPhotos: Map<CardPhotoSlot, CardPhoto> = emptyMap(),
 )

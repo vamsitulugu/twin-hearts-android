@@ -18,3 +18,11 @@ data class SaveStateBody(
 /** Answer: `{ok: true, savedAt: "..."}`. */
 @Serializable
 data class SaveStateResponse(val ok: Boolean? = null)
+
+/** Answer of the photo upload: the public [url] and the storage [path] (needed to delete it later). */
+@Serializable
+data class MediaUploadResponse(val url: String, val path: String? = null)
+
+/** Body of the photo delete call. The server only deletes files under this couple's own folder. */
+@Serializable
+data class DeleteMediaBody(val path: String, val coupleId: String)

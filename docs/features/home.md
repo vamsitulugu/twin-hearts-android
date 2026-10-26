@@ -8,14 +8,14 @@ Sources read: `public/index.html` (`#page-dashboard`, `sendTouch`, `sendMissYou`
 | Logo + "Twin Hearts", my avatar (opens profile) | Yes | Avatar = first letter of my name. Photo comes with Profile (2.6). |
 | "Good evening, Name 👋" + daily quote (italic pink last word) | Yes | Same 7 quotes and the same day-of-year rule as the web. |
 | Search bar + grid/menu button | Yes (look) | Tapping shows "This screen is built in a later step." |
-| Chips: Camera (highlighted), Music, Movie, Meet Planner, Daily Routine | Yes (look) | Same note on tap. |
+| Chips: **Memories** (highlighted), Music, Movie, Meet Planner, Daily Routine | Yes (look) | v3: first chip now says "Memories" (the web wording; v1/v2 said "Camera"). Same note on tap. |
 | **Stay Connected** card: picture, caption, 🤗 Hug / ❤️ Touch / 🥺 Miss You | **Yes, working** | See below. |
 | Incoming hug: "Name is sending you a hug 🤗" + Accept / Later | Yes | |
 | "All pages" groups (Us, Explore Together, My Space, Plans) + bottom quote | Yes | Our Profile opens its (stand-in) screen; the rest show the note. |
 | **Coming up** row (birthdays, anniversaries, months/day milestones, calendar events, milestones; soonest first, max 8; empty card "Nothing planned yet") | **Yes, v2** | Read from the same shared state. Tapping an item opens Calendar / Love Counter, which show the "built in a later step" note until they exist. |
 | **Mood card** (5 one-tap moods, today line, 7-day graph for both of you, date columns, legend, 🔥 streak) | **Yes, v2** | Saves MY mood only. Tap the same mood again to clear. Toast "Mood saved 😊". |
 | **Mood Calendar** (full screen: You / partner tabs, 8 moods, month grid, stats) | **Yes, v2** | Opens from the Mood card (a full-screen dialog, so no new route). |
-| Card photo menu (3 dots: change card picture / use default) | **No** | Needs image picking, cropping and the upload endpoint. Not ported yet; planned as its own step. |
+| Card photo menu (3 dots: Set my own image / Use default image) + **Card photos** editor | **Yes, v3** | See "v3" below. |
 
 ## How Hug / Touch / Miss You work (same data as the web)
 They live in the couple's shared state on the server (`GET /api/data/state/:coupleId`, `POST /api/data/state`).
@@ -59,3 +59,41 @@ Not compiled here. Colours of the 8 moods are the web hex values inside HomeWidg
 
 ## Tests (v2)
 `HomeStateMapperTest` (7), `HomeViewModelTest` (6).
+
+## v3 — Card photo menu, Card photos editor, card look (pin-to-pin)
+Sources read: `public/dashboard-widgets.js` (photo editor, 3-dots menu), `public/dashboard.css` (`.dh-card`, `.dh-cap`, `.dh-act`, `.dh-shade`), `public/dashboard-widgets.css` (`.dh-edit`, `.dh-menu-pop`, `.dw-*`), `public/index.html` (`uploadMediaFile`, chips), `routes/media.js`, `routes/data.js`, and `docs/reference/images.pdf` page 2.
+
+### What changed on the card (to match the screenshot)
+- Caption ("🤗 Hug sent · 3d ago") is now a small dark pill at the **top-left** (it was bottom-centre).
+- 3-dots round button at the **top-right**, menu with **Set my own image** / **Use default image** (the second is greyed out when the picture is not custom).
+- Hug / Touch / Miss You buttons: rounded squares (16 dp, 46 dp high), white glass; the one that matches the newest signal turns solid white (web `is-active`).
+- Two shades over the picture like the web (dark at the bottom, light at the top), card radius 24 dp, 1 dp white border.
+- Chip label "Memories".
+
+### Card photos editor (full screen, opens from "Set my own image")
+Idle / Hug / Touch / Miss You tabs, 16:9 frame with "16:9" badge, **Change photo** (system photo picker, no permission), drag to move, pinch or slider to zoom (1x to 4x), rule-of-thirds guide, **Save**, **Use default picture**. Same limits as the web: image files only, max 30 MB, saved as a 1280x720 JPEG (quality 88).
+Each tab keeps its own picked photo until you save (like the web).
+
+### API calls (R-65, read from the old routes)
+| Action | Call | Body | Answer / errors |
+|---|---|---|---|
+| Save photo, step 1 | `POST api/media/upload` (multipart) | `file` = JPEG `dashboard-<slot>.jpg`, `coupleId` | `{url, path}`. 400 "coupleId required", 413 too large, 415 wrong type, 500 storage error (`{error}`). |
+| Save photo, step 2 | `POST api/data/state` | `state: { dashImgs: { ...old, <slot>: {url, path} } }`, `senderRole`, `myName` | `{ok: true}`. The server merges only top-level keys, so the whole `dashImgs` is sent. |
+| Save photo, step 3 | `DELETE api/media/delete` | `{path, coupleId}` of the OLD file | `{ok: true}`. Best effort: if it fails we ignore it (an unused file stays in storage). 403 if path is not under the couple's folder. |
+| Use default | `POST api/data/state` then `DELETE api/media/delete` | `dashImgs` without that slot | same as above |
+| Read | `GET api/data/state/:coupleId` (already used) | | `dashImgs.{idle,hug,touch,miss}.{url,path}` |
+Slot names saved on the server: `idle`, `hug`, `touch`, `miss` (same as the web, so both apps show the same pictures).
+
+### States
+Card: the built-in picture shows while a custom one loads or if it fails to load (never a blank card, R-24). Editor: picture / cropping / saving (buttons disabled, "Saving…") / green "Photo saved 💕" / red error (server wording or "Please choose an image", "That photo is too large (max 30 MB)", "Couldn't open that image", "Could not save the photo").
+
+### Not ported (and why)
+- Mouse-wheel zoom, Esc key, slide-up animation of the web overlay: no meaning on a phone.
+- A picked-but-unsaved photo is lost if Android kills the app in the background (a bitmap cannot be stored in saved state). Saved pictures are not affected.
+
+### Risks to know
+- Photos are shrunk to at most 3072 px on the long side before cropping (saves memory on small phones). A very strong zoom on a huge photo is therefore slightly softer than the web.
+- Not compiled here. Not tried against the real server.
+
+### Tests (v3)
+`CropMathTest` (8), `CardPhotoMapperTest` (5), `CardPhotoEditorViewModelTest` (11), `HomeViewModelTest` (+3).

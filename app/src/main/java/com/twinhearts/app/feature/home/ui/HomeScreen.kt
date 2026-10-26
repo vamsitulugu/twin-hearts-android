@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -30,6 +31,7 @@ import com.twinhearts.app.R
 import com.twinhearts.app.core.data.Session
 import com.twinhearts.app.core.design.TwinBackground
 import com.twinhearts.app.core.design.TwinTheme
+import com.twinhearts.app.feature.home.domain.model.CardPhotoSlot
 import com.twinhearts.app.feature.home.domain.model.LoveCardState
 import com.twinhearts.app.feature.home.domain.model.LoveInteraction
 import com.twinhearts.app.feature.home.domain.model.LoveKind
@@ -42,6 +44,7 @@ import kotlinx.coroutines.delay
 private const val POLL_MS = 8000L
 private const val MESSAGE_MS = 3500L
 private const val CLOCK_TICK_MS = 30_000L
+private const val NO_EDITOR = -1
 
 /** Home (web: `#page-dashboard`). Connects the ViewModel to the stateless [HomeContent]. */
 @Composable
@@ -76,6 +79,8 @@ fun HomeScreen(
         onAcceptHug = viewModel::acceptHug,
         onDismissHug = viewModel::dismissHug,
         onSetMood = viewModel::setMood,
+        onUseDefaultCardPhoto = viewModel::useDefaultCardPhoto,
+        onCardPhotosChanged = viewModel::refresh,
     )
 }
 
@@ -97,9 +102,13 @@ internal fun HomeContent(
     onAcceptHug: () -> Unit,
     onDismissHug: () -> Unit,
     onSetMood: (LocalDate, MoodKind?) -> Unit,
+    onUseDefaultCardPhoto: (CardPhotoSlot) -> Unit,
+    onCardPhotosChanged: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var showMoodCalendar by rememberSaveable { mutableStateOf(false) }
+    // Which card picture the "Card photos" editor opened on (index in CardPhotoSlot), -1 = closed.
+    var photoEditorSlot by rememberSaveable { mutableIntStateOf(NO_EDITOR) }
     val nowMillis by rememberNowMillis()
     val session = state.session
     val myName = session?.myName.orEmpty()
@@ -133,8 +142,12 @@ internal fun HomeContent(
             StayConnectedCard(
                 last = state.loveCard.last,
                 nowMillis = nowMillis,
+                photos = state.cardPhotos,
                 actionsEnabled = paired && !state.isSending,
+                canEditPhotos = session?.coupleId?.isNotBlank() == true,
                 onSend = onSend,
+                onSetOwnImage = { photoEditorSlot = it.ordinal },
+                onUseDefaultImage = onUseDefaultCardPhoto,
             )
             HomeBanner(state.message)
             if (showIncomingHug) {
@@ -163,6 +176,15 @@ internal fun HomeContent(
         Spacer(Modifier.height(TwinTheme.spacing.xxl))
     }
 
+    if (photoEditorSlot != NO_EDITOR) {
+        CardPhotoEditorDialog(
+            initialSlot = CardPhotoSlot.entries[photoEditorSlot],
+            photos = state.cardPhotos,
+            onChanged = onCardPhotosChanged,
+            onClose = { photoEditorSlot = NO_EDITOR },
+        )
+    }
+
     if (showMoodCalendar) {
         MoodCalendarDialog(
             mood = state.mood,
@@ -183,7 +205,7 @@ private val previewSession = Session(
 @Preview(showBackground = true, backgroundColor = 0xFF14030E, heightDp = 1200, widthDp = 360)
 @Composable
 private fun HomeIdlePreview() {
-    TwinTheme { TwinBackground { HomeContent(HomeUiState(session = previewSession), {}, {}, {}, {}, {}, { _, _ -> }) } }
+    TwinTheme { TwinBackground { HomeContent(HomeUiState(session = previewSession), {}, {}, {}, {}, {}, { _, _ -> }, {}, {}) } }
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF14030E, heightDp = 1200, widthDp = 360)
@@ -194,7 +216,7 @@ private fun HomeSignalAndHugPreview() {
         TwinBackground {
             HomeContent(
                 HomeUiState(session = previewSession, loveCard = LoveCardState(last = last, pendingIncomingHugId = 5L)),
-                {}, {}, {}, {}, {}, { _, _ -> },
+                {}, {}, {}, {}, {}, { _, _ -> }, {}, {},
             )
         }
     }
@@ -203,5 +225,5 @@ private fun HomeSignalAndHugPreview() {
 @Preview(showBackground = true, backgroundColor = 0xFF14030E, heightDp = 1200, widthDp = 360, fontScale = 1.3f)
 @Composable
 private fun HomeUnpairedLargeFontPreview() {
-    TwinTheme { TwinBackground { HomeContent(HomeUiState(session = previewSession.copy(paired = false)), {}, {}, {}, {}, {}, { _, _ -> }) } }
+    TwinTheme { TwinBackground { HomeContent(HomeUiState(session = previewSession.copy(paired = false)), {}, {}, {}, {}, {}, { _, _ -> }, {}, {}) } }
 }

@@ -47,6 +47,22 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.twinhearts.app.R
+import com.twinhearts.app.feature.home.domain.model.toCardSlot
+import com.twinhearts.app.feature.home.domain.model.CardPhotoSlot
+import com.twinhearts.app.feature.home.domain.model.CardPhoto
+import coil.compose.AsyncImage
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.draw.alpha
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.annotation.DrawableRes
 import com.twinhearts.app.core.design.Avatar
 import com.twinhearts.app.core.design.GlassButton
 import com.twinhearts.app.core.design.GlassButtonStyle
@@ -62,7 +78,6 @@ private val LogoSize = 36.dp
 private val LogoCorner = 10.dp
 private val ProfileSize = 40.dp
 private val SearchHeight = 48.dp
-private val CardShadeAlpha = 0.78f
 private val PageIconCircle = 52.dp
 private val PageIconSize = 24.dp
 private const val MS_PER_DAY = 86_400_000L
@@ -178,7 +193,7 @@ internal fun HomeSearchRow(onShortcut: (HomeShortcut) -> Unit) {
     }
 }
 
-/** Camera (highlighted), Music, Movie, Meet Planner, Daily Routine. Scrolls sideways. */
+/** Memories (highlighted), Music, Movie, Meet Planner, Daily Routine. Scrolls sideways. */
 @Composable
 internal fun HomeChips(onShortcut: (HomeShortcut) -> Unit) {
     LazyRow(
@@ -186,7 +201,7 @@ internal fun HomeChips(onShortcut: (HomeShortcut) -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
     ) {
         items(homeChips) { chip ->
-            ShortcutChip(chip, primary = chip == HomeShortcut.Camera, onClick = { onShortcut(chip) })
+            ShortcutChip(chip, primary = chip == HomeShortcut.Memories, onClick = { onShortcut(chip) })
         }
     }
 }
@@ -212,24 +227,37 @@ private fun ShortcutChip(shortcut: HomeShortcut, primary: Boolean, onClick: () -
     }
 }
 
+/** What the card shows: a built-in picture, or the couple's own photo from the server. */
+private sealed interface CardImage {
+    data class Builtin(@DrawableRes val res: Int) : CardImage
+    data class Remote(val url: String, @DrawableRes val fallback: Int) : CardImage
+}
+
 /**
- * The 16:9 picture card with the newest signal and the Hug / Touch / Miss You buttons.
- * The picture changes with the newest signal, exactly like the web card.
+ * The 16:9 picture card (web: `#dhCard`): caption pill top-left, 3-dots photo menu top-right,
+ * Hug / Touch / Miss You at the bottom. The picture follows the newest signal, and can be the
+ * couple's own photo (`dashImgs`) instead of the built-in one.
  */
 @Composable
 internal fun StayConnectedCard(
     last: LoveInteraction?,
     nowMillis: Long,
+    photos: Map<CardPhotoSlot, CardPhoto>,
     actionsEnabled: Boolean,
+    canEditPhotos: Boolean,
     onSend: (LoveKind) -> Unit,
+    onSetOwnImage: (CardPhotoSlot) -> Unit,
+    onUseDefaultImage: (CardPhotoSlot) -> Unit,
 ) {
     val colors = TwinTheme.colors
-    val image = when (last?.kind) {
-        null -> R.drawable.home_card_idle
-        LoveKind.Hug -> R.drawable.home_card_hug
-        LoveKind.Touch -> R.drawable.home_card_touch
-        LoveKind.MissYou -> R.drawable.home_card_miss
+    val slot = last?.kind.toCardSlot()
+    val custom = photos[slot]
+    val source: CardImage = if (custom != null) {
+        CardImage.Remote(custom.url, defaultCardImage(slot))
+    } else {
+        CardImage.Builtin(defaultCardImage(slot))
     }
+    var menuOpen by rememberSaveable { mutableStateOf(false) }
     val caption = if (last == null) {
         stringResource(R.string.home_caption_idle)
     } else {
@@ -240,55 +268,163 @@ internal fun StayConnectedCard(
             agoText(last.timestampMillis, nowMillis),
         )
     }
+    val shape = RoundedCornerShape(HomeCardStyle.CardRadius)
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(16f / 9f)
-            .clip(TwinTheme.shapes.card)
-            .border(1.dp, colors.line, TwinTheme.shapes.card),
+            .clip(shape)
+            .background(HomeCardStyle.CardBase)
+            .border(1.dp, HomeCardStyle.CardBorder, shape),
     ) {
-        Crossfade(targetState = image, label = "loveCardImage", modifier = Modifier.fillMaxSize()) { res ->
-            Image(
-                painter = painterResource(res),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .heightIn(min = 96.dp)
-                .background(Brush.verticalGradient(listOf(Color.Transparent, colors.background.copy(alpha = CardShadeAlpha)))),
-        )
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(TwinTheme.spacing.m),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
-        ) {
-            Text(
-                text = caption,
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.ink,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
-                LoveKind.entries.forEach { kind ->
-                    LoveActionButton(
-                        label = stringResource(kindLabel(kind)),
-                        active = last?.kind == kind,
-                        enabled = actionsEnabled,
-                        onClick = { onSend(kind) },
-                        modifier = Modifier.weight(1f),
+        Crossfade(targetState = source, label = "loveCardImage", modifier = Modifier.fillMaxSize()) { image ->
+            when (image) {
+                is CardImage.Builtin -> Image(
+                    painter = painterResource(image.res),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                is CardImage.Remote -> {
+                    val fallback = painterResource(image.fallback)
+                    AsyncImage(
+                        model = image.url,
+                        contentDescription = null,
+                        placeholder = fallback,
+                        error = fallback,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
                     )
                 }
             }
         }
+        // Two soft shades like the web: dark at the bottom (for the buttons) and a little at the top.
+        Box(
+            modifier = Modifier.fillMaxSize().background(
+                Brush.verticalGradient(
+                    0f to Color.Transparent,
+                    0.36f to Color.Transparent,
+                    0.60f to HomeCardStyle.Shade22,
+                    1f to HomeCardStyle.Shade74,
+                ),
+            ),
+        )
+        Box(
+            modifier = Modifier.fillMaxSize().background(
+                Brush.verticalGradient(0f to HomeCardStyle.Shade32, 0.26f to Color.Transparent, 1f to Color.Transparent),
+            ),
+        )
+        // Leaves room for the 3-dots button, like the web (`max-width: calc(100% - 64px)`).
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = 12.dp, top = 12.dp, end = if (canEditPhotos) 52.dp else 12.dp),
+        ) {
+            Text(
+                text = caption,
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = colors.ink,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .clip(TwinTheme.shapes.pill)
+                    .background(HomeCardStyle.Chip)
+                    .border(1.dp, HomeCardStyle.ChipBorder, TwinTheme.shapes.pill)
+                    .padding(horizontal = 12.dp, vertical = 7.dp)
+                    .semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
+        ) {
+            LoveKind.entries.forEach { kind ->
+                LoveActionButton(
+                    label = stringResource(kindLabel(kind)),
+                    active = last?.kind == kind,
+                    enabled = actionsEnabled,
+                    onClick = { onSend(kind) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+        if (menuOpen) {
+            // Tapping anywhere else on the card closes the menu.
+            Box(
+                modifier = Modifier.fillMaxSize().clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                ) { menuOpen = false },
+            )
+            CardPhotoMenu(
+                canUseDefault = custom != null,
+                onSetOwnImage = { menuOpen = false; onSetOwnImage(slot) },
+                onUseDefaultImage = { menuOpen = false; onUseDefaultImage(slot) },
+                modifier = Modifier.align(Alignment.TopEnd).padding(top = 52.dp, end = 10.dp),
+            )
+        }
+        if (canEditPhotos) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(10.dp)
+                    .size(HomeCardStyle.EditButtonSize)
+                    .clip(CircleShape)
+                    .background(HomeCardStyle.Chip)
+                    .border(1.dp, HomeCardStyle.ActionBorder, CircleShape)
+                    .clickable(role = Role.Button) { menuOpen = !menuOpen },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Rounded.MoreVert,
+                    contentDescription = stringResource(R.string.home_card_options),
+                    tint = colors.ink,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
     }
+}
+
+/** The 3-dots menu on the card: "Set my own image" / "Use default image". */
+@Composable
+private fun CardPhotoMenu(
+    canUseDefault: Boolean,
+    onSetOwnImage: () -> Unit,
+    onUseDefaultImage: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val shape = RoundedCornerShape(HomeCardStyle.MenuRadius)
+    Column(
+        modifier = modifier
+            .widthIn(min = 176.dp)
+            .clip(shape)
+            .background(HomeCardStyle.MenuFill)
+            .border(1.dp, HomeCardStyle.MenuBorder, shape)
+            .padding(6.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        CardMenuItem(stringResource(R.string.home_card_set_own), enabled = true, onClick = onSetOwnImage)
+        CardMenuItem(stringResource(R.string.home_card_use_default), enabled = canUseDefault, onClick = onUseDefaultImage)
+    }
+}
+
+@Composable
+private fun CardMenuItem(label: String, enabled: Boolean, onClick: () -> Unit) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.titleSmall,
+        color = TwinTheme.colors.ink,
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.38f)
+            .clip(RoundedCornerShape(9.dp))
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 11.dp),
+    )
 }
 
 private fun kindLabel(kind: LoveKind): Int = when (kind) {
@@ -306,14 +442,21 @@ private fun LoveActionButton(
     modifier: Modifier = Modifier,
 ) {
     val colors = TwinTheme.colors
-    val pill = TwinTheme.shapes.pill
-    val fill: Brush = if (active) colors.primaryBrush else Brush.linearGradient(listOf(colors.glass, colors.glass))
+    val shape = TwinTheme.shapes.field
+    // Web: glass buttons; the one that matches the newest signal turns solid white (`is-active`).
+    val fill = if (active) colors.ink else HomeCardStyle.ActionFill
+    val border = if (active) colors.ink else HomeCardStyle.ActionBorder
+    val textColor = when {
+        active -> colors.primaryEnd
+        enabled -> colors.ink
+        else -> colors.inkFaint
+    }
     Box(
         modifier = modifier
-            .heightIn(min = TwinTheme.shapes.minTouch)
-            .clip(pill)
+            .heightIn(min = HomeCardStyle.ActionHeight)
+            .clip(shape)
             .background(fill)
-            .border(1.dp, colors.lineSoft, pill)
+            .border(1.dp, border, shape)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = TwinTheme.spacing.xs),
         contentAlignment = Alignment.Center,
@@ -321,7 +464,7 @@ private fun LoveActionButton(
         Text(
             text = label,
             style = MaterialTheme.typography.titleSmall,
-            color = if (enabled) colors.ink else colors.inkFaint,
+            color = textColor,
             maxLines = 1,
         )
     }

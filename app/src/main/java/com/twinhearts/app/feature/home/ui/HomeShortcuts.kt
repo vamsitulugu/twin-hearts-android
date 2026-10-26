@@ -39,7 +39,7 @@ enum class HomeShortcut(@StringRes val labelRes: Int, val icon: ImageVector) {
     Menu(R.string.core_menu, Icons.Rounded.GridView),
 
     // Chips under the search bar
-    Camera(R.string.home_chip_camera, Icons.Rounded.PhotoCamera),
+    Memories(R.string.home_chip_memories, Icons.Rounded.PhotoCamera),
     Music(R.string.home_chip_music, Icons.Rounded.MusicNote),
     Movie(R.string.home_chip_movie, Icons.Rounded.Movie),
     MeetPlanner(R.string.home_chip_meet_planner, Icons.Rounded.Navigation),
@@ -95,5 +95,5 @@ internal val homeGroups = listOf(
 )
 
 internal val homeChips = listOf(
-    HomeShortcut.Camera, HomeShortcut.Music, HomeShortcut.Movie, HomeShortcut.MeetPlanner, HomeShortcut.DailyRoutine,
+    HomeShortcut.Memories, HomeShortcut.Music, HomeShortcut.Movie, HomeShortcut.MeetPlanner, HomeShortcut.DailyRoutine,
 )

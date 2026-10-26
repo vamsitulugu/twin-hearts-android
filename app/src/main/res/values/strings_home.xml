@@ -52,7 +52,7 @@
         <item>Somewhere between hello and goodnight, I fall for you again.</item>
     </string-array>
 
-    <string name="home_chip_camera">Camera</string>
+    <string name="home_chip_memories">Memories</string>
     <string name="home_chip_music">Music</string>
     <string name="home_chip_movie">Movie</string>
     <string name="home_chip_meet_planner">Meet Planner</string>
@@ -163,4 +163,28 @@
         <item quantity="one">mood logged in %1$s by %2$s</item>
         <item quantity="other">moods logged in %1$s by %2$s</item>
     </plurals>
+
+    <!-- Card photo menu + "Card photos" editor (web: dashboard-widgets.js, photo editor) -->
+    <string name="home_card_options">Card photo options</string>
+    <string name="home_card_set_own">Set my own image</string>
+    <string name="home_card_use_default">Use default image</string>
+    <string name="home_photo_title">Card photos</string>
+    <string name="home_photo_close">Close</string>
+    <string name="home_photo_slot_idle">Idle</string>
+    <string name="home_photo_slot_hug">Hug</string>
+    <string name="home_photo_slot_touch">Touch</string>
+    <string name="home_photo_slot_miss">Miss You</string>
+    <string name="home_photo_ratio_badge">16:9</string>
+    <string name="home_photo_hint_pick">Tap “Change photo” to pick a new picture for this card</string>
+    <string name="home_photo_hint_crop">Drag to move · pinch or use the slider to zoom</string>
+    <string name="home_photo_use_default">Use default picture</string>
+    <string name="home_photo_change">Change photo</string>
+    <string name="home_photo_save">Save</string>
+    <string name="home_photo_saving">Saving…</string>
+    <string name="home_photo_not_image">Please choose an image</string>
+    <string name="home_photo_too_large">That photo is too large (max 30 MB)</string>
+    <string name="home_photo_cant_open">Couldn\'t open that image</string>
+    <string name="home_photo_save_failed">Could not save the photo</string>
+    <string name="home_photo_saved">Photo saved 💕</string>
+    <string name="home_photo_back_to_default">Back to the default picture</string>
 </resources>

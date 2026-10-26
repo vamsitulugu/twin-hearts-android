@@ -1,5 +1,7 @@
 package com.twinhearts.app.feature.home.di
 
+import com.twinhearts.app.feature.home.data.AndroidCardPhotoProcessor
+import com.twinhearts.app.feature.home.data.CardPhotoProcessor
 import com.twinhearts.app.feature.home.data.HomeRepository
 import com.twinhearts.app.feature.home.data.HomeRepositoryImpl
 import com.twinhearts.app.feature.home.data.remote.HomeApi
@@ -18,6 +20,9 @@ abstract class HomeModule {
 
     @Binds
     abstract fun bindHomeRepository(impl: HomeRepositoryImpl): HomeRepository
+
+    @Binds
+    abstract fun bindCardPhotoProcessor(impl: AndroidCardPhotoProcessor): CardPhotoProcessor
 
     companion object {
         @Provides

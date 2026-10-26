@@ -12,6 +12,8 @@ import com.twinhearts.app.core.common.asText
 import com.twinhearts.app.core.data.Session
 import com.twinhearts.app.core.data.SessionStore
 import com.twinhearts.app.feature.home.data.HomeRepository
+import com.twinhearts.app.feature.home.domain.model.CardPhoto
+import com.twinhearts.app.feature.home.domain.model.CardPhotoSlot
 import com.twinhearts.app.feature.home.domain.model.LoveCardState
 import com.twinhearts.app.feature.home.domain.model.LoveKind
 import com.twinhearts.app.feature.home.domain.model.MoodBoard
@@ -30,12 +32,16 @@ import javax.inject.Inject
 sealed interface HomeMessage {
     data class Info(@StringRes val id: Int, val arg: String? = null) : HomeMessage
     data class Failure(val error: AppError) : HomeMessage
+
+    /** A problem the app found itself (not a server answer), e.g. "Please choose an image". */
+    data class Problem(@StringRes val id: Int) : HomeMessage
 }
 
 @Composable
 fun HomeMessage.asText(): String = when (this) {
     is HomeMessage.Info -> if (arg == null) stringResource(id) else stringResource(id, arg)
     is HomeMessage.Failure -> error.asText()
+    is HomeMessage.Problem -> stringResource(id)
 }
 
 data class HomeUiState(
@@ -43,6 +49,8 @@ data class HomeUiState(
     val loveCard: LoveCardState = LoveCardState(),
     val events: List<UpcomingEvent> = emptyList(),
     val mood: MoodBoard = MoodBoard(),
+    /** The couple's own card pictures; a missing slot shows the built-in picture. */
+    val cardPhotos: Map<CardPhotoSlot, CardPhoto> = emptyMap(),
     val isSending: Boolean = false,
     val message: HomeMessage? = null,
     /** A hug the user tapped "Later" on, so it is not shown again until a new one arrives. */
@@ -74,7 +82,12 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             (repository.overview() as? AppResult.Success)?.let { result ->
                 _state.update {
-                    it.copy(loveCard = result.data.loveCard, events = result.data.events, mood = result.data.mood)
+                    it.copy(
+                        loveCard = result.data.loveCard,
+                        events = result.data.events,
+                        mood = result.data.mood,
+                        cardPhotos = result.data.cardPhotos,
+                    )
                 }
             }
         }
@@ -141,6 +154,19 @@ class HomeViewModel @Inject constructor(
                     _state.update { it.copy(message = HomeMessage.Failure(result.error)) }
                     refresh()
                 }
+            }
+        }
+    }
+
+    /** "Use default image" in the card's 3-dots menu. */
+    fun useDefaultCardPhoto(slot: CardPhotoSlot) {
+        viewModelScope.launch {
+            when (val result = repository.resetCardPhoto(slot)) {
+                is AppResult.Success -> {
+                    _state.update { it.copy(message = HomeMessage.Info(R.string.home_photo_back_to_default)) }
+                    refresh()
+                }
+                is AppResult.Failure -> _state.update { it.copy(message = HomeMessage.Failure(result.error)) }
             }
         }
     }
