@@ -275,12 +275,12 @@ Status: ⬜ not started · 🟨 in progress · ✅ done (user confirmed it build
 |---|---|---|---|
 | 1.1 | Get Started / onboarding (from `landing.html`) | 0 | ✅ |
 | 1.2 | Sign up, Sign in, session storage (decides cookie vs token, R-64) | 1.1 | ✅ |
-| 1.3 | Partner connection / couple pairing | 1.2 | 🟨 |
+| 1.3 | Partner connection / couple pairing | 1.2 | ✅ |
 
 ### Phase 2 — Core
 | # | Feature | Depends on | Status |
 |---|---|---|---|
-| 2.1 | Home (greeting, search, quick chips, Stay Connected Hug/Touch/Miss You, Coming up, Mood, hub sections, quote) | 1.3 | ⬜ |
+| 2.1 | Home (greeting, search, quick chips, Stay Connected Hug/Touch/Miss You, Coming up, Mood, hub sections, quote) | 1.3 | 🟨 |
 | 2.2 | Chat (messages, reply, voice note, camera, search, star, scheduled messages) | 1.3 | ⬜ |
 | 2.3 | Calls (voice/video buttons in chat) | 2.2 | ⬜ |
 | 2.4 | Twin AI (You / Both) | 1.3 | ⬜ |
@@ -308,7 +308,8 @@ Performance pass (Baseline Profile, jank check), signing, release APK, crash rep
 | 2026-10-25 | Phase 0 — Foundation (0.1–0.5) | th-p0-foundation-v1.zip | Delivered, not compiled in sandbox. Waiting for user build confirmation. Package = com.twinhearts.app. Session = ids in DataStore (no tokens). |
 | 2026-10-25 | Phase 0 fix | th-p0-foundation-v2.zip | Missing `dp` import in GlassCard.kt. User confirmed Phase 0 runs on phone (design gallery OK) → 0.x ✅. |
 | 2026-10-25 | Phase 1 — 1.1 Get Started, 1.2 Sign In/Sign Up/Forgot Password | th-p1-entry-v1.zip | Not compiled in sandbox. Plug-in via FeatureGraphs.kt (included). Privacy URL to verify. User confirmed 1.1 + 1.2 working (✅). |
-| 2026-10-25 | Phase 1.3 Partner pairing | th-p1-pairing-v1.zip | Not compiled in sandbox. Sign Up now opens Pairing (AuthRoute.kt change included). |
+| 2026-10-25 | Phase 1.3 Partner pairing | th-p1-pairing-v1.zip | Not compiled in sandbox. Sign Up now opens Pairing (AuthRoute.kt change included). User confirmed pairing works (✅). |
+| 2026-10-26 | Phase 2.1 Home | th-p2-home-v1.zip | Not compiled in sandbox. Stay Connected card works through shared state (/api/data/state). Events + mood widgets not built yet. |
 
 ---
 

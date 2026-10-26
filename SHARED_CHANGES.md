@@ -1,4 +1,4 @@
-# SHARED_CHANGES — Phase 1.3 Partner pairing
+# SHARED_CHANGES — Phase 2.1 Home
 
 ## Gradle/catalog lines
 None.
@@ -7,15 +7,15 @@ None.
 None.
 
 ## AppNavHost line
-Included as finished files (replace the old ones):
-- `core/navigation/FeatureGraphs.kt` — adds `pairingGraph(navController)` and removes the stand-in Pairing screen.
-- `feature/auth/AuthRoute.kt` — one change: after **Sign Up** the app opens Pairing instead of Home.
+Finished files are included (replace the old ones):
+- `core/navigation/FeatureGraphs.kt` — adds `homeGraph(navController)` and removes the stand-in Home screen.
+- `core/navigation/AppViewModel.kt` — signed-in users start on Home again (last time I made unpaired users start on Pairing as a temporary fix; Home now has the "Connect with your partner ❤️" card).
 
 ## TwinDatabase entities
 None.
 
 ## Strings/permissions
-New file `strings_pairing.xml`. No permissions.
+New file `strings_home.xml`. New pictures: `home_card_idle/hug/touch/miss.webp`. No permissions.
 
 ## Backend changes
-None.
+None needed. (Optional later: a small route returning only touch/hug/missYou, see docs/features/home.md.)

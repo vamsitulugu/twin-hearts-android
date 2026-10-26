@@ -12,8 +12,9 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * Decides the first screen once at launch: Home when someone is signed in, Get Started when not.
- * Reading the session takes a few milliseconds, so [startRoute] is null until it is known.
+ * Decides the first screen once at launch:
+ * not signed in -> Get Started, signed in -> Home.
+ * (Home shows a "Connect with your partner" card while there is no partner yet.)
  */
 @HiltViewModel
 class AppViewModel @Inject constructor(
@@ -25,7 +26,11 @@ class AppViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            _startRoute.value = if (sessionStore.session.first() == null) Routes.GetStarted else Routes.Home
+            val session = sessionStore.session.first()
+            _startRoute.value = when {
+                session == null -> Routes.GetStarted
+                else -> Routes.Home
+            }
         }
     }
 }

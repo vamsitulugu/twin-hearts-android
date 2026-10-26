@@ -1,0 +1,31 @@
+package com.twinhearts.app.feature.home
+
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.NavGraphBuilder
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.composable
+import com.twinhearts.app.R
+import com.twinhearts.app.core.navigation.Routes
+import com.twinhearts.app.feature.home.ui.HomeScreen
+import com.twinhearts.app.feature.home.ui.HomeShortcut
+
+/**
+ * Plugs Home into the app (R-43). Our Profile already has a (stand-in) screen, so it navigates.
+ * Every other shortcut opens a feature that is built in a later step, so it shows a short note
+ * instead of a dead tap. When a feature arrives, its line moves into the `when` below.
+ */
+fun NavGraphBuilder.homeGraph(navController: NavHostController) {
+    composable<Routes.Home> {
+        val context = LocalContext.current
+        HomeScreen(
+            onShortcut = { shortcut ->
+                when (shortcut) {
+                    HomeShortcut.OurProfile -> navController.navigate(Routes.Profile)
+                    else -> Toast.makeText(context, R.string.core_pending_message, Toast.LENGTH_SHORT).show()
+                }
+            },
+            onConnectPartner = { navController.navigate(Routes.Pairing) },
+        )
+    }
+}

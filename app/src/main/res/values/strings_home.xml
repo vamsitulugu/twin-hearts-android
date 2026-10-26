@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home screen. Wording copied from index.html (#page-dashboard) and dashboard.js / dashboard-widgets.js. -->
+<resources>
+    <string name="home_profile_description">Open profile</string>
+    <string name="home_search_hint">Search chats, memories…</string>
+
+    <string name="home_greeting_morning">Good morning</string>
+    <string name="home_greeting_afternoon">Good afternoon</string>
+    <string name="home_greeting_evening">Good evening</string>
+    <string name="home_greeting_night">Good night</string>
+    <string name="home_greeting_with_name">%1$s, %2$s 👋</string>
+    <string name="home_greeting_no_name">%1$s 👋</string>
+
+    <!-- Daily quote: before + highlighted word + after. Same order and wording as dashboard.js -->
+    <string-array name="home_quote_before">
+        <item>Distance means so little when someone means </item>
+        <item>Every day with you is my favourite </item>
+        <item>Home is wherever I am with </item>
+        <item>Miles apart, but always </item>
+        <item>You are my today and all of my </item>
+        <item>Love grows stronger with every </item>
+        <item>Two hearts, one </item>
+    </string-array>
+    <string-array name="home_quote_word">
+        <item>everything</item>
+        <item>memory</item>
+        <item>you</item>
+        <item>together</item>
+        <item>tomorrows</item>
+        <item>heartbeat</item>
+        <item>story</item>
+    </string-array>
+    <string-array name="home_quote_after">
+        <item>.</item>
+        <item>.</item>
+        <item>.</item>
+        <item>.</item>
+        <item>.</item>
+        <item>.</item>
+        <item>.</item>
+    </string-array>
+    <string-array name="home_footer_quotes">
+        <item>Love is not about how many miles are between us, but how close we stay in our hearts.</item>
+        <item>The best part of my day is the moment I get to talk to you.</item>
+        <item>Distance is just a test of how far love can travel.</item>
+        <item>Every “good morning” from you makes the day softer.</item>
+        <item>Waiting for you is hard, but you are worth every day of it.</item>
+        <item>Two places, one heart.</item>
+        <item>I carry you with me, wherever the map says I am.</item>
+        <item>Small moments with you become my favourite memories.</item>
+        <item>Love grows quietly, one message at a time.</item>
+        <item>Somewhere between hello and goodnight, I fall for you again.</item>
+    </string-array>
+
+    <string name="home_chip_camera">Camera</string>
+    <string name="home_chip_music">Music</string>
+    <string name="home_chip_movie">Movie</string>
+    <string name="home_chip_meet_planner">Meet Planner</string>
+    <string name="home_chip_daily_routine">Daily Routine</string>
+
+    <string name="home_stay_connected">Stay Connected</string>
+    <string name="home_caption_idle">Send some love 💕</string>
+    <string name="home_caption_format">%1$s %2$s · %3$s</string>
+    <string name="home_sent">sent</string>
+    <string name="home_received">received</string>
+    <string name="home_kind_hug">🤗 Hug</string>
+    <string name="home_kind_touch">❤️ Touch</string>
+    <string name="home_kind_miss_you">🥺 Miss You</string>
+    <string name="home_ago_now">just now</string>
+    <string name="home_ago_seconds">%1$ds ago</string>
+    <string name="home_ago_minutes">%1$dm ago</string>
+    <string name="home_ago_hours">%1$dh ago</string>
+    <string name="home_ago_days">%1$dd ago</string>
+    <string name="home_info_touch_sent">Sent a touch to %1$s 💓</string>
+    <string name="home_info_miss_sent">💔 Sent — %1$s will know you miss them</string>
+    <string name="home_info_hug_sent">🤗 Hug sent — waiting for %1$s to accept</string>
+    <string name="home_info_hug_accepted">🤗 You and %1$s hugged 💕</string>
+    <string name="home_hug_incoming">%1$s is sending you a hug 🤗</string>
+    <string name="home_hug_accept">🤗 Accept Hug</string>
+    <string name="home_hug_later">Later</string>
+    <string name="home_connect_cta">Connect with your partner ❤️</string>
+
+    <string name="home_group_us">Us</string>
+    <string name="home_group_explore">Explore Together</string>
+    <string name="home_group_my_space">My Space</string>
+    <string name="home_group_plans">Plans</string>
+    <string name="home_page_profile">Our Profile</string>
+    <string name="home_page_love_counter">Love Counter</string>
+    <string name="home_page_level">Level</string>
+    <string name="home_page_fights">Fight Log</string>
+    <string name="home_page_dream_goals">Dream Goals</string>
+    <string name="home_page_globe">Globe</string>
+    <string name="home_page_places">Places</string>
+    <string name="home_page_collection">Collection</string>
+    <string name="home_page_games">Games</string>
+    <string name="home_page_study">Study</string>
+    <string name="home_page_my_space">My Space</string>
+    <string name="home_page_period">Period Tracker</string>
+    <string name="home_page_vault">Vault</string>
+    <string name="home_page_help">Help</string>
+    <string name="home_page_surprises">Surprises</string>
+    <string name="home_page_money">Money</string>
+    <string name="home_page_calendar">Calendar</string>
+    <string name="home_page_bucket_list">Bucket List</string>
+</resources>

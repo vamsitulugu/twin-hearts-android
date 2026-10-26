@@ -1,0 +1,20 @@
+package com.twinhearts.app.feature.home.data.remote
+
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
+
+/**
+ * POST /api/data/state body. The server MERGES the top-level keys of [state] into the couple's
+ * saved state, so we only send the keys we change (touch, hug, missYou, ...). (R-65, routes/data.js)
+ */
+@Serializable
+data class SaveStateBody(
+    val coupleId: String,
+    val state: JsonObject,
+    val senderRole: String,
+    val myName: String,
+)
+
+/** Answer: `{ok: true, savedAt: "..."}`. */
+@Serializable
+data class SaveStateResponse(val ok: Boolean? = null)
