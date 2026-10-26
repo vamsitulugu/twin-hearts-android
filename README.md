@@ -281,7 +281,7 @@ Status: ⬜ not started · 🟨 in progress · ✅ done (user confirmed it build
 | # | Feature | Depends on | Status |
 |---|---|---|---|
 | 2.1 | Home (greeting, search, quick chips, Stay Connected Hug/Touch/Miss You, Coming up, Mood, hub sections, quote) | 1.3 | 🟨 |
-| 2.2 | Chat (messages, reply, voice note, camera, search, star, scheduled messages) | 1.3 | ⬜ |
+| 2.2 | Chat (messages, reply, voice note, camera, search, star, scheduled messages) | 1.3 | 🟨 |
 | 2.3 | Calls (voice/video buttons in chat) | 2.2 | ⬜ |
 | 2.4 | Twin AI (You / Both) | 1.3 | ⬜ |
 | 2.5 | Settings (all sub-pages) + Notifications (FCM) | 1.3 | ⬜ |
@@ -310,8 +310,9 @@ Performance pass (Baseline Profile, jank check), signing, release APK, crash rep
 | 2026-10-25 | Phase 1 — 1.1 Get Started, 1.2 Sign In/Sign Up/Forgot Password | th-p1-entry-v1.zip | Not compiled in sandbox. Plug-in via FeatureGraphs.kt (included). Privacy URL to verify. User confirmed 1.1 + 1.2 working (✅). |
 | 2026-10-25 | Phase 1.3 Partner pairing | th-p1-pairing-v1.zip | Not compiled in sandbox. Sign Up now opens Pairing (AuthRoute.kt change included). User confirmed pairing works (✅). |
 | 2026-10-26 | Phase 2.1 Home | th-p2-home-v1.zip | Not compiled in sandbox. Stay Connected card works through shared state (/api/data/state). Events + mood widgets not built yet. |
-| 2026-10-26 | Phase 2.1 Home v2 — Coming up, Mood card, Mood Calendar | th-p2-home-v2.zip | Not compiled in sandbox. Left: card photo menu (3 dots). Search/chips/grid wait for their pages. |
-| 2026-10-26 | Phase 2.1 Home v3 — card photo menu + Card photos editor, caption pill/buttons restyled, "Memories" chip | th-p2-home-v3.zip | Not compiled in sandbox. Home is now complete except taps that open pages built later (search, chips, grid, shortcuts). Change Request: card overlay tokens. |
+| 2026-10-26 | Phase 2.2 Chat (messages, reply, voice, photo/camera, search, star, scheduled) | th-p2-chat.zip | Not compiled in sandbox. Continues the earlier session's 5 files. |
+| 2026-10-26 | Phase 2.1 Home v3 — Card photos editor | th-p2-home-v3.zip | Not compiled in sandbox. |
+| 2026-10-26 | Phase 2.1 Home v2 — Coming up, Mood card, Mood Calendar | th-p2-home-v2.zip | Not compiled in sandbox. Search/chips/grid wait for their pages. |
 
 ---
 

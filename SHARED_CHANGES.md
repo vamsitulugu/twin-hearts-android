@@ -1,29 +1,42 @@
-# SHARED_CHANGES — Phase 2.1 Home v3 (card photo menu + editor, card look)
+# SHARED_CHANGES — Phase 2.2 Chat
 
-## Gradle/catalog lines
-None. (Coil, Activity Compose and OkHttp are already in the catalog.)
+## 1. AppNavHost / FeatureGraphs.kt (2 lines, file `core/navigation/FeatureGraphs.kt`)
+a) Add the import and the registration line inside `featureGraphs(...)`, after `homeGraph(navController)`:
+```kotlin
+import com.twinhearts.app.feature.chat.chatGraph
+...
+    chatGraph(navController) // 2.2 Chat
+```
+b) In `pendingGraphs(...)` **delete** this line (Chat is no longer pending):
+```kotlin
+    pending<Routes.Chat>(R.string.core_nav_chat, openGallery)
+```
+`Routes.Chat` already exists, so `Routes.kt` does not change.
 
-## Manifest entries
-None. The photo picker needs no permission.
+## 2. AndroidManifest.xml
+Inside `<manifest>` next to the other permissions:
+```xml
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
+```
+Inside `<application>`:
+```xml
+<provider
+    android:name="androidx.core.content.FileProvider"
+    android:authorities="${applicationId}.chatfiles"
+    android:exported="false"
+    android:grantUriPermissions="true">
+    <meta-data
+        android:name="android.support.FILE_PROVIDER_PATHS"
+        android:resource="@xml/chat_file_paths" />
+</provider>
+```
+(`res/xml/chat_file_paths.xml` is in the zip.) Without the permission the mic button shows "Allow the microphone…"; without the provider the camera button shows "Couldn't open that photo". Everything else works.
 
-## AppNavHost line
-None. `homeGraph` is already registered. The Card photos editor is a full-screen dialog inside Home, so no new route.
+## 3. Gradle / catalog
+None. (Check that `androidx.core` is available; it comes with Compose/Activity. If `FileProvider` is red, add `implementation("androidx.core:core-ktx")` using the catalog's existing core line.)
 
-## TwinDatabase entities
-None.
+## 4. TwinDatabase / strings / backend
+No entities. `strings_chat.xml` is new. No backend change.
 
-## Strings/permissions
-`res/values/strings_home.xml` is replaced (new `home_photo_*` and `home_card_*` strings at the end; `home_chip_camera` is renamed `home_chip_memories` with the text "Memories"). No permissions.
-
-## Backend changes
-None. Uses existing `POST api/media/upload`, `DELETE api/media/delete` and `POST api/data/state`.
-
-## CHANGE REQUEST: card overlay tokens
-Why: the picture card draws black/white overlays (shades 74/32/22 %, caption pill, button glass, menu fill, 24 dp card radius). R-50 forbids hard-coded colours in a feature, but these are not theme colours, so they sit in `feature/home/ui/HomeCardStyle.kt`.
-Proposed: add the same values to `TwinColors` / `TwinShapes` (`cardShade`, `cardChip`, `cardGlass`, `cardRadius` ...) and make `HomeCardStyle` read them.
-Affects: Home only (later: any screen that puts text on a photo).
-
-## CHANGE REQUEST: mood colour tokens (still open from v2)
-Why: the 8 mood colours are in `feature/home/ui/HomeWidgets.kt` (`MoodKind.color()`).
-Proposed: add `moodExcited ... moodAngry` to `TwinColors`.
-Affects: Home only.
+## CHANGE REQUEST: CameraX and Media3
+README R-08 names CameraX (camera) and Media3 (audio). Neither is in the version catalog, and R-15 allows only Phase 0 to add versions, so this step uses the system camera (TakePicture) and the framework `MediaPlayer` for voice notes. If you want in-app camera preview / ExoPlayer later, add the two catalog lines in a separate step and I will swap them in (only `ChatScreen.kt` / `VoiceTools.kt` change).

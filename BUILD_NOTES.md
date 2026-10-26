@@ -1,24 +1,21 @@
-# BUILD_NOTES — Phase 2.1 Home v3 (card photo menu + editor, card look)
+# BUILD_NOTES — Phase 2.2 Chat
 
 **Not compiled here.** Build in Android Studio and send me the first red error if there is one.
 
 ## Apply (Windows)
-1. Unzip `th-p2-home-v3.zip` over your project folder (replace files). Paths inside are project-relative.
-2. **File > Sync Project with Gradle Files**, then press Run.
-3. Optional: `gradlew.bat testDebugUnitTest` for the unit tests.
+1. Unzip `th-p2-chat.zip` over your project folder.
+2. Do the edits in `SHARED_CHANGES.md` (FeatureGraphs.kt 2 lines, Manifest permission + provider).
+3. **Sync Project with Gradle Files**, then ▶ Run.
 
-## What you should see (compare with `docs/reference/images.pdf`, page 2)
-- First chip says **Memories**.
-- Stay Connected card: caption pill top-left, round 3-dots button top-right, three rounded glass buttons at the bottom.
+## Test by hand (two phones or phone + web)
+1. Open Chat: old messages load, newest at the bottom, day pills, ticks on your messages.
+2. Send a text on the phone: ⏱ then ✓. Open the web chat: it arrives; reply there: the phone gets it within ~3 s.
+3. Long-press a message: Reply (quote shows), Copy, Star. ★ button lists starred ones.
+4. Gallery icon: pick a photo; camera icon: take one. Both appear in the chat on web too.
+5. Mic: allow microphone, speak 3 s, send. Tap ▶ in the bubble to play. On the web it plays too.
+6. Search (🔍): type a word; try Media / Links / Docs.
+7. ⋮ → Scheduled messages: schedule "hi" in 15 min; it is listed; cancel it.
+8. Turn Wi-Fi/data off and send: the bubble shows "Failed · tap to retry"; turn it on and tap it.
+9. Font size Large: header and composer still fit.
 
-## Tests (by hand, use your real account)
-1. Tap the **3 dots** on the card: menu shows "Set my own image" and "Use default image" (greyed).
-2. Tap **Set my own image**: "Card photos" opens on the tab of the picture the card was showing. Tap **Change photo**, pick a photo: grid lines and the slider appear. Drag to move, pinch or use the slider to zoom.
-3. Tap **Save**: "Saving…", then green "Photo saved 💕". Close the editor: the card shows your photo. Open the web app with the same account: the same photo shows there.
-4. Tap the 3 dots again: "Use default image" is now active. Tap it: green "Back to the default picture" and the built-in picture returns.
-5. In the editor switch between Idle / Hug / Touch / Miss You: each tab keeps its own picked photo until you save. "Use default picture" appears under the frame only on tabs that have your own photo.
-6. Turn on flight mode and Save: a red error shows, the picked photo stays so you can try again.
-7. Large font (Settings > Display > Font size): card buttons, caption and the editor still fit.
-
-## Known gaps
-Search bar, other chips, grid button, and the page shortcuts still show "This screen is built in a later step." until their pages exist. A picked but unsaved photo is lost if Android closes the app in the background.
+Unit tests: `gradlew.bat testDebugUnitTest`.
