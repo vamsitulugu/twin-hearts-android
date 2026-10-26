@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.unit.dp
 import com.twinhearts.app.R
 import com.twinhearts.app.core.common.asText
 import com.twinhearts.app.core.design.EmptyState

@@ -8,6 +8,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import com.twinhearts.app.R
 import com.twinhearts.app.feature.auth.authGraph
+import com.twinhearts.app.feature.chat.chatGraph
 import com.twinhearts.app.feature.getstarted.getStartedGraph
 import com.twinhearts.app.feature.home.homeGraph
 import com.twinhearts.app.feature.pairing.pairingGraph
@@ -22,6 +23,7 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
     authGraph(navController) // 1.2 Sign In, Sign Up, Forgot Password
     pairingGraph(navController) // 1.3 Partner pairing
     homeGraph(navController) // 2.1 Home
+    chatGraph(navController) // 2.2 Chat
 }
 
 /**
@@ -31,7 +33,6 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
  */
 internal fun NavGraphBuilder.pendingGraphs(navController: NavHostController) {
     val openGallery = { navController.navigate(Routes.DesignGallery) }
-    pending<Routes.Chat>(R.string.core_nav_chat, openGallery)
     pending<Routes.TwinAi>(R.string.core_nav_twin, openGallery)
     pending<Routes.LiveMap>(R.string.core_nav_map, openGallery)
     pending<Routes.Settings>(R.string.core_nav_settings, openGallery)
