@@ -9,7 +9,10 @@ import com.twinhearts.app.feature.auth.MainDispatcherRule
 import com.twinhearts.app.feature.auth.testSession
 import com.twinhearts.app.feature.home.data.HomeRepository
 import com.twinhearts.app.feature.home.domain.model.LoveCardState
+import com.twinhearts.app.feature.home.domain.model.HomeOverview
 import com.twinhearts.app.feature.home.domain.model.LoveKind
+import com.twinhearts.app.feature.home.domain.model.MoodKind
+import java.time.LocalDate
 import com.twinhearts.app.feature.home.ui.HomeMessage
 import com.twinhearts.app.feature.home.ui.HomeViewModel
 import io.mockk.coEvery
@@ -29,7 +32,7 @@ class HomeViewModelTest {
 
     private fun viewModel(session: Session): HomeViewModel {
         every { sessionStore.session } returns flowOf(session)
-        coEvery { repository.loveCard() } returns AppResult.Success(LoveCardState())
+        coEvery { repository.overview() } returns AppResult.Success(HomeOverview())
         return HomeViewModel(repository, sessionStore)
     }
 
@@ -61,12 +64,31 @@ class HomeViewModelTest {
     @Test
     fun acceptHug_showsHuggedMessage_andLaterHidesIt() {
         coEvery { repository.acceptHug() } returns AppResult.Success(Unit)
-        coEvery { repository.loveCard() } returns AppResult.Success(LoveCardState(pendingIncomingHugId = 7L))
+        coEvery { repository.overview() } returns AppResult.Success(HomeOverview(loveCard = LoveCardState(pendingIncomingHugId = 7L)))
         every { sessionStore.session } returns flowOf(testSession().copy(paired = true, partnerName = "Asha"))
         val vm = HomeViewModel(repository, sessionStore)
         vm.dismissHug()
         assertEquals(7L, vm.state.value.dismissedHugId)
         vm.acceptHug()
         assertEquals(HomeMessage.Info(R.string.home_info_hug_accepted, "Asha"), vm.state.value.message)
+    }
+
+    @Test
+    fun setMood_updatesCardAtOnce_andSaves() {
+        coEvery { repository.setMood(any(), any()) } returns AppResult.Success(Unit)
+        val vm = viewModel(testSession().copy(paired = true))
+        val day = LocalDate.of(2026, 10, 26)
+        vm.setMood(day, MoodKind.Happy)
+        coVerify { repository.setMood(day, MoodKind.Happy) }
+        assertEquals(HomeMessage.Info(R.string.home_info_mood_saved, MoodKind.Happy.emoji), vm.state.value.message)
+    }
+
+    @Test
+    fun setMood_failure_showsError() {
+        val error = AppError.Network
+        coEvery { repository.setMood(any(), any()) } returns AppResult.Failure(error)
+        val vm = viewModel(testSession().copy(paired = true))
+        vm.setMood(LocalDate.of(2026, 10, 26), null)
+        assertEquals(HomeMessage.Failure(error), vm.state.value.message)
     }
 }

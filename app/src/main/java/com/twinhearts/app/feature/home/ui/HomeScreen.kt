@@ -14,6 +14,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -30,6 +33,10 @@ import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.feature.home.domain.model.LoveCardState
 import com.twinhearts.app.feature.home.domain.model.LoveInteraction
 import com.twinhearts.app.feature.home.domain.model.LoveKind
+import com.twinhearts.app.feature.home.domain.model.MoodKind
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import kotlinx.coroutines.delay
 
 private const val POLL_MS = 8000L
@@ -68,6 +75,7 @@ fun HomeScreen(
         onSend = viewModel::send,
         onAcceptHug = viewModel::acceptHug,
         onDismissHug = viewModel::dismissHug,
+        onSetMood = viewModel::setMood,
     )
 }
 
@@ -88,12 +96,16 @@ internal fun HomeContent(
     onSend: (LoveKind) -> Unit,
     onAcceptHug: () -> Unit,
     onDismissHug: () -> Unit,
+    onSetMood: (LocalDate, MoodKind?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var showMoodCalendar by rememberSaveable { mutableStateOf(false) }
     val nowMillis by rememberNowMillis()
     val session = state.session
     val myName = session?.myName.orEmpty()
     val paired = session?.paired == true
+    val today = Instant.ofEpochMilli(nowMillis).atZone(ZoneId.systemDefault()).toLocalDate()
+    val partnerName = session?.partnerName.orEmpty()
     val pendingHug = state.loveCard.pendingIncomingHugId
     val showIncomingHug = paired && pendingHug != null && pendingHug != state.dismissedHugId
 
@@ -135,10 +147,31 @@ internal fun HomeContent(
             }
         }
 
+        HomeComingUp(events = state.events, partnerName = partnerName, onShortcut = onShortcut)
+        HomeMoodCard(
+            mood = state.mood,
+            today = today,
+            partnerName = partnerName,
+            paired = paired,
+            onSetMood = onSetMood,
+            onOpenCalendar = { showMoodCalendar = true },
+            modifier = Modifier.padding(horizontal = TwinTheme.spacing.screenEdge),
+        )
         Spacer(Modifier.height(TwinTheme.spacing.s))
         HomeAllPages(onShortcut)
         HomeFooterQuote(nowMillis)
         Spacer(Modifier.height(TwinTheme.spacing.xxl))
+    }
+
+    if (showMoodCalendar) {
+        MoodCalendarDialog(
+            mood = state.mood,
+            today = today,
+            partnerName = partnerName,
+            paired = paired,
+            onSetMood = onSetMood,
+            onClose = { showMoodCalendar = false },
+        )
     }
 }
 
@@ -150,7 +183,7 @@ private val previewSession = Session(
 @Preview(showBackground = true, backgroundColor = 0xFF14030E, heightDp = 1200, widthDp = 360)
 @Composable
 private fun HomeIdlePreview() {
-    TwinTheme { TwinBackground { HomeContent(HomeUiState(session = previewSession), {}, {}, {}, {}, {}) } }
+    TwinTheme { TwinBackground { HomeContent(HomeUiState(session = previewSession), {}, {}, {}, {}, {}, { _, _ -> }) } }
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF14030E, heightDp = 1200, widthDp = 360)
@@ -161,7 +194,7 @@ private fun HomeSignalAndHugPreview() {
         TwinBackground {
             HomeContent(
                 HomeUiState(session = previewSession, loveCard = LoveCardState(last = last, pendingIncomingHugId = 5L)),
-                {}, {}, {}, {}, {},
+                {}, {}, {}, {}, {}, { _, _ -> },
             )
         }
     }
@@ -170,5 +203,5 @@ private fun HomeSignalAndHugPreview() {
 @Preview(showBackground = true, backgroundColor = 0xFF14030E, heightDp = 1200, widthDp = 360, fontScale = 1.3f)
 @Composable
 private fun HomeUnpairedLargeFontPreview() {
-    TwinTheme { TwinBackground { HomeContent(HomeUiState(session = previewSession.copy(paired = false)), {}, {}, {}, {}, {}) } }
+    TwinTheme { TwinBackground { HomeContent(HomeUiState(session = previewSession.copy(paired = false)), {}, {}, {}, {}, {}, { _, _ -> }) } }
 }

@@ -7,23 +7,34 @@ import com.twinhearts.app.core.data.SessionStore
 import com.twinhearts.app.core.network.safeApiCall
 import com.twinhearts.app.feature.home.data.mapper.asLong
 import com.twinhearts.app.feature.home.data.mapper.asText
-import com.twinhearts.app.feature.home.data.mapper.toLoveCardState
+import com.twinhearts.app.feature.home.data.mapper.profileKey
+import com.twinhearts.app.feature.home.data.mapper.toHomeOverview
 import com.twinhearts.app.feature.home.data.remote.HomeApi
 import com.twinhearts.app.feature.home.data.remote.SaveStateBody
-import com.twinhearts.app.feature.home.domain.model.LoveCardState
+import com.twinhearts.app.feature.home.domain.model.HomeOverview
 import com.twinhearts.app.feature.home.domain.model.LoveKind
+import com.twinhearts.app.feature.home.domain.model.MoodKind
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
+import java.time.LocalDate
 import javax.inject.Inject
 
-/** Reads and writes the Stay Connected signals. The couple and role come from the saved Session. */
+/**
+ * Reads and writes what Home shows: the Stay Connected signals, "Coming up" and the moods.
+ * The couple and role come from the saved Session.
+ */
 interface HomeRepository {
-    suspend fun loveCard(): AppResult<LoveCardState>
+    /** One read of the shared state gives the love card, the upcoming items and both moods. */
+    suspend fun overview(): AppResult<HomeOverview>
     suspend fun send(kind: LoveKind): AppResult<Unit>
+
+    /** Saves MY mood for [date] (ISO "2026-10-26"); `null` clears it. Never touches my partner's. */
+    suspend fun setMood(date: LocalDate, mood: MoodKind?): AppResult<Unit>
 
     /** Accepts the hug my partner sent. */
     suspend fun acceptHug(): AppResult<Unit>
@@ -37,12 +48,45 @@ class HomeRepositoryImpl @Inject constructor(
     private suspend fun session(): Session? = sessionStore.session.first()
     private val notSignedIn = AppResult.Failure(AppError.Unauthorized())
 
-    override suspend fun loveCard(): AppResult<LoveCardState> {
+    override suspend fun overview(): AppResult<HomeOverview> {
         val session = session() ?: return notSignedIn
         return when (val result = safeApiCall { api.getState(session.coupleId) }) {
-            is AppResult.Success -> AppResult.Success(result.data.toLoveCardState(session.role))
+            is AppResult.Success ->
+                AppResult.Success(result.data.toHomeOverview(session.role, session.anniversary, LocalDate.now()))
             is AppResult.Failure -> result
         }
+    }
+
+    /**
+     * The server replaces `profile.u1` as a whole (it only protects the OTHER person's entry), so we
+     * send my full entry back with just `moods` changed. Like the web, we also keep the older
+     * Wellness field of that day in step so both pages agree.
+     */
+    override suspend fun setMood(date: LocalDate, mood: MoodKind?): AppResult<Unit> {
+        val session = session() ?: return notSignedIn
+        val state = when (val read = readState(session)) {
+            is AppResult.Success -> read.data
+            is AppResult.Failure -> return read
+        }
+        val day = date.toString()
+        val myKey = profileKey(session.role)
+        val profile = state["profile"] as? JsonObject
+        val entry = profile?.get(myKey) as? JsonObject
+        val moods = (entry?.get("moods") as? JsonObject)?.toMutableMap() ?: mutableMapOf()
+        if (mood != null) moods[day] = JsonPrimitive(mood.label) else moods.remove(day)
+        val newEntry = JsonObject((entry ?: JsonObject(emptyMap())) + ("moods" to JsonObject(moods)))
+
+        val wellness = (state["wellness"] as? JsonObject)?.toMutableMap() ?: mutableMapOf()
+        val wellnessDay = (wellness[day] as? JsonObject)?.toMutableMap() ?: mutableMapOf()
+        if (mood != null) wellnessDay["mood"] = JsonPrimitive("${mood.emoji} ${mood.label}") else wellnessDay.remove("mood")
+        wellness[day] = JsonObject(wellnessDay)
+
+        val patch = buildJsonObject {
+            putJsonObject("profile") { put(myKey, newEntry) }
+            put("wellness", JsonObject(wellness))
+            if (mood != null && date == LocalDate.now()) put("selectedMood", "${mood.emoji} ${mood.label}")
+        }
+        return save(session, patch)
     }
 
     override suspend fun send(kind: LoveKind): AppResult<Unit> {

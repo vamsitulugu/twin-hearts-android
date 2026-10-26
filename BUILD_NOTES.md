@@ -1,20 +1,23 @@
-# BUILD_NOTES — Phase 2.1 Home
+# BUILD_NOTES — Phase 2.1 Home v2 (Coming up + Mood)
 
-**Not compiled here.** Build in Android Studio; send me the first red error if there is one.
+**Not compiled here.** Build in Android Studio and send me the first red error if there is one.
 
-## Apply
-Unzip `th-p2-home-v1.zip` over your project folder (replace files), **Sync Project with Gradle Files**, ▶ Run.
+## Apply (Windows)
+1. Unzip `th-p2-home-v2.zip` over your project folder (replace files).
+2. **Sync Project with Gradle Files**, then ▶ Run.
 
 ## What you should see
-Logo and your avatar, "Good evening, <your name> 👋", the daily quote, search bar, chips, **Stay Connected** card with a picture, then the page groups and a quote at the bottom.
+Under Stay Connected: **Coming up** (cards, scroll sideways), then the **Mood** card, then Us / Explore Together / My Space / Plans.
 
-## Tests
-1. **Not connected yet:** a "Connect with your partner ❤️" card shows; the three buttons are greyed. Tap the card → Pairing.
-2. **Connected (two accounts):** on phone A tap **❤️ Touch** → green "Sent a touch to NAME 💓", picture changes, caption "❤️ Touch sent · just now". On phone B (Home open) within ~8 s: caption "❤️ Touch received", same picture. Try **🥺 Miss You**.
-3. **Hug:** A taps **🤗 Hug** → "Hug sent — waiting for NAME to accept". B sees "A is sending you a hug 🤗" → **Accept Hug** → both show "🤗 Hug ..." on the card. Also try **Later**.
-4. Web and app share this data: do a Touch from the old web app, the Android card shows it (and the other way round).
-5. Tap the avatar → Profile stand-in page. Tap any other page tile → "This screen is built in a later step."
-6. Turn on a large font: the three buttons must still fit on the card.
+## Tests (by hand)
+1. Tap 😊 on the Mood card: it highlights, green "Mood saved 😊". Tap again: it clears.
+2. Open the same account on the web: today's mood matches. Change it on the web, wait ~8 s: the app card follows.
+3. Tap the Mood card (not an emoji): the Mood Calendar opens. Pick a past day, choose a mood, go back/close: the card graph updates. Future days cannot be tapped.
+4. Two accounts paired: You / partner tabs appear; partner's mood is shown but cannot be changed.
+5. Not paired: no partner line or tabs; Coming up shows "Nothing planned yet" until a birthday/anniversary/event exists.
+6. Large font: quick mood buttons and day columns still fit.
 
 ## Known gaps
-No vibration/notification when your partner sends something yet (Firebase, Phase 2.5). "Coming up" and mood card come with Calendar/Mood.
+Card photo menu (3 dots) not built yet. Calendar and Love Counter pages do not exist yet, so tapping an item shows the "built in a later step" note. Search bar, chips and grid button are still look-only until their pages exist.
+
+Unit tests: `gradlew.bat testDebugUnitTest`.

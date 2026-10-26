@@ -14,12 +14,16 @@ import com.twinhearts.app.core.data.SessionStore
 import com.twinhearts.app.feature.home.data.HomeRepository
 import com.twinhearts.app.feature.home.domain.model.LoveCardState
 import com.twinhearts.app.feature.home.domain.model.LoveKind
+import com.twinhearts.app.feature.home.domain.model.MoodBoard
+import com.twinhearts.app.feature.home.domain.model.MoodKind
+import com.twinhearts.app.feature.home.domain.model.UpcomingEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import javax.inject.Inject
 
 /** Short message under the Stay Connected card: green for news, red for problems. */
@@ -37,6 +41,8 @@ fun HomeMessage.asText(): String = when (this) {
 data class HomeUiState(
     val session: Session? = null,
     val loveCard: LoveCardState = LoveCardState(),
+    val events: List<UpcomingEvent> = emptyList(),
+    val mood: MoodBoard = MoodBoard(),
     val isSending: Boolean = false,
     val message: HomeMessage? = null,
     /** A hug the user tapped "Later" on, so it is not shown again until a new one arrives. */
@@ -66,8 +72,10 @@ class HomeViewModel @Inject constructor(
     /** Silent refresh: a failed check never replaces what is already on screen. */
     fun refresh() {
         viewModelScope.launch {
-            (repository.loveCard() as? AppResult.Success)?.let { result ->
-                _state.update { it.copy(loveCard = result.data) }
+            (repository.overview() as? AppResult.Success)?.let { result ->
+                _state.update {
+                    it.copy(loveCard = result.data.loveCard, events = result.data.events, mood = result.data.mood)
+                }
             }
         }
     }
@@ -108,6 +116,30 @@ class HomeViewModel @Inject constructor(
                 }
                 is AppResult.Failure -> _state.update {
                     it.copy(isSending = false, message = HomeMessage.Failure(result.error))
+                }
+            }
+        }
+    }
+
+    /**
+     * Saves my mood for [date] (null clears it). The card updates at once; if saving fails the
+     * real value is read back and the error is shown.
+     */
+    fun setMood(date: LocalDate, mood: MoodKind?) {
+        val day = date.toString()
+        _state.update {
+            val mine = if (mood != null) it.mood.mine + (day to mood) else it.mood.mine - day
+            it.copy(
+                mood = it.mood.copy(mine = mine),
+                message = if (mood != null) HomeMessage.Info(R.string.home_info_mood_saved, mood.emoji) else null,
+            )
+        }
+        viewModelScope.launch {
+            when (val result = repository.setMood(date, mood)) {
+                is AppResult.Success -> refresh()
+                is AppResult.Failure -> {
+                    _state.update { it.copy(message = HomeMessage.Failure(result.error)) }
+                    refresh()
                 }
             }
         }

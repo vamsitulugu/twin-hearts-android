@@ -102,4 +102,65 @@
     <string name="home_page_money">Money</string>
     <string name="home_page_calendar">Calendar</string>
     <string name="home_page_bucket_list">Bucket List</string>
+
+    <!-- Coming up (dashboard-widgets.js: renderEvents) -->
+    <string name="home_coming_up">Coming up</string>
+    <string name="home_calendar_link">Calendar ›</string>
+    <string name="home_events_empty_title">Nothing planned yet</string>
+    <string name="home_events_empty_hint">Add a birthday, anniversary or plan</string>
+    <string name="home_partner_fallback">Partner</string>
+    <string name="home_event_your_birthday">Your birthday</string>
+    <string name="home_event_partner_birthday">%1$s\'s birthday</string>
+    <string name="home_event_anniversary">%1$s anniversary</string>
+    <string name="home_event_months">%1$d months together</string>
+    <string name="home_event_day_mark">Day %1$d together</string>
+    <string name="home_event_today">Today</string>
+    <string name="home_event_tomorrow">Tomorrow</string>
+    <string name="home_event_in_days">in %1$d days</string>
+    <string name="home_event_days_short">%1$dd</string>
+
+    <!-- Mood card + Mood Calendar (dashboard-widgets.js: renderMood, renderCal) -->
+    <string name="home_mood_title">Mood</string>
+    <string name="home_mood_streak">🔥 %1$d-day streak</string>
+    <string name="home_mood_ask">How are you feeling today?</string>
+    <string name="home_mood_today_single">Today: %1$s %2$s</string>
+    <string name="home_mood_pair_line">You %1$s  ·  %2$s %3$s</string>
+    <string name="home_mood_legend_you">You %1$s</string>
+    <string name="home_mood_legend_partner">%1$s %2$s</string>
+    <string name="home_mood_dash">—</string>
+    <string name="home_mood_today_label">Today</string>
+    <string name="home_info_mood_saved">Mood saved %1$s</string>
+    <string name="home_mood_excited">Excited</string>
+    <string name="home_mood_loved">Loved</string>
+    <string name="home_mood_happy">Happy</string>
+    <string name="home_mood_peaceful">Peaceful</string>
+    <string name="home_mood_tired">Tired</string>
+    <string name="home_mood_stressed">Stressed</string>
+    <string name="home_mood_sad">Sad</string>
+    <string name="home_mood_angry">Angry</string>
+    <string name="home_moodcal_title">Mood Calendar</string>
+    <string name="home_moodcal_close">Close</string>
+    <string name="home_moodcal_prev">Previous month</string>
+    <string name="home_moodcal_next">Next month</string>
+    <string name="home_moodcal_you">You</string>
+    <string name="home_moodcal_ask_today">How are you feeling today?</string>
+    <string name="home_moodcal_ask_day">How did you feel on %1$s?</string>
+    <string name="home_moodcal_partner_on_day">%1$s on %2$s</string>
+    <string name="home_moodcal_partner_felt">%1$s felt %2$s %3$s</string>
+    <string name="home_moodcal_partner_none">%1$s hasn\'t logged this day</string>
+    <string name="home_moodcal_none_logged">No mood logged this day</string>
+    <string name="home_moodcal_hint_mine">Tap a day to log or change its mood. Tap the same mood again to clear it.</string>
+    <string name="home_moodcal_hint_partner">Viewing %1$s\'s moods — only they can change them.</string>
+    <string name="home_moodcal_this_day">this day</string>
+    <string-array name="home_moodcal_weekdays">
+        <item>M</item><item>T</item><item>W</item><item>T</item><item>F</item><item>S</item><item>S</item>
+    </string-array>
+    <plurals name="home_moodcal_stats_mine">
+        <item quantity="one">mood logged in %1$s</item>
+        <item quantity="other">moods logged in %1$s</item>
+    </plurals>
+    <plurals name="home_moodcal_stats_partner">
+        <item quantity="one">mood logged in %1$s by %2$s</item>
+        <item quantity="other">moods logged in %1$s by %2$s</item>
+    </plurals>
 </resources>
