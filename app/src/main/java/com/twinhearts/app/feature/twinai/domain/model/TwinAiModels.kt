@@ -83,19 +83,9 @@ data class BothSession(
     val title: String?,
     val roundCount: Int,
     val lastActivity: Instant?,
-    /** Server label such as CONFLICT; null until Twin has worked out what the talk is about. */
-    val intent: String? = null,
 )
 
 data class BothDiscussion(val session: BothSession, val rounds: List<BothRound>) {
     /** The round being answered now (the newest one). */
     val current: BothRound? get() = rounds.maxByOrNull { it.number }
 }
-
-/** Names and photos of the two partners, shown above an open BOTH discussion. Photos are null when none is set. */
-data class BothPeople(
-    val myName: String,
-    val partnerName: String,
-    val myAvatar: String? = null,
-    val partnerAvatar: String? = null,
-)

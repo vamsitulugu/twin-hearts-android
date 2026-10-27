@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Strings used by the older ui/voice files (TwinVoiceController, TwinVoiceOverlay). -->
+<resources>
+    <string name="twinai_voice_getting_ready">Getting ready...</string>
+    <string name="twinai_voice_ready">Ready</string>
+    <string name="twinai_voice_unsupported">Voice isn\'t supported here</string>
+    <string name="twinai_voice_unsupported_hint">Please type your message instead.</string>
+    <string name="twinai_voice_mic_needed">Microphone access needed</string>
+    <string name="twinai_voice_type_hint">You can type to Twin instead.</string>
+    <string name="twinai_voice_muted_hint">Tap the mic to unmute</string>
+    <string name="twinai_voice_failed">Twin couldn\'t answer</string>
+    <string name="twinai_voice_closing">Closing...</string>
+    <string name="twinai_voice_cant_start">Can\'t start listening</string>
+    <string name="twinai_voice_try_again">Please try again.</string>
+    <string name="twinai_voice_no_hear">I couldn\'t hear you</string>
+    <string name="twinai_voice_busy">Twin is busy</string>
+    <string name="twinai_voice_speaking_hint">Tap the mic to interrupt</string>
+    <string name="twinai_voice_unmute">Unmute microphone</string>
+</resources>

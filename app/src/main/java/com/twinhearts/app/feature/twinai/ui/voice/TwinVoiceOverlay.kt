@@ -67,7 +67,7 @@ fun TwinVoiceOverlay(controller: TwinVoiceController, modifier: Modifier = Modif
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Spacer(Modifier.weight(0.6f))
-                TwinOrb(size = 160.dp, state = controller.orb, level = controller.level)
+                TwinOrb(size = 160.dp)
                 Spacer(Modifier.height(TwinTheme.spacing.xl))
                 Text(
                     stringResource(controller.statusRes),

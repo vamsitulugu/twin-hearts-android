@@ -8,13 +8,11 @@ import com.twinhearts.app.feature.twinai.domain.model.AiAuthor
 import com.twinhearts.app.feature.twinai.domain.model.AiIdentity
 import com.twinhearts.app.feature.twinai.domain.model.AiMessageState
 import com.twinhearts.app.feature.twinai.domain.model.AiStreamEvent
-import com.twinhearts.app.feature.twinai.domain.model.OrbState
 import com.twinhearts.app.feature.twinai.ui.TwinAiViewModel
 import com.twinhearts.app.feature.twinai.ui.TwinTab
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -26,12 +24,10 @@ class TwinAiViewModelTest {
     @get:Rule val mainDispatcher = MainDispatcherRule()
     private val repository = mockk<TwinAiRepository>(relaxed = true)
     private val who = AiIdentity("c1", "user1", "Vamsi Krishna", "Likitha", "")
-    private val onlineFlow = MutableStateFlow(true)
 
-    private fun viewModel(pro: Boolean = false): TwinAiViewModel {
-        every { repository.online } returns onlineFlow
+    private fun viewModel(bothOn: Boolean = false): TwinAiViewModel {
         coEvery { repository.identity() } returns who
-        coEvery { repository.isPro(who) } returns AppResult.Success(pro)
+        coEvery { repository.bothEnabled(who) } returns AppResult.Success(bothOn)
         return TwinAiViewModel(repository)
     }
 
@@ -41,34 +37,10 @@ class TwinAiViewModelTest {
     }
 
     @Test
-    fun withoutProBothStaysOnYouAndShowsTheProCard() {
-        val vm = viewModel(pro = false)
-        vm.selectTab(TwinTab.Both)
-        assertEquals(TwinTab.You, vm.state.value.tab)
-        assertTrue(vm.state.value.proPrompt)
-        vm.dismissProPrompt()
-        assertFalse(vm.state.value.proPrompt)
-    }
-
-    @Test
-    fun withProBothOpensAndBackReturnsToYou() {
-        val vm = viewModel(pro = true)
+    fun bothTabCanBeOpenedWithoutAnyServerFlag() {
+        val vm = viewModel(bothOn = false)
         vm.selectTab(TwinTab.Both)
         assertEquals(TwinTab.Both, vm.state.value.tab)
-        vm.backToYou()
-        assertEquals(TwinTab.You, vm.state.value.tab)
-    }
-
-    @Test
-    fun orbFollowsTheConversation() {
-        val vm = viewModel()
-        assertEquals(OrbState.Idle, vm.state.value.orb)
-        every { repository.reply(who, "hi") } returns flowOf(AiStreamEvent.Delta("ok"), AiStreamEvent.Done)
-        vm.ask("hi")
-        assertEquals(OrbState.Responding, vm.state.value.orb)
-        every { repository.reply(who, "again") } returns flowOf(AiStreamEvent.Failure(AppError.Network))
-        vm.ask("again")
-        assertEquals(OrbState.Error, vm.state.value.orb)
     }
 
     @Test
@@ -117,14 +89,5 @@ class TwinAiViewModelTest {
         vm.onInputChange("hello")
         vm.sendInput()
         assertEquals("", vm.state.value.input)
-    }
-
-    @Test
-    fun orbGoesGreyWhenThePhoneIsOffline() {
-        val vm = viewModel()
-        onlineFlow.value = false
-        assertEquals(OrbState.Offline, vm.state.value.orb)
-        onlineFlow.value = true
-        assertEquals(OrbState.Idle, vm.state.value.orb)
     }
 }

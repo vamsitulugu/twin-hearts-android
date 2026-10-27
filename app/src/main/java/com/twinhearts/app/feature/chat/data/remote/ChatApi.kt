@@ -2,15 +2,18 @@ package com.twinhearts.app.feature.chat.data.remote
 
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import okhttp3.ResponseBody
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.HTTP
 import retrofit2.http.Multipart
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Url
 
 /** Why this file exists: the only door from Chat to the old Express server (R-40, R-60). */
 interface ChatApi {
@@ -26,11 +29,28 @@ interface ChatApi {
     @POST("api/chat")
     suspend fun send(@Body body: SendMessageBody): ChatMessageDto
 
+    @PATCH("api/chat/{id}")
+    suspend fun edit(@Path("id") id: Long, @Body body: EditBody): ChatMessageDto
+
+    /** DELETE with a JSON body: the old server reads `mode` from it. */
+    @HTTP(method = "DELETE", path = "api/chat/{id}", hasBody = true)
+    suspend fun delete(@Path("id") id: Long, @Body body: DeleteBody): OkResponse
+
     @POST("api/chat/{coupleId}/read")
     suspend fun markRead(@Path("coupleId") coupleId: String, @Body body: RoleBody): OkResponse
 
     @POST("api/chat/{id}/star")
     suspend fun toggleStar(@Path("id") id: Long, @Body body: StarBody): ChatMessageDto
+
+    @POST("api/chat/{id}/react")
+    suspend fun react(@Path("id") id: Long, @Body body: ReactBody): ChatMessageDto
+
+    @POST("api/chat/{id}/pin")
+    suspend fun pin(@Path("id") id: Long, @Body body: PinBody): ChatMessageDto
+
+    /** Opens (and burns) a view-once photo or video. 410 when it was already viewed. */
+    @POST("api/chat/{id}/view")
+    suspend fun view(@Path("id") id: Long, @Body body: ViewBody): ViewOnceResponse
 
     @GET("api/chat/{coupleId}/search")
     suspend fun search(
@@ -54,10 +74,42 @@ interface ChatApi {
     @DELETE("api/chat/scheduled/{id}")
     suspend fun cancelScheduled(@Path("id") id: String): OkResponse
 
-    /** routes/media.js `POST /upload` (multipart `file`, `coupleId`). Photos and videos only. */
+    @GET("api/chat/{coupleId}/disappearing")
+    suspend fun disappearing(@Path("coupleId") coupleId: String): DisappearResponse
+
+    @POST("api/chat/{coupleId}/disappearing")
+    suspend fun setDisappearing(@Path("coupleId") coupleId: String, @Body body: DisappearBody): DisappearResponse
+
+    @GET("api/chat/{coupleId}/wallpaper")
+    suspend fun wallpaper(@Path("coupleId") coupleId: String): WallpaperDto
+
+    @POST("api/chat/{coupleId}/wallpaper")
+    suspend fun setWallpaper(@Path("coupleId") coupleId: String, @Body body: WallpaperBody): WallpaperDto
+
+    /** The whole conversation as plain text (WhatsApp-style export). */
+    @GET("api/chat/{coupleId}/export")
+    suspend fun export(@Path("coupleId") coupleId: String): ResponseBody
+
+    /** routes/media.js `POST /upload` (multipart `file`, `coupleId`). Photos and videos. */
     @Multipart
     @POST("api/media/upload")
     suspend fun uploadImage(
+        @Part file: MultipartBody.Part,
+        @Part("coupleId") coupleId: RequestBody,
+    ): UploadResponse
+
+    /** routes/media.js `POST /upload-doc`: PDF, Office files, text, zip. */
+    @Multipart
+    @POST("api/media/upload-doc")
+    suspend fun uploadDoc(
+        @Part file: MultipartBody.Part,
+        @Part("coupleId") coupleId: RequestBody,
+    ): UploadResponse
+
+    /** routes/media.js `POST /upload-audio`: songs and audio files. */
+    @Multipart
+    @POST("api/media/upload-audio")
+    suspend fun uploadAudio(
         @Part file: MultipartBody.Part,
         @Part("coupleId") coupleId: RequestBody,
     ): UploadResponse
@@ -71,31 +123,7 @@ interface ChatApi {
         @Part("senderRole") senderRole: RequestBody,
     ): UploadResponse
 
-    /** PATCH /api/chat/:id — edit a message I sent. */
-    @PATCH("api/chat/{id}")
-    suspend fun editMessage(
-        @Path("id") id: Long,
-        @Body body: EditMessageBody,
-    ): ChatMessageDto
-
-    /** DELETE /api/chat/:id — delete for me or for everyone. */
-    @DELETE("api/chat/{id}")
-    suspend fun deleteMessage(
-        @Path("id") id: Long,
-        @Body body: DeleteMessageBody,
-    ): OkResponse
-
-    /** POST /api/chat/:id/react — toggle an emoji reaction. */
-    @POST("api/chat/{id}/react")
-    suspend fun toggleReaction(
-        @Path("id") id: Long,
-        @Body body: ReactBody,
-    ): ChatMessageDto
-
-    /** POST /api/chat/:id/view — open (and burn) view-once media. */
-    @POST("api/chat/{id}/view")
-    suspend fun openViewOnce(
-        @Path("id") id: Long,
-        @Body body: ViewOnceBody,
-    ): ViewOnceResponse
+    /** Giphy search; [url] is the full address, built by the repository. */
+    @GET
+    suspend fun gifs(@Url url: String): GifSearchResponse
 }

@@ -21,18 +21,10 @@ interface TwinAiApi {
     @POST("api/ai/chat")
     suspend fun chat(@Body body: AiChatBody): AiReplyDto
 
-    /** The couple's saved app state (profile photos, journal). Read only; the server hands back JSON or `null`. */
-    @GET("api/data/state/{coupleId}")
-    suspend fun state(@Path("coupleId") coupleId: String): ResponseBody
-
-    /** Real names of both partners, the web falls back to this when its own copy is empty. */
-    @GET("api/ai-both/names/{coupleId}")
-    suspend fun names(@Path("coupleId") coupleId: String): NamesDto
-
     // ── BOTH mode ──
 
-    @GET("api/pro/status")
-    suspend fun proStatus(@Query("coupleId") coupleId: String): ProStatusDto
+    @GET("api/ai-both/flag/{coupleId}")
+    suspend fun flag(@Path("coupleId") coupleId: String): FlagDto
 
     @GET("api/ai-both/sessions/{coupleId}")
     suspend fun sessions(@Path("coupleId") coupleId: String, @Query("limit") limit: Int = 20): List<SessionDto>
@@ -53,7 +45,7 @@ interface TwinAiApi {
     suspend fun edit(@Path("id") id: String, @Body body: SubmitBody): StatusDto
 
     @POST("api/ai-both/rounds/{id}/nudge")
-    suspend fun nudge(@Path("id") id: String, @Body body: RoleBody): NudgeDto
+    suspend fun nudge(@Path("id") id: String, @Body body: RoleBody): StatusDto
 
     @POST("api/ai-both/rounds/{id}/retry")
     suspend fun retry(@Path("id") id: String, @Body body: CoupleBody): StatusDto

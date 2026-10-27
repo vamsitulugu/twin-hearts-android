@@ -3,6 +3,7 @@
 <resources>
     <string name="twinai_title">Twin</string>
     <string name="twinai_subtitle">Your Personal AI</string>
+    <string name="twinai_subtitle_both">For Both of Us</string>
     <string name="twinai_tab_you">YOU</string>
     <string name="twinai_tab_both">BOTH</string>
     <string name="twinai_hero_hi_named">Hey %1$s,</string>
@@ -30,8 +31,6 @@
     <string name="twinai_mic_unavailable">Voice input isn’t available on this phone.</string>
     <string name="twinai_speech_prompt">Talk to Twin</string>
     <string name="twinai_tts_unavailable">Couldn’t read this aloud on your phone.</string>
-    <string name="twinai_pending_search">Search is built in a later step.</string>
-    <string name="twinai_pending_menu">The menu is built in a later step.</string>
     <string name="twinai_no_session">Please sign in again.</string>
     <string name="twinai_empty_reply">No response received</string>
 
@@ -91,44 +90,26 @@
     <string name="twinai_intent_fun">🎉 Fun</string>
     <string name="twinai_intent_general">✨ General</string>
 
-    <!-- Added in the "remaining features" pass -->
-    <string name="twinai_subtitle_both">For Both of Us</string>
-    <string name="twinai_pro_check_failed">Couldn’t check your plan — try again.</string>
-    <string name="twinai_pro_title">AI Both Mode is a Pro feature</string>
-    <string name="twinai_pro_body">Upgrade to Pro to use Twin together with your partner. The Pro upgrade screen is built in a later step.</string>
-    <string name="twinai_pro_ok">OK</string>
-    <string name="twinai_both_nudged">Nudged %1$s 👋</string>
-    <string name="twinai_both_nudge_no_push">%1$s doesn’t have notifications enabled yet.</string>
-    <string name="twinai_both_delete_body">This permanently deletes all rounds, submissions, and Twin’s results for this discussion. This can’t be undone.</string>
-    <string name="twinai_both_deleting">Deleting…</string>
-    <string name="twinai_both_delete_menu">🗑 Delete Discussion</string>
-    <string name="twinai_both_menu">More options</string>
-    <string name="twinai_both_back">‹ Back</string>
-    <string name="twinai_both_vs">Twin</string>
-    <string name="twinai_both_prior_round">Round %1$d — %2$s</string>
-    <string name="twinai_both_prior_round_plain">Round %1$d</string>
-    <string name="twinai_both_no_result_short">No result.</string>
-    <string name="twinai_both_mic">Speak your side</string>
-    <string name="twinai_voice_getting_ready">Getting ready...</string>
+    <!-- Voice mode -->
     <string name="twinai_voice_listening">Listening...</string>
     <string name="twinai_voice_thinking">Thinking...</string>
     <string name="twinai_voice_speaking">Speaking...</string>
-    <string name="twinai_voice_speaking_hint">Tap the mic to interrupt</string>
     <string name="twinai_voice_muted">Muted</string>
-    <string name="twinai_voice_muted_hint">Tap the mic to resume</string>
-    <string name="twinai_voice_no_hear">I couldn’t hear that</string>
-    <string name="twinai_voice_closing">Closing…</string>
-    <string name="twinai_voice_ready">Ready</string>
-    <string name="twinai_voice_mic_needed">Microphone access is needed to talk with Twin</string>
-    <string name="twinai_voice_type_hint">You can still type below</string>
-    <string name="twinai_voice_unsupported">Voice input isn’t supported on this device</string>
-    <string name="twinai_voice_unsupported_hint">You can still type to Twin</string>
-    <string name="twinai_voice_failed">Twin couldn’t respond. Try again.</string>
-    <string name="twinai_voice_cant_start">Couldn’t start listening</string>
-    <string name="twinai_voice_try_again">Tap the mic to try again</string>
-    <string name="twinai_voice_busy">Twin is still answering</string>
-    <string name="twinai_voice_hint_tap">Tap the mic to speak</string>
+    <string name="twinai_voice_hint_speak">Tap the mic to speak</string>
+    <string name="twinai_voice_hint_resume">Tap the mic to resume</string>
+    <string name="twinai_voice_hint_interrupt">Tap the mic to interrupt</string>
     <string name="twinai_voice_mute">Mute microphone</string>
-    <string name="twinai_voice_unmute">Turn microphone on</string>
     <string name="twinai_voice_end">End voice mode</string>
+    <string name="twinai_voice_permission">Allow the microphone to talk to Twin.</string>
+    <string name="twinai_voice_unavailable">Voice recognition isn’t available on this phone.</string>
+    <string name="twinai_both_mic">Speak your side</string>
+    <string name="twinai_search_hint">Search this chat</string>
+    <string name="twinai_search_empty">No matches</string>
+    <string name="twinai_search_close">Close search</string>
+    <string name="twinai_menu_new_chat">✨ New chat</string>
+    <string name="twinai_menu_voice">🎙️ Voice mode</string>
+    <string name="twinai_menu_quick">⚡ Quick prompts</string>
+    <string name="twinai_menu_copy">📋 Copy conversation</string>
+    <string name="twinai_menu_copied">Conversation copied</string>
+    <string name="twinai_menu_empty">Nothing to copy yet</string>
 </resources>

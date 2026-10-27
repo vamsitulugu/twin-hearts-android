@@ -9,6 +9,10 @@ import com.twinhearts.app.R
 import com.twinhearts.app.core.navigation.Routes
 import com.twinhearts.app.feature.chat.ui.ChatScreen
 
+/*
+ * Why this file exists: plugs Chat into the app navigation (R-43).
+ */
+
 /**
  * Plugs Chat into the app (R-43). Chat uses the existing `Routes.Chat` bottom-bar route.
  * The call buttons belong to Calls (2.3), so for now they show the "built in a later step" note.

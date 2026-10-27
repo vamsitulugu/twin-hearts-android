@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,19 +14,20 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.snapshotFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.SpanStyle
@@ -54,6 +57,8 @@ fun YouContent(
     onRegenerate: (AiMessage) -> Unit,
     onListen: (AiMessage) -> Unit,
     modifier: Modifier = Modifier,
+    showHero: Boolean = true,
+    emptyNote: String? = null,
 ) {
     val listState = rememberLazyListState()
     val lastLength = messages.lastOrNull()?.text?.length ?: 0
@@ -76,8 +81,11 @@ fun YouContent(
             horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.s,
         ),
     ) {
-        item(key = "hero") { TwinHero(greetingName, compact = messages.isNotEmpty()) }
-        if (messages.isEmpty()) {
+        if (showHero) item(key = "hero") { TwinHero(greetingName, compact = messages.isNotEmpty()) }
+        if (emptyNote != null) {
+            item(key = "note") { Text(emptyNote, style = MaterialTheme.typography.bodyMedium, color = TwinTheme.colors.inkFaint) }
+        }
+        if (messages.isEmpty() && showHero) {
             item(key = "chips") { PromptChips(onPrompt) }
         }
         items(messages, key = { it.id }) { message ->
@@ -99,7 +107,19 @@ fun YouContent(
 @Composable
 private fun TwinHero(name: String, compact: Boolean) {
     val colors = TwinTheme.colors
-    GlassCard(Modifier.fillMaxWidth(), contentPadding = TwinTheme.spacing.l) {
+    val glow = colors.accent
+    GlassCard(
+        Modifier.fillMaxWidth().drawBehind {
+            drawRect(
+                Brush.radialGradient(
+                    listOf(glow.copy(alpha = 0.22f), Color.Transparent),
+                    center = Offset(size.width * 0.78f, size.height * 0.45f),
+                    radius = size.width * 0.65f,
+                ),
+            )
+        },
+        contentPadding = TwinTheme.spacing.l,
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
                 Text(
@@ -111,7 +131,7 @@ private fun TwinHero(name: String, compact: Boolean) {
                 Text(
                     text = buildAnnotatedString {
                         append(stringResource(R.string.twinai_hero_title_pre))
-                        withStyle(SpanStyle(color = colors.brand)) {
+                        withStyle(SpanStyle(brush = colors.primaryBrush)) {
                             append(stringResource(R.string.twinai_hero_title_name))
                         }
                     },
@@ -132,28 +152,42 @@ private fun TwinHero(name: String, compact: Boolean) {
     }
 }
 
-/** Index of "Write something sweet": the chip the row rests on, like the web carousel. */
-private const val CENTER_CHIP = 2
-private const val RECENTER_DELAY_MS = 2_000L
-
+/**
+ * Chips rest with "Write something sweet" in the middle (We argued / Deep talk peeking on both
+ * sides), as on the web. After a swipe, 2 s without touching springs back to the middle.
+ */
 @Composable
 private fun PromptChips(onPrompt: (QuickPrompt) -> Unit) {
     val colors = TwinTheme.colors
-    val listState = rememberLazyListState()
+    val chips = QuickPrompt.entries.toList()
+    val centerIndex = chips.indexOf(QuickPrompt.Sweet)
+    val state = rememberLazyListState()
 
-    // Rest with the middle chip centred; after 2 s without touch, glide back to it.
-    LaunchedEffect(listState.isScrollInProgress) {
-        if (listState.isScrollInProgress) return@LaunchedEffect
-        delay(RECENTER_DELAY_MS)
-        listState.centerChip(animate = true)
+    suspend fun recenter(animate: Boolean) {
+        val info = state.layoutInfo
+        val item = info.visibleItemsInfo.firstOrNull { it.index == centerIndex }
+        if (item == null) {
+            state.scrollToItem(centerIndex)
+            return
+        }
+        val viewportCenter = (info.viewportStartOffset + info.viewportEndOffset) / 2f
+        val delta = item.offset + item.size / 2f - viewportCenter
+        if (animate) state.animateScrollBy(delta) else state.scrollBy(delta)
     }
+
     LaunchedEffect(Unit) {
-        snapshotFlow { listState.layoutInfo.visibleItemsInfo.isNotEmpty() }.first { it }
-        listState.centerChip(animate = false)
+        recenter(animate = false)
+        recenter(animate = false) // second pass once the chip is measured
+    }
+    LaunchedEffect(state.isScrollInProgress) {
+        if (!state.isScrollInProgress) {
+            delay(2_000)
+            recenter(animate = true)
+        }
     }
 
-    LazyRow(state = listState, horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
-        items(QuickPrompt.entries.toList(), key = { it.name }) { p ->
+    LazyRow(state = state, horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
+        items(chips, key = { it.name }) { p ->
             Row(
                 Modifier
                     .clip(TwinTheme.shapes.pill)
@@ -169,21 +203,4 @@ private fun PromptChips(onPrompt: (QuickPrompt) -> Unit) {
             }
         }
     }
-}
-
-private suspend fun LazyListState.centerChip(animate: Boolean) {
-    if (layoutInfo.visibleItemsInfo.none { it.index == CENTER_CHIP }) {
-        scrollToItem(CENTER_CHIP)
-        snapshotFlow { layoutInfo.visibleItemsInfo.any { it.index == CENTER_CHIP } }.first { it }
-    }
-    val offset = centerOffset(this)
-    if (animate) animateScrollToItem(CENTER_CHIP, offset) else scrollToItem(CENTER_CHIP, offset)
-}
-
-/** Scroll offset that puts the middle chip in the middle of the row (negative = move it right). */
-private fun centerOffset(state: LazyListState): Int {
-    val info = state.layoutInfo
-    val chip = info.visibleItemsInfo.firstOrNull { it.index == CENTER_CHIP }?.size ?: return 0
-    val viewport = info.viewportEndOffset - info.viewportStartOffset
-    return -((viewport - chip) / 2)
 }

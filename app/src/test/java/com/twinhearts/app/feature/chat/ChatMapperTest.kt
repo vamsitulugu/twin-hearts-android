@@ -3,14 +3,18 @@ package com.twinhearts.app.feature.chat
 import com.twinhearts.app.feature.chat.data.mapper.toDomain
 import com.twinhearts.app.feature.chat.data.remote.ChatMessageDto
 import com.twinhearts.app.feature.chat.domain.model.DeliveryState
+import com.twinhearts.app.feature.chat.domain.model.ReactionGroup
 import com.twinhearts.app.feature.chat.domain.model.MessageKind
-import java.time.Instant
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+
+/*
+ * Why this file exists: unit tests for the Chat feature.
+ */
 
 class ChatMapperTest {
     private val json = Json { ignoreUnknownKeys = true }
@@ -27,7 +31,7 @@ class ChatMapperTest {
         assertEquals(DeliveryState.Read, m.delivery)
         assertEquals(5L, m.replyToId)
         assertTrue(m.starred)
-        assertEquals(listOf("❤️"), m.reactions)
+        assertEquals(listOf(ReactionGroup("❤️", 1, false)), m.reactions)
     }
 
     @Test
@@ -60,21 +64,26 @@ class ChatMapperTest {
     }
 
     @Test
-    func editedRow_mapsEditedAt() {
-        val m = dto(
-            """{"id":9,"sender_role":"user1","text":"Hi","edited":true,"edited_at":"2026-10-26T09:30:00Z","created_at":"2026-10-26T09:00:00Z"}""",
-        ).toDomain("user1")!!
-        assertTrue(m.edited)
-        assertEquals(Instant.parse("2026-10-26T09:30:00Z"), m.editedAt)
+    fun newKinds_pollLocationGiftFileGroup() {
+        val poll = dto("""{"id":1,"sender_role":"user2","type":"poll","text":"Dinner?","media_meta":{"options":["Pizza","Sushi"]},"created_at":"2026-10-26T09:00:00Z"}""").toDomain("user1")!!
+        assertEquals(MessageKind.Poll, poll.kind)
+        assertEquals(listOf("Pizza", "Sushi"), poll.pollOptions)
+        val loc = dto("""{"id":2,"sender_role":"user2","type":"location","media_meta":{"lat":20.5,"lng":85.1},"created_at":"2026-10-26T09:00:00Z"}""").toDomain("user1")!!
+        assertEquals(20.5, loc.latitude)
+        val gift = dto("""{"id":3,"sender_role":"user2","type":"gift","media_meta":{"emoji":"🌹","name":"Rose"},"created_at":"2026-10-26T09:00:00Z"}""").toDomain("user1")!!
+        assertEquals("🌹", gift.emoji)
+        assertEquals("Rose", gift.label)
+        val file = dto("""{"id":4,"sender_role":"user1","type":"file","media_url":"u","media_meta":{"name":"a.pdf","size":2048},"created_at":"2026-10-26T09:00:00Z"}""").toDomain("user1")!!
+        assertEquals("a.pdf", file.fileName)
+        assertEquals(2048L, file.fileSize)
+        val group = dto("""{"id":5,"sender_role":"user1","type":"image_group","media_url":"u1","media_meta":{"items":[{"url":"u1"},{"url":"u2"}]},"created_at":"2026-10-26T09:00:00Z"}""").toDomain("user1")!!
+        assertEquals(listOf("u1", "u2"), group.groupUrls)
     }
 
     @Test
-    func viewOnceRow_mapsPendingAndViewedAt() {
-        val m = dto(
-            """{"id":10,"sender_role":"user2","type":"image","media_url":"https://x/photo.jpg","view_once":true,"view_once_pending":true,"viewed_at":"2026-10-26T09:35:00Z","created_at":"2026-10-26T09:00:00Z"}""",
-        ).toDomain("user1")!!
-        assertTrue(m.viewOnce)
+    fun viewOnce_hiddenMediaIsPendingTile() {
+        val m = dto("""{"id":6,"sender_role":"user2","type":"image","view_once":true,"view_once_pending":true,"created_at":"2026-10-26T09:00:00Z"}""").toDomain("user1")!!
         assertTrue(m.viewOncePending)
-        assertEquals(Instant.parse("2026-10-26T09:35:00Z"), m.viewedAt)
+        assertTrue(m.isViewOnceTile)
     }
 }

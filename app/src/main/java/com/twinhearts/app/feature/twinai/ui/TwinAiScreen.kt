@@ -1,41 +1,47 @@
 package com.twinhearts.app.feature.twinai.ui
 
-import android.Manifest
-import android.app.Activity
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.speech.RecognizerIntent
 import android.widget.Toast
+import com.twinhearts.app.feature.twinai.ui.components.rememberVoiceController
+import com.twinhearts.app.feature.twinai.ui.components.TwinVoiceOverlay
+import com.twinhearts.app.feature.twinai.domain.model.AiMessageState
+import com.twinhearts.app.feature.twinai.domain.model.AiAuthor
+import androidx.core.content.ContextCompat
+import android.content.pm.PackageManager
+import android.Manifest
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.dp
+import com.twinhearts.app.feature.twinai.ui.components.GlassTextArea
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.twinhearts.app.R
 import com.twinhearts.app.core.design.TwinTheme
-import com.twinhearts.app.feature.twinai.domain.model.AiAuthor
-import com.twinhearts.app.feature.twinai.domain.model.AiMessageState
 import com.twinhearts.app.feature.twinai.ui.components.BothActions
 import com.twinhearts.app.feature.twinai.ui.components.BothContent
 import com.twinhearts.app.feature.twinai.ui.components.TwinAiDock
@@ -43,8 +49,6 @@ import com.twinhearts.app.feature.twinai.ui.components.TwinAiHeader
 import com.twinhearts.app.feature.twinai.ui.components.TwinModeTabs
 import com.twinhearts.app.feature.twinai.ui.components.YouContent
 import com.twinhearts.app.feature.twinai.ui.components.rememberSpeaker
-import com.twinhearts.app.feature.twinai.ui.voice.TwinVoiceOverlay
-import com.twinhearts.app.feature.twinai.ui.voice.rememberTwinVoice
 
 /**
  * Why this file exists: the Twin AI page (bottom-bar orb). Header, YOU / BOTH switch, then either
@@ -65,71 +69,66 @@ fun TwinAiScreen(
 
     val speaker = rememberSpeaker { toast(R.string.twinai_tts_unavailable) }
 
-    //  voice mode (the full screen with the big orb) 
-    val voice = rememberTwinVoice { spoken ->
-        if (viewModel.state.value.streaming) {
-            false
-        } else {
-            viewModel.ask(spoken)
-            true
-        }
-    }
+    // Voice mode: listen, send to Twin, read the answer, listen again.
+    val voice = rememberVoiceController(
+        speaker = speaker,
+        onHeard = { viewModel.ask(it) },
+        onUnavailable = {
+            viewModel.closeVoice()
+            toast(R.string.twinai_voice_unavailable)
+        },
+    )
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) voice.open() else voice.openDenied()
+        if (granted) {
+            viewModel.openVoice()
+            voice.start()
+        } else {
+            toast(R.string.twinai_voice_permission)
+        }
     }
+    val last = state.messages.lastOrNull()
+    LaunchedEffect(last?.id, last?.state) {
+        if (state.voiceOpen && last?.author == AiAuthor.Twin) {
+            when (last.state) {
+                AiMessageState.Done -> voice.speak(last.id, last.text)
+                AiMessageState.Failed -> voice.failed()
+                AiMessageState.Streaming -> Unit
+            }
+        }
+    }
+    val clipboard = LocalClipboardManager.current
     fun startVoice() {
-        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        if (granted) voice.open() else micPermission.launch(Manifest.permission.RECORD_AUDIO)
-    }
-    // When Twin finishes answering a spoken question, voice mode reads the answer aloud.
-    LaunchedEffect(state.streaming) {
-        if (!state.streaming) {
-            val last = state.messages.lastOrNull { it.author == AiAuthor.Twin }
-            voice.onReplyFinished(failed = last?.state == AiMessageState.Failed, reply = last?.text)
+        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            viewModel.openVoice()
+            voice.start()
+        } else {
+            micPermission.launch(Manifest.permission.RECORD_AUDIO)
         }
     }
-    // Leaving the app closes voice mode so the microphone is never left on (same as the web).
-    LifecycleStartEffect(Unit) { onStopOrDispose { voice.exit() } }
-
-    //  dictation into the BOTH answer box (one-shot, like the web mic) 
-    val speechPrompt = stringResource(R.string.twinai_speech_prompt)
-    val dictate = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val heard = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-        if (result.resultCode == Activity.RESULT_OK && !heard.isNullOrBlank()) bothViewModel.appendToDraft(heard)
-    }
-    fun dictateAnswer() {
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            .putExtra(RecognizerIntent.EXTRA_PROMPT, speechPrompt)
-        try {
-            dictate.launch(intent)
-        } catch (e: ActivityNotFoundException) {
-            toast(R.string.twinai_mic_unavailable)
-        }
+    fun endVoice() {
+        voice.end()
+        viewModel.closeVoice()
     }
 
     // BOTH only asks the server for updates while it is on screen (R-66).
     LifecycleStartEffect(state.tab) {
         bothViewModel.setVisible(state.tab == TwinTab.Both)
-        onStopOrDispose { bothViewModel.setVisible(false) }
+        onStopOrDispose {
+            bothViewModel.setVisible(false)
+            // Never keep the microphone open while the app is in the background.
+            voice.end()
+            viewModel.closeVoice()
+        }
     }
     LaunchedEffect(Unit) {
-        bothViewModel.messages.collect { t ->
-            val text = t.text ?: t.resId?.let { context.getString(it, *t.args.toTypedArray()) }
-            if (text != null) Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
-        }
+        bothViewModel.messages.collect { toast(it) }
     }
-    LaunchedEffect(Unit) { viewModel.messages.collect { toast(it) } }
 
-    // Back, like the web: delete card, then an open discussion, then BOTH home goes to YOU, then leave.
-    BackHandler(enabled = state.tab == TwinTab.Both) {
-        when {
-            both.deleteTarget != null -> bothViewModel.cancelDelete()
-            both.open != null -> bothViewModel.close()
-            else -> viewModel.backToYou()
-        }
-    }
-    BackHandler(enabled = state.tab == TwinTab.You && state.quickOpen) { viewModel.closeQuick() }
+    // Back closes an open discussion first; only then does it leave the page.
+    BackHandler(enabled = state.voiceOpen) { endVoice() }
+    BackHandler(enabled = state.tab == TwinTab.Both && both.open != null) { bothViewModel.close() }
 
     val actions = remember(bothViewModel) {
         BothActions(
@@ -140,23 +139,53 @@ fun TwinAiScreen(
             onNudge = bothViewModel::nudge, onContinue = bothViewModel::continueTogether,
             onRetry = bothViewModel::retry, onAskDelete = bothViewModel::askDelete,
             onConfirmDelete = bothViewModel::confirmDelete, onCancelDelete = bothViewModel::cancelDelete,
-            onMic = ::dictateAnswer,
         )
     }
 
     Box(modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().imePadding()) {
-            TwinAiHeader(
-                subtitle = stringResource(if (state.tab == TwinTab.Both) R.string.twinai_subtitle_both else R.string.twinai_subtitle),
-                syncing = state.syncing,
-                onBack = { if (state.tab == TwinTab.Both) viewModel.backToYou() else onBack() },
-                onMenu = { toast(R.string.twinai_pending_menu) },
-                onSearch = { toast(R.string.twinai_pending_search) },
-                onSync = {
-                    viewModel.refresh()
-                    if (state.tab == TwinTab.Both) bothViewModel.loadHistory()
-                },
-            )
+    Column(Modifier.fillMaxSize().imePadding()) {
+        TwinAiHeader(
+            syncing = state.syncing,
+            subtitle = stringResource(if (state.tab == TwinTab.Both) R.string.twinai_subtitle_both else R.string.twinai_subtitle),
+            onBack = onBack,
+            onMenu = { viewModel.setMenu(true) },
+            onSearch = viewModel::toggleSearch,
+            menuExpanded = state.menuOpen,
+            onMenuDismiss = { viewModel.setMenu(false) },
+            menuContent = {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.twinai_menu_new_chat), color = TwinTheme.colors.ink) },
+                    onClick = { viewModel.newChat(); viewModel.selectTab(TwinTab.You) },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.twinai_menu_voice), color = TwinTheme.colors.ink) },
+                    onClick = { viewModel.setMenu(false); viewModel.selectTab(TwinTab.You); startVoice() },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.twinai_menu_quick), color = TwinTheme.colors.ink) },
+                    onClick = { viewModel.setMenu(false); viewModel.selectTab(TwinTab.You); viewModel.toggleQuick() },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.twinai_menu_copy), color = TwinTheme.colors.ink) },
+                    onClick = {
+                        viewModel.setMenu(false)
+                        if (state.messages.isEmpty()) {
+                            toast(R.string.twinai_menu_empty)
+                        } else {
+                            clipboard.setText(AnnotatedString(state.messages.joinToString("\n\n") {
+                                (if (it.author == AiAuthor.Me) "Me: " else "Twin: ") + it.text
+                            }))
+                            toast(R.string.twinai_menu_copied)
+                        }
+                    },
+                )
+            },
+            onSync = {
+                viewModel.refresh()
+                if (state.tab == TwinTab.Both) bothViewModel.loadHistory()
+            },
+        )
+        run {
             TwinModeTabs(
                 options = listOf(stringResource(R.string.twinai_tab_you), stringResource(R.string.twinai_tab_both)),
                 selectedIndex = state.tab.ordinal,
@@ -165,58 +194,63 @@ fun TwinAiScreen(
                     .padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.s)
                     .fillMaxWidth(0.62f),
             )
-            Box(
-                Modifier
-                    .weight(1f)
-                    // Tapping the page outside the "+" sheet closes it (the web does the same). Buttons inside still get their own taps.
-                    .then(
-                        if (state.tab == TwinTab.You && state.quickOpen) {
-                            Modifier.pointerInput(Unit) { detectTapGestures(onTap = { viewModel.closeQuick() }) }
-                        } else {
-                            Modifier
-                        },
-                    ),
+        }
+        if (state.searchOpen) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                when (state.tab) {
-                    TwinTab.You -> YouContent(
-                        greetingName = state.greetingName,
-                        messages = state.messages,
-                        speakingId = speaker.speakingId,
-                        onPrompt = { viewModel.ask(it.prompt) },
-                        onRetry = viewModel::askAgain,
-                        onRegenerate = viewModel::askAgain,
-                        onListen = { speaker.toggle(it.id, it.text) },
+                Box(Modifier.weight(1f)) {
+                    GlassTextArea(
+                        value = state.searchQuery,
+                        onValueChange = viewModel::onSearchChange,
+                        hint = stringResource(R.string.twinai_search_hint),
+                        minHeight = 44.dp,
+                        maxLines = 1,
+                        shape = TwinTheme.shapes.pill,
                     )
-                    TwinTab.Both -> BothContent(both, actions)
                 }
-            }
-            if (state.tab == TwinTab.You) {
-                TwinAiDock(
-                    input = state.input,
-                    onInputChange = viewModel::onInputChange,
-                    onSend = viewModel::sendInput,
-                    onMic = ::startVoice,
-                    onTogglePlus = viewModel::toggleQuick,
-                    quickOpen = state.quickOpen,
-                    onPrompt = { viewModel.ask(it.prompt) },
-                    sendEnabled = state.input.isNotBlank() && !state.streaming,
-                    orb = if (voice.isOpen) voice.orb else state.orb,
-                    sending = state.streaming,
+                Icon(
+                    Icons.Rounded.Close,
+                    contentDescription = stringResource(R.string.twinai_search_close),
+                    tint = TwinTheme.colors.ink,
+                    modifier = Modifier.size(TwinTheme.shapes.minTouch).clickable(onClick = viewModel::toggleSearch).padding(12.dp),
                 )
             }
         }
-        TwinVoiceOverlay(voice)
+        val query = state.searchQuery.trim()
+        val shown = if (query.isEmpty()) state.messages else state.messages.filter { it.text.contains(query, ignoreCase = true) }
+        Box(Modifier.weight(1f)) {
+            when (state.tab) {
+                TwinTab.You -> YouContent(
+                    greetingName = state.greetingName,
+                    messages = shown,
+                    showHero = query.isEmpty(),
+                    emptyNote = if (query.isNotEmpty() && shown.isEmpty()) stringResource(R.string.twinai_search_empty) else null,
+                    speakingId = speaker.speakingId,
+                    onPrompt = { viewModel.ask(it.prompt) },
+                    onRetry = viewModel::askAgain,
+                    onRegenerate = viewModel::askAgain,
+                    onListen = { speaker.toggle(it.id, it.text) },
+                )
+                TwinTab.Both -> BothContent(both, actions, query = query)
+            }
+        }
+        if (state.tab == TwinTab.You) {
+            TwinAiDock(
+                input = state.input,
+                onInputChange = viewModel::onInputChange,
+                onSend = viewModel::sendInput,
+                onMic = ::startVoice,
+                onTogglePlus = viewModel::toggleQuick,
+                quickOpen = state.quickOpen,
+                onPrompt = { viewModel.ask(it.prompt) },
+                sendEnabled = state.input.isNotBlank() && !state.streaming,
+            )
+        }
     }
-
-    if (state.proPrompt) {
-        AlertDialog(
-            onDismissRequest = viewModel::dismissProPrompt,
-            title = { Text(stringResource(R.string.twinai_pro_title)) },
-            text = { Text(stringResource(R.string.twinai_pro_body), color = TwinTheme.colors.inkMuted) },
-            confirmButton = { TextButton(onClick = viewModel::dismissProPrompt) { Text(stringResource(R.string.twinai_pro_ok)) } },
-            containerColor = TwinTheme.colors.card,
-            titleContentColor = TwinTheme.colors.ink,
-            textContentColor = TwinTheme.colors.inkMuted,
-        )
+    if (state.voiceOpen) {
+        TwinVoiceOverlay(controller = voice, onEnd = ::endVoice)
+    }
     }
 }

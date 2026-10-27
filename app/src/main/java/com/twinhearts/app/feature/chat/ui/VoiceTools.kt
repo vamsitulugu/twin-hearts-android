@@ -12,6 +12,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import java.io.File
 
+/*
+ * Why this file exists: records and plays voice messages with the Android framework (no new libraries).
+ */
+
 /** A finished recording: the file and how many seconds it lasts. */
 data class Recording(val file: File, val seconds: Int)
 
@@ -87,11 +91,27 @@ class VoiceRecorder(private val context: Context) {
     }
 }
 
-/** Plays one voice message at a time. [playing] is the url that is playing now (or null). */
+/** Plays one voice or audio message at a time. [playing] is the url that is playing now (or null). */
 class VoicePlayerState {
     var playing by mutableStateOf<String?>(null)
         private set
     private var player: MediaPlayer? = null
+
+    /** Playback speed the person picked (1x, 1.5x, 2x); it stays for the next voice message too. */
+    var speed by mutableStateOf(SPEEDS.first())
+        private set
+
+    /** "1", "1.5" or "2": the number shown next to the multiplication sign. */
+    val speedLabel: String get() = if (speed % 1f == 0f) speed.toInt().toString() else speed.toString()
+
+    fun cycleSpeed() {
+        speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.size]
+        player?.let { applySpeed(it) }
+    }
+
+    private fun applySpeed(media: MediaPlayer) {
+        runCatching { media.playbackParams = media.playbackParams.setSpeed(speed) }
+    }
 
     fun toggle(url: String, onFailed: () -> Unit) {
         if (playing == url) {
@@ -104,7 +124,7 @@ class VoicePlayerState {
             media.setDataSource(url)
             media.setOnCompletionListener { stop() }
             media.setOnErrorListener { _, _, _ -> stop(); onFailed(); true }
-            media.setOnPreparedListener { it.start() }
+            media.setOnPreparedListener { it.start(); applySpeed(it) }
             media.prepareAsync()
             player = media
             playing = url
@@ -112,6 +132,10 @@ class VoicePlayerState {
             media.release()
             onFailed()
         }
+    }
+
+    private companion object {
+        val SPEEDS = listOf(1f, 1.5f, 2f)
     }
 
     fun stop() {

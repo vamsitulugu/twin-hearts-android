@@ -1,44 +1,29 @@
-# SHARED_CHANGES — Phase 2.4 Twin AI
+# SHARED_CHANGES — Phase 2.2 Chat (v2)
 
-(This replaces the old Chat file; the Chat steps are already in your project.)
+## 1. AppNavHost / FeatureGraphs.kt
+Unchanged from v1 (already done): `chatGraph(navController)` registered, Chat pending line removed.
 
-## 1. Gradle / catalog
-None. Every library used is already in your project.
-
-## 2. Manifest entries
-**Already applied in the zip** (file `app/src/main/AndroidManifest.xml` is included). It adds one `<queries>` block with `android.speech.RecognitionService`, `android.intent.action.TTS_SERVICE` and `android.speech.action.RECOGNIZE_SPEECH`, so voice mode, the mic button and Listen find the phone's speech apps on Android 11+. If you had already pasted your own `<queries>` block, keep only one (this one).
-No new permission: `RECORD_AUDIO` and `ACCESS_NETWORK_STATE` are already in the manifest (the offline orb uses the second).
-
-## 3. AppNavHost line — file `core/navigation/FeatureGraphs.kt`
-a) Add the import and the line inside `featureGraphs(...)`, after `chatGraph(navController)`:
-```kotlin
-import com.twinhearts.app.feature.twinai.twinAiGraph
-...
-    twinAiGraph(navController) // 2.4 Twin AI
+## 2. AndroidManifest.xml
+Add next to the other permissions (needed only for "Location" in the + menu):
+```xml
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 ```
-b) In `pendingGraphs(...)` **delete**:
-```kotlin
-    pending<Routes.TwinAi>(R.string.core_nav_twin, openGallery)
-```
+The zip contains the full AndroidManifest.xml with these two lines already added (RECORD_AUDIO and the `chatfiles` FileProvider were already there). `res/xml/chat_file_paths.xml` now also allows `chat_export/`.
 
-## 4. CHANGE REQUEST (applied in the zip): hide the bottom bar on the Twin page
-Why: in the web app and your screenshot the Twin page has no bottom bar; the orb sits on the input bar. File `core/navigation/TwinApp.kt` is included with this one line changed:
-```kotlin
-val showBottomBar = selectedItem != null && selectedItem.key != Routes.TwinAi
-```
-Affects only the Twin page.
+## 3. Gradle / catalog
+None required. **Optional (GIF search):** the Giphy key must not be typed in code. If you want GIF search:
+1. In `local.properties` (never committed): `GIPHY_API_KEY=your_key`
+2. In `app/build.gradle.kts` → `android { buildFeatures { buildConfig = true } defaultConfig { buildConfigField("String", "GIPHY_API_KEY", "\"${localProps.getProperty("GIPHY_API_KEY", "")}\"") } }` (read `local.properties` into `localProps`).
+Without it the GIF sheet says "GIF search is not set up yet" and everything else works.
 
-## 5. CHANGE REQUEST (optional, later): `subtitle` in TwinTopBar
-The Twin header needs a second line ("Your Personal AI"). `TwinTopBar` has none, so the feature has its own private header (`TwinAiHeader`). Later, add `subtitle: String? = null` to `TwinTopBar` and I will delete the private copy.
+## 4. TwinDatabase / strings / permissions
+No entities. `strings_chat.xml` extended (all `chat_*`). Permissions: location (above), microphone (existing).
 
-## 6. TwinDatabase entities
+## 5. Backend changes
 None.
 
-## 7. Strings / permissions
-`res/values/strings_twinai.xml` is new (in the zip). No new permission.
-
-## 8. Backend changes
-None required. Uses `/api/ai/chat/stream`, `/api/ai/chat`, `/api/ai-both/*`, `/api/pro/status`, and (new, read only) `/api/ai-both/names/:coupleId` and `/api/data/state/:coupleId` for names, photos and the latest journal mood.
-
-## 9. Files outside `feature/twinai` that this update touches
-`AndroidManifest.xml` (queries block) and `core/navigation/TwinApp.kt` (one line). Nothing else.
+## CHANGE REQUESTS (not done, need a catalog line)
+- CameraX, Media3 (as before).
+- `io.coil-kt:coil-gif` for animated GIFs.
+- A backend endpoint for the typing indicator.

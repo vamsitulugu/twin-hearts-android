@@ -12,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Sync
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -53,13 +55,16 @@ import com.twinhearts.app.core.design.TwinTheme
  */
 @Composable
 fun TwinAiHeader(
-    subtitle: String,
     syncing: Boolean,
+    subtitle: String,
     onBack: () -> Unit,
     onMenu: () -> Unit,
     onSearch: () -> Unit,
     onSync: () -> Unit,
+    menuExpanded: Boolean,
+    onMenuDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    menuContent: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = TwinTheme.colors
     Row(
@@ -85,7 +90,15 @@ fun TwinAiHeader(
             contentDescription = stringResource(R.string.core_logo),
             modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)),
         )
-        SquareButton(Icons.Rounded.Menu, stringResource(R.string.core_menu), onMenu)
+        Box {
+            SquareButton(Icons.Rounded.Menu, stringResource(R.string.core_menu), onMenu)
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = onMenuDismiss,
+                containerColor = colors.card,
+                content = menuContent,
+            )
+        }
         Column(Modifier.weight(1f)) {
             Text(
                 stringResource(R.string.twinai_title),
@@ -186,7 +199,7 @@ fun TwinModeTabs(
                     .weight(1f)
                     .heightIn(min = 44.dp)
                     .clip(pill)
-                    .then(if (selected) Modifier.background(colors.brand) else Modifier)
+                    .then(if (selected) Modifier.background(colors.primaryBrush) else Modifier)
                     .clickable(role = Role.Tab, onClick = { onSelect(index) })
                     .semantics { this.selected = selected },
                 contentAlignment = Alignment.Center,

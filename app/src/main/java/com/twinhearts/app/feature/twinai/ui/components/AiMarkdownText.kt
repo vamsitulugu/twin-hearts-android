@@ -24,10 +24,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.LinkAnnotation
-import androidx.compose.ui.text.TextLinkStyles
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -124,14 +120,8 @@ private fun CodeBlock(block: MdBlock.Code) {
 @Composable
 private fun styled(spans: List<MdSpan>): AnnotatedString {
     val codeBg = TwinTheme.colors.glass
-    val linkStyle = TextLinkStyles(SpanStyle(color = TwinTheme.colors.pinkSoft, textDecoration = TextDecoration.Underline))
     return buildAnnotatedString {
         spans.forEach { span ->
-            if (span.link != null) {
-                // Tapping opens the browser (Compose's default link handling).
-                withLink(LinkAnnotation.Url(span.link, linkStyle)) { append(span.text) }
-                return@forEach
-            }
             val style = SpanStyle(
                 fontWeight = if (span.bold) FontWeight.Bold else null,
                 fontStyle = if (span.italic) FontStyle.Italic else null,

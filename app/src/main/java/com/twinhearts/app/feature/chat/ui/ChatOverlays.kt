@@ -61,6 +61,10 @@ import kotlinx.coroutines.delay
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+/*
+ * Why this file exists: the full-screen lists of Chat (search, starred, scheduled) and the shared full-screen frame.
+ */
+
 private const val SEARCH_DEBOUNCE_MS = 350L
 private const val MINUTES_15 = 15
 private const val MINUTES_HOUR = 60
@@ -70,7 +74,7 @@ private val dateText: DateTimeFormatter get() = DateTimeFormatter.ofPattern("d M
 
 /** Full-screen sheet with a title and a close button. */
 @Composable
-private fun FullScreenSheet(title: String, onClose: () -> Unit, content: @Composable () -> Unit) {
+internal fun FullScreenSheet(title: String, onClose: () -> Unit, content: @Composable () -> Unit) {
     val colors = TwinTheme.colors
     Dialog(
         onDismissRequest = onClose,
@@ -223,12 +227,13 @@ internal fun StarredDialog(
 internal fun ScheduledDialog(
     scheduled: List<ScheduledMessage>,
     scheduling: Boolean,
+    initialText: String,
     onSchedule: (String, Int) -> Unit,
     onCancel: (String) -> Unit,
     onClose: () -> Unit,
 ) {
     val colors = TwinTheme.colors
-    var text by rememberSaveable { mutableStateOf("") }
+    var text by rememberSaveable { mutableStateOf(initialText) }
     var minutes by rememberSaveable { mutableIntStateOf(MINUTES_15) }
     val presets = listOf(
         MINUTES_15 to R.string.chat_scheduled_15m,

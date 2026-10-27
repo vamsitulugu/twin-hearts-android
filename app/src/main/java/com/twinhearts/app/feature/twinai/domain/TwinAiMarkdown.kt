@@ -14,14 +14,7 @@ sealed interface MdBlock {
     data class Code(val language: String, val code: String) : MdBlock
 }
 
-data class MdSpan(
-    val text: String,
-    val bold: Boolean = false,
-    val italic: Boolean = false,
-    val code: Boolean = false,
-    /** Web address for `[text](https://...)` links; null for normal text. */
-    val link: String? = null,
-)
+data class MdSpan(val text: String, val bold: Boolean = false, val italic: Boolean = false, val code: Boolean = false)
 
 object TwinAiMarkdown {
 
@@ -75,18 +68,14 @@ object TwinAiMarkdown {
         return blocks
     }
 
-    /** Inline **bold**, *italic*, `code` and [links](https://...). Unmatched markers stay as plain text. */
+    /** Inline **bold**, *italic* and `code`. Unmatched markers stay as plain text. */
     fun spans(text: String): List<MdSpan> {
         val out = mutableListOf<MdSpan>()
         val plain = StringBuilder()
         fun flush() { if (plain.isNotEmpty()) { out += MdSpan(plain.toString()); plain.clear() } }
         var i = 0
         while (i < text.length) {
-            val found = if (text[i] == '[') matchLink(text, i) else null
             when {
-                found != null -> {
-                    flush(); out += MdSpan(found.first, link = found.second); i = found.third
-                }
                 text.startsWith("**", i) && text.indexOf("**", i + 2) > i + 2 -> {
                     val end = text.indexOf("**", i + 2)
                     flush(); out += MdSpan(text.substring(i + 2, end), bold = true); i = end + 2
@@ -104,18 +93,6 @@ object TwinAiMarkdown {
         }
         flush()
         return out
-    }
-
-    /** `[label](http...)` at [start]: (label, address, index after the closing bracket), or null. Only http(s) links count. */
-    private fun matchLink(text: String, start: Int): Triple<String, String, Int>? {
-        val close = text.indexOf("](", start + 1)
-        if (close <= start + 1) return null
-        val end = text.indexOf(')', close + 2)
-        if (end < 0) return null
-        val label = text.substring(start + 1, close)
-        val url = text.substring(close + 2, end).trim()
-        if (label.contains('\n') || !(url.startsWith("https://") || url.startsWith("http://"))) return null
-        return Triple(label, url, end + 1)
     }
 
     private val NUMBERED = Regex("""^(\d+)\. (.*)$""")

@@ -1,7 +1,12 @@
 package com.twinhearts.app.feature.chat.ui
 
 import android.Manifest
+import android.app.Activity
+import android.app.KeyguardManager
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -15,28 +20,23 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.Send
-import androidx.compose.material.icons.rounded.CameraAlt
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Call
-import androidx.compose.material.icons.rounded.Image
-import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.Reply
+import androidx.compose.material.icons.rounded.Forward
+import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.StarBorder
+import androidx.compose.material.icons.rounded.VolumeOff
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -45,9 +45,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -55,59 +56,76 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import coil.compose.AsyncImage
-import com.twinhearts.app.core.design.GlassButton
-import com.twinhearts.app.core.design.GlassButtonStyle
-import com.twinhearts.app.core.design.TwinTextField
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.twinhearts.app.R
 import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.asText
 import com.twinhearts.app.core.design.EmptyState
 import com.twinhearts.app.core.design.ErrorState
+import com.twinhearts.app.core.design.GlassButton
 import com.twinhearts.app.core.design.LoadingSkeleton
+import com.twinhearts.app.core.design.PillSwitch
 import com.twinhearts.app.core.design.TwinBackground
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.core.design.TwinTopBar
+import com.twinhearts.app.feature.chat.data.PhotoPick
+import com.twinhearts.app.feature.chat.domain.CoupleGifts
+import com.twinhearts.app.feature.chat.domain.DisappearPresets
+import com.twinhearts.app.feature.chat.domain.Stickers
 import com.twinhearts.app.feature.chat.domain.agoAmount
 import com.twinhearts.app.feature.chat.domain.buildChatItems
-import com.twinhearts.app.feature.chat.domain.formatTimer
 import com.twinhearts.app.feature.chat.domain.model.ChatIdentity
 import com.twinhearts.app.feature.chat.domain.model.ChatMessage
+import com.twinhearts.app.feature.chat.domain.model.MessageKind
 import com.twinhearts.app.feature.chat.domain.model.PartnerPresence
 import com.twinhearts.app.feature.chat.domain.model.PresenceState
-import com.twinhearts.app.feature.chat.data.ViewOnceResult
+import com.twinhearts.app.feature.chat.domain.model.SendEffect
 import kotlinx.coroutines.delay
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
+
+/**
+ * Why this file exists: the Chat screen. It owns the phone side of things (pickers, camera,
+ * microphone, location, sharing, the idle lock) and hands plain state and callbacks to [ChatContent],
+ * which only draws. All the logic lives in [ChatViewModel].
+ */
 
 private const val POLL_MS = 3_000L
 private const val FULL_REFRESH_EVERY = 4
 private const val HEARTBEAT_EVERY = 5
 private const val BANNER_MS = 3_000L
 private const val MIN_VOICE_SECONDS = 1
-private val AvatarSize = 44.dp
+private const val MAX_PICKS = 10
+private const val IDLE_CHECK_MS = 10_000L
+private const val MS_PER_MINUTE = 60_000L
+private val AutoLockChoices = listOf(0, 1, 5, 15)
+private val AvatarSize = 40.dp
 private val DotSize = 9.dp
-private val ComposerMinHeight = 48.dp
+private val MenuWidth = 280.dp
+
+private enum class Sheet {
+    None, Search, Starred, Scheduled, Shared, Wallpaper, Nickname, Dnd, Disappear, AutoLock, ClearConfirm,
+    Attach, Sticker, Gift, Gif, Poll, Contact, Emoji,
+}
 
 @Composable
 fun ChatScreen(
@@ -121,19 +139,20 @@ fun ChatScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val voice = rememberVoicePlayer()
     val recorder = remember { VoiceRecorder(context.applicationContext) }
-    var showSearch by rememberSaveable { mutableStateOf(false) }
-    var showStarred by rememberSaveable { mutableStateOf(false) }
-    var showScheduled by rememberSaveable { mutableStateOf(false) }
-    var showViewOnce by rememberSaveable { mutableStateOf(false) }
-    var showEditDialog by rememberSaveable { mutableStateOf(false) }
-    var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
-    var showReactDialog by rememberSaveable { mutableStateOf(false) }
-    var editMessageId by remember { mutableStateOf<ChatMessage?>(null) }
-    var editText by rememberSaveable { mutableStateOf("") }
-    var deleteMessageId by remember { mutableStateOf<ChatMessage?>(null) }
-    var reactMessageId by remember { mutableStateOf<ChatMessage?>(null) }
+    var sheet by rememberSaveable { mutableStateOf(Sheet.None) }
+    var text by rememberSaveable { mutableStateOf("") }
     var recordingSeconds by remember { mutableStateOf<Int?>(null) }
     var cameraUri by remember { mutableStateOf<Uri?>(null) }
+    var menuMessage by remember { mutableStateOf<ChatMessage?>(null) }
+    var infoMessage by remember { mutableStateOf<ChatMessage?>(null) }
+    var reactTarget by remember { mutableStateOf<ChatMessage?>(null) }
+    var deleteTargets by remember { mutableStateOf<List<ChatMessage>?>(null) }
+    var photoPicks by remember { mutableStateOf<List<PhotoPick>?>(null) }
+    var viewer by remember { mutableStateOf<Pair<List<String>, Int>?>(null) }
+    var scrollTo by remember { mutableStateOf<Long?>(null) }
+    var locked by rememberSaveable { mutableStateOf(false) }
+    var lastActive by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    val lockMinutes = state.settings.autoLockMinutes
 
     // Keep the chat fresh while it is on screen; tell the server we are here (turns single ticks into double).
     LaunchedEffect(lifecycleOwner) {
@@ -152,6 +171,13 @@ fun ChatScreen(
         viewModel.heartbeat(false)
         recorder.cancel()
         recordingSeconds = null
+        if (lockMinutes > 0) locked = true
+    }
+    LaunchedEffect(lockMinutes) {
+        while (lockMinutes > 0) {
+            delay(IDLE_CHECK_MS)
+            if (System.currentTimeMillis() - lastActive > lockMinutes * MS_PER_MINUTE) locked = true
+        }
     }
     LaunchedEffect(state.banner) {
         if (state.banner != null) {
@@ -165,14 +191,39 @@ fun ChatScreen(
             recordingSeconds = recordingSeconds?.plus(1)
         }
     }
+    // The saved draft comes back once, when the chat opens with an empty box.
+    LaunchedEffect(state.draft) { if (text.isEmpty() && state.draft.isNotEmpty()) text = state.draft }
+    LaunchedEffect(text) {
+        delay(DRAFT_MS)
+        viewModel.saveDraft(text)
+    }
+    // Sharing the exported chat as a text file.
+    LaunchedEffect(state.exportText) {
+        state.exportText?.let { exported ->
+            shareExport(context, exported)
+            viewModel.exportShown()
+        }
+    }
 
-    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) viewModel.sendPhoto(uri)
+    fun openUrl(url: String) = openExternally(context, Intent(Intent.ACTION_VIEW, Uri.parse(url)), viewModel)
+    fun handlePicked(uris: List<Uri>) {
+        val (videos, images) = uris.partition { context.contentResolver.getType(it)?.startsWith("video/") == true }
+        videos.forEach { viewModel.sendVideo(it) }
+        if (images.isNotEmpty()) photoPicks = images.map { PhotoPick(it) }
+    }
+
+    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(MAX_PICKS)) { uris ->
+        if (uris.isNotEmpty()) handlePicked(uris)
     }
     val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
         val uri = cameraUri
         cameraUri = null
-        if (taken && uri != null) viewModel.sendPhoto(uri)
+        if (taken && uri != null) photoPicks = listOf(PhotoPick(uri))
+    }
+    val documentPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) viewModel.sendFile(uri) }
+    val audioPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) viewModel.sendAudioFile(uri) }
+    val locationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        if (result.values.any { it }) viewModel.shareLocation() else viewModel.showBanner(ChatBanner.Info(R.string.chat_location_denied))
     }
     fun openCamera() {
         val uri = newCameraUri(context)
@@ -205,329 +256,347 @@ fun ChatScreen(
             else -> viewModel.sendVoice(result.file, result.seconds)
         }
     }
+    val unlock = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            locked = false
+            lastActive = System.currentTimeMillis()
+        }
+    }
+    fun requestUnlock() {
+        val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+        val intent = keyguard?.createConfirmDeviceCredentialIntent(null, null)
+        if (intent == null) {
+            locked = false
+        } else {
+            unlock.launch(intent)
+        }
+    }
+    fun sendCurrentText(effect: SendEffect?) {
+        viewModel.sendText(text, effect)
+        text = ""
+    }
 
-    ChatContent(
-        state = state,
-        voice = voice,
-        recordingSeconds = recordingSeconds,
+    val bubbleActions = BubbleActions(
+        onTap = { if (state.selected.isNotEmpty()) viewModel.toggleSelect(it) },
+        onLongPress = { if (state.selected.isNotEmpty()) viewModel.toggleSelect(it) else menuMessage = it },
+        onReply = viewModel::startReply,
+        onRetry = { viewModel.retry(it.clientId) },
+        onReact = viewModel::react,
+        onOpenImages = { urls, index -> viewer = urls to index },
+        onOpenViewOnce = viewModel::openViewOnce,
+        onOpenUrl = ::openUrl,
+        onOpenLocation = { m ->
+            val geo = Uri.parse("geo:${m.latitude},${m.longitude}?q=${m.latitude},${m.longitude}")
+            openExternally(context, Intent(Intent.ACTION_VIEW, geo), viewModel)
+        },
+        onVote = viewModel::vote,
+        onJump = { scrollTo = it },
+        onVoiceFailed = { viewModel.showBanner(ChatBanner.Info(R.string.chat_record_failed)) },
+    )
+    val composerActions = ComposerActions(
+        onTextChange = { text = it },
+        onSend = ::sendCurrentText,
+        onSchedule = { sheet = Sheet.Scheduled },
+        onAttach = { sheet = Sheet.Attach },
+        onCamera = ::openCamera,
+        onStartRecording = {
+            val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+            if (granted) beginRecording() else micPermission.launch(Manifest.permission.RECORD_AUDIO)
+        },
+        onFinishRecording = ::finishRecording,
+    )
+    val actions = ChatActions(
         onBack = onBack,
         onCall = onCall,
         onRetryLoad = viewModel::load,
         onSync = { viewModel.poll(full = true) },
-        onSend = viewModel::sendText,
-        onGallery = { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-        onCamera = ::openCamera,
-        onStartRecording = {
-            val granted = androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
-                android.content.pm.PackageManager.PERMISSION_GRANTED
-            if (granted) beginRecording() else micPermission.launch(Manifest.permission.RECORD_AUDIO)
-        },
-        onFinishRecording = ::finishRecording,
-        onReply = viewModel::startReply,
+        onOpenSearch = { sheet = Sheet.Search },
+        onOpenStarred = { sheet = Sheet.Starred },
+        onOpenScheduled = { viewModel.refreshScheduled(); sheet = Sheet.Scheduled },
+        onOpenShared = { sheet = Sheet.Shared },
+        onOpenWallpaper = { sheet = Sheet.Wallpaper },
+        onNickname = { sheet = Sheet.Nickname },
+        onDnd = { sheet = Sheet.Dnd },
+        onDisappear = { sheet = Sheet.Disappear },
+        onAutoLock = { sheet = Sheet.AutoLock },
+        onExport = viewModel::exportChat,
+        onClearChat = { sheet = Sheet.ClearConfirm },
+        onToggleMute = viewModel::setMuted,
         onCancelReply = viewModel::cancelReply,
-        onCopy = { message ->
-            message.text?.let {
-                clipboard.setText(AnnotatedString(it))
+        onCancelEdit = { viewModel.cancelEdit(); text = "" },
+        onSelectionClose = viewModel::clearSelection,
+        onSelectionReply = { state.selectedMessages.singleOrNull()?.let { viewModel.startReply(it); viewModel.clearSelection() } },
+        onSelectionForward = viewModel::forwardSelected,
+        onSelectionCopy = {
+            val copied = state.selectedMessages.mapNotNull { it.text }.joinToString("\n")
+            if (copied.isNotEmpty()) {
+                clipboard.setText(AnnotatedString(copied))
                 viewModel.showBanner(ChatBanner.Info(R.string.chat_info_copied))
             }
+            viewModel.clearSelection()
         },
-        onStar = viewModel::toggleStar,
-        onRetry = { viewModel.retry(it.clientId) },
-        onVoiceFailed = { viewModel.showBanner(ChatBanner.Info(R.string.chat_record_failed)) },
-        onOpenSearch = { showSearch = true },
-        onOpenStarred = { showStarred = true },
-        onOpenScheduled = { viewModel.refreshScheduled(); showScheduled = true },
-        onEdit = { message -> editMessageId = message; editText = message.text.orEmpty(); showEditDialog = true },
-        onDelete = { message -> deleteMessageId = message; showDeleteDialog = true },
-        onReact = { message -> reactMessageId = message; showReactDialog = true },
-        onViewOnce = { message ->
-            viewModel.openViewOnce(message)
-            showViewOnce = true
-        },
+        onSelectionStar = { state.selectedMessages.forEach(viewModel::toggleStar); viewModel.clearSelection() },
+        onSelectionDelete = { deleteTargets = state.selectedMessages },
+        onPinnedTap = { scrollTo = it },
+        onUnpin = viewModel::togglePin,
+        onEffectDone = viewModel::effectDone,
+        bubble = bubbleActions,
+        composer = composerActions,
     )
 
-    if (showSearch) {
-        ChatSearchDialog(
-            state = state.search,
-            partnerName = state.identity?.partnerName.orEmpty(),
-            onSearch = viewModel::search,
-            onClose = { showSearch = false; viewModel.clearSearch() },
-        )
-    }
-    if (showStarred) {
-        StarredDialog(
-            messages = state.starred,
-            partnerName = state.identity?.partnerName.orEmpty(),
-            onUnstar = viewModel::toggleStar,
-            onClose = { showStarred = false },
-        )
-    }
-    if (showScheduled) {
-        ScheduledDialog(
-            scheduled = state.scheduled,
-            scheduling = state.scheduling,
-            onSchedule = viewModel::schedule,
-            onCancel = viewModel::cancelScheduled,
-            onClose = { showScheduled = false },
-        )
-    }
-    editMessageId?.let { message ->
-        EditDialog(
-            message = message,
-            onSave = { newText ->
-                viewModel.editMessage(message, newText)
-                showEditDialog = false
-                editMessageId = null
-            },
-            onClose = { showEditDialog = false; editMessageId = null },
-        )
-    }
-    deleteMessageId?.let { message ->
-        DeleteDialog(
-            message = message,
-            onDelete = { mode ->
-                viewModel.deleteMessage(message, mode)
-                showDeleteDialog = false
-                deleteMessageId = null
-            },
-            onClose = { showDeleteDialog = false; deleteMessageId = null },
-        )
-    }
-    reactMessageId?.let { message ->
-        ReactionDialog(
-            message = message,
-            onReact = { emoji ->
-                viewModel.toggleReaction(message, emoji)
-                showReactDialog = false
-                reactMessageId = null
-            },
-            onClose = { showReactDialog = false; reactMessageId = null },
-        )
-    }
-    state.viewOnceResult?.let { result ->
-        ViewOnceDialog(
-            result = result,
-            onClose = { showViewOnce = false; viewModel.showBanner(null) },
-        )
-    }
-}
-
-/** Edit a message I sent: shows the current text and saves on confirm. */
-@Composable
-private fun EditDialog(
-    message: ChatMessage,
-    onSave: (String) -> Unit,
-    onClose: () -> Unit,
-) {
-    val colors = TwinTheme.colors
-    var text by rememberSaveable { mutableStateOf(message.text.orEmpty()) }
-    Dialog(
-        onDismissRequest = onClose,
-        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
-    ) {
-        TwinBackground {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(TwinTheme.spacing.screenEdge)
-                    .statusBarsPadding()
-                    .navigationBarsPadding(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
-            ) {
-                Text(
-                    stringResource(R.string.chat_dialog_edit_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = colors.ink,
-                )
-                TwinTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    label = stringResource(R.string.chat_dialog_edit_hint),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    GlassButton(
-                        text = stringResource(R.string.core_cancel),
-                        onClick = onClose,
-                        style = GlassButtonStyle.Ghost,
-                        modifier = Modifier.width(100.dp),
-                    )
-                    GlassButton(
-                        text = stringResource(R.string.chat_dialog_edit_button),
-                        onClick = { onSave(text); onClose() },
-                        style = GlassButtonStyle.Primary,
-                        enabled = text.isNotBlank(),
-                        modifier = Modifier.width(100.dp),
-                    )
-                }
-            }
-        }
-    }
-}
-
-/** Delete a message: choose "for me" or "for everyone". */
-@Composable
-private fun DeleteDialog(
-    message: ChatMessage,
-    onDelete: (String) -> Unit,
-    onClose: () -> Unit,
-) {
-    val colors = TwinTheme.colors
-    Dialog(
-        onDismissRequest = onClose,
-        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
-    ) {
-        TwinBackground {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(TwinTheme.spacing.screenEdge)
-                    .statusBarsPadding()
-                    .navigationBarsPadding(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
-            ) {
-                Text(
-                    stringResource(R.string.chat_dialog_delete_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = colors.ink,
-                )
-                Text(
-                    stringResource(R.string.chat_dialog_delete_message),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.inkMuted,
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
-                ) {
-                    GlassButton(
-                        text = stringResource(R.string.chat_menu_delete_for_me),
-                        onClick = { onDelete("me"); onClose() },
-                        style = GlassButtonStyle.Secondary,
-                        modifier = Modifier.weight(1f),
-                    )
-                    GlassButton(
-                        text = stringResource(R.string.chat_menu_delete_for_everyone),
-                        onClick = { onDelete("everyone"); onClose() },
-                        style = GlassButtonStyle.Primary,
-                        enabled = message.mine,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
-        }
-    }
-}
-
-/** Add or remove an emoji reaction on a message. */
-@Composable
-private fun ReactionDialog(
-    message: ChatMessage,
-    onReact: (String) -> Unit,
-    onClose: () -> Unit,
-) {
-    val colors = TwinTheme.colors
-    val emojis = listOf("❤️", "😍", "😂", "😭", "😡", "👍", "👎", "🎉")
-    Dialog(
-        onDismissRequest = onClose,
-        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
-    ) {
-        TwinBackground {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(TwinTheme.spacing.screenEdge)
-                    .statusBarsPadding()
-                    .navigationBarsPadding(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
-            ) {
-                Text(
-                    stringResource(R.string.chat_reaction_add),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = colors.ink,
-                )
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth().height(200.dp),
-                    verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
-                ) {
-                    items(emojis, key = { it }) { emoji ->
-                        val already = message.reactions.contains(emoji)
-                        GlassButton(
-                            text = "$emoji  ${if (already) stringResource(R.string.chat_menu_unstar) else stringResource(R.string.chat_menu_star)}",
-                            onClick = { onReact(emoji); onClose() },
-                            style = if (already) GlassButtonStyle.Primary else GlassButtonStyle.Secondary,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+    Box(
+        Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitPointerEvent(PointerEventPass.Initial)
+                        lastActive = System.currentTimeMillis()
                     }
                 }
+            },
+    ) {
+        ChatContent(
+            state = state,
+            voice = voice,
+            text = text,
+            recordingSeconds = recordingSeconds,
+            scrollTo = scrollTo,
+            onScrolled = { scrollTo = null },
+            actions = actions,
+        )
+        if (locked) LockedOverlay(onUnlock = ::requestUnlock)
+    }
+
+    // ───── pop-ups ─────
+    val who = state.identity
+    val partnerName = who?.partnerName.orEmpty()
+    when (sheet) {
+        Sheet.None -> Unit
+        Sheet.Search -> ChatSearchDialog(
+            state = state.search,
+            partnerName = partnerName,
+            onSearch = viewModel::search,
+            onClose = { sheet = Sheet.None; viewModel.clearSearch() },
+        )
+        Sheet.Starred -> StarredDialog(
+            messages = state.starred,
+            partnerName = partnerName,
+            onUnstar = viewModel::toggleStar,
+            onClose = { sheet = Sheet.None },
+        )
+        Sheet.Scheduled -> ScheduledDialog(
+            scheduled = state.scheduled,
+            scheduling = state.scheduling,
+            initialText = text,
+            onSchedule = { t, minutes -> viewModel.schedule(t, minutes); if (t.trim() == text.trim()) text = "" },
+            onCancel = viewModel::cancelScheduled,
+            onClose = { sheet = Sheet.None },
+        )
+        Sheet.Shared -> SharedMediaScreen(
+            messages = state.messages,
+            onOpenImages = { urls, index -> sheet = Sheet.None; viewer = urls to index },
+            onOpenUrl = ::openUrl,
+            onClose = { sheet = Sheet.None },
+        )
+        Sheet.Wallpaper -> WallpaperScreen(
+            current = state.wallpaper,
+            shared = state.wallpaperShared,
+            saving = state.wallpaperSaving,
+            onMeasure = viewModel::imageSize,
+            onCut = viewModel::cutWallpaper,
+            onSave = viewModel::saveWallpaper,
+            onReset = viewModel::resetWallpaper,
+            onClose = { sheet = Sheet.None },
+        )
+        Sheet.Nickname -> NicknameDialog(state.settings.nickname, onSave = viewModel::setNickname, onDismiss = { sheet = Sheet.None })
+        Sheet.Dnd -> DndDialog(state.settings.dndStart, state.settings.dndEnd, onSave = viewModel::setDnd, onDismiss = { sheet = Sheet.None })
+        Sheet.Disappear -> ChoiceDialog(
+            title = stringResource(R.string.chat_disappear_title),
+            labels = disappearLabels(),
+            selectedIndex = DisappearPresets.indexOf(state.disappearingSeconds).coerceAtLeast(0),
+            onPick = { viewModel.setDisappearing(DisappearPresets[it]) },
+            onDismiss = { sheet = Sheet.None },
+        )
+        Sheet.AutoLock -> ChoiceDialog(
+            title = stringResource(R.string.chat_autolock_title),
+            labels = AutoLockChoices.map { if (it == 0) stringResource(R.string.chat_value_off) else stringResource(R.string.chat_autolock_minutes, it) },
+            selectedIndex = AutoLockChoices.indexOf(lockMinutes).coerceAtLeast(0),
+            onPick = { index ->
+                val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+                if (AutoLockChoices[index] > 0 && keyguard?.isDeviceSecure != true) {
+                    viewModel.showBanner(ChatBanner.Info(R.string.chat_autolock_needs_lock))
+                } else {
+                    viewModel.setAutoLock(AutoLockChoices[index])
+                    lastActive = System.currentTimeMillis()
+                }
+            },
+            onDismiss = { sheet = Sheet.None },
+        )
+        Sheet.ClearConfirm -> ConfirmDialog(
+            title = stringResource(R.string.chat_clear_title),
+            body = stringResource(R.string.chat_clear_body),
+            confirmLabel = stringResource(R.string.chat_clear_confirm),
+            onConfirm = viewModel::clearChat,
+            onDismiss = { sheet = Sheet.None },
+        )
+        Sheet.Attach -> AttachSheet(
+            actions = AttachActions(
+                onPhotos = { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
+                onCamera = ::openCamera,
+                onDocument = { documentPicker.launch(arrayOf("*/*")) },
+                onAudio = { audioPicker.launch(arrayOf("audio/*")) },
+                onLocation = {
+                    val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                    val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                    if (fine || coarse) {
+                        viewModel.shareLocation()
+                    } else {
+                        locationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+                    }
+                },
+                onContact = { sheet = Sheet.Contact },
+                onPoll = { sheet = Sheet.Poll },
+                onSticker = { sheet = Sheet.Sticker },
+                onGift = { sheet = Sheet.Gift },
+                onGif = { sheet = Sheet.Gif },
+                onSchedule = { sheet = Sheet.Scheduled },
+                onEmoji = { sheet = Sheet.Emoji },
+            ),
+            onDismiss = { if (sheet == Sheet.Attach) sheet = Sheet.None },
+        )
+        Sheet.Sticker -> EmojiCardSheet(
+            title = stringResource(R.string.chat_attach_sticker),
+            items = Stickers,
+            onPick = { viewModel.sendEmojiCard("sticker", it.emoji, it.name) },
+            onDismiss = { sheet = Sheet.None },
+        )
+        Sheet.Gift -> EmojiCardSheet(
+            title = stringResource(R.string.chat_attach_gift),
+            items = CoupleGifts,
+            onPick = { viewModel.sendEmojiCard("gift", it.emoji, it.name) },
+            onDismiss = { sheet = Sheet.None },
+        )
+        Sheet.Gif -> GifSheet(state.gifs, onSearch = viewModel::searchGifs, onPick = viewModel::sendGif, onDismiss = { sheet = Sheet.None })
+        Sheet.Poll -> PollSheet(onCreate = viewModel::sendPoll, onDismiss = { sheet = Sheet.None })
+        Sheet.Contact -> ContactSheet(onCreate = viewModel::sendContact, onDismiss = { sheet = Sheet.None })
+        Sheet.Emoji -> EmojiPickerSheet(
+            recent = state.recentEmoji,
+            closeOnPick = false,
+            onPick = { text += it; viewModel.useEmoji(it) },
+            onDismiss = { sheet = Sheet.None },
+        )
+    }
+    menuMessage?.let { target ->
+        MessageMenuSheet(
+            message = target,
+            actions = MessageMenuActions(
+                onSelect = { viewModel.toggleSelect(target) },
+                onReact = { emoji -> if (emoji == MORE_EMOJI) reactTarget = target else viewModel.react(target, emoji) },
+                onReply = { viewModel.startReply(target) },
+                onForward = { viewModel.toggleSelect(target); viewModel.forwardSelected() },
+                onCopy = {
+                    target.text?.let {
+                        clipboard.setText(AnnotatedString(it))
+                        viewModel.showBanner(ChatBanner.Info(R.string.chat_info_copied))
+                    }
+                },
+                onPin = { viewModel.togglePin(target) },
+                onStar = { viewModel.toggleStar(target) },
+                onEdit = { viewModel.startEdit(target); text = target.text.orEmpty() },
+                onInfo = { infoMessage = target },
+                onDeleteEveryone = { deleteTargets = listOf(target) },
+                onDeleteMe = { deleteTargets = listOf(target.copy(mine = false)) },
+            ),
+            onDismiss = { menuMessage = null },
+        )
+    }
+    reactTarget?.let { target ->
+        EmojiPickerSheet(
+            recent = state.recentEmoji,
+            closeOnPick = true,
+            onPick = { viewModel.react(target, it) },
+            onDismiss = { reactTarget = null },
+        )
+    }
+    infoMessage?.let { MessageInfoDialog(it, onDismiss = { infoMessage = null }) }
+    deleteTargets?.let { targets ->
+        ConfirmDeleteDialog(
+            count = targets.size,
+            canEveryone = targets.all { it.mine },
+            onConfirm = { everyone -> viewModel.delete(targets, everyone) },
+            onDismiss = { deleteTargets = null },
+        )
+    }
+    photoPicks?.let { picks ->
+        PhotoPreviewSheet(
+            photos = picks,
+            onSend = { list, caption, viewOnce -> viewModel.sendPhotos(list, caption, viewOnce) },
+            onDismiss = { photoPicks = null },
+        )
+    }
+    viewer?.let { (urls, index) -> ImageViewerDialog(urls, index, onClose = { viewer = null }) }
+    state.viewOnce?.let { result ->
+        if (result.isVideo) {
+            LaunchedEffect(result) {
+                openExternally(context, Intent(Intent.ACTION_VIEW, Uri.parse(result.url)), viewModel)
+                viewModel.closeViewOnce()
             }
+        } else {
+            ViewOnceDialog(result, onClose = viewModel::closeViewOnce)
         }
     }
 }
 
-/** Shows the view-once media URL after it has been opened (and burned). */
+private const val DRAFT_MS = 600L
+
+/** Shown while the chat is locked; the phone's own screen lock opens it again. */
 @Composable
-private fun ViewOnceDialog(
-    result: ViewOnceResult,
-    onClose: () -> Unit,
-) {
+private fun LockedOverlay(onUnlock: () -> Unit) {
     val colors = TwinTheme.colors
-    Dialog(
-        onDismissRequest = onClose,
-        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
-    ) {
-        TwinBackground {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(TwinTheme.spacing.screenEdge)
-                    .statusBarsPadding()
-                    .navigationBarsPadding(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
-            ) {
-                Text(
-                    stringResource(if (result.alreadyOpen) R.string.chat_view_once_opened else R.string.chat_view_once_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = colors.ink,
-                )
-                result.mediaUrl?.let { url ->
-                    AsyncImage(
-                        model = url,
-                        contentDescription = stringResource(R.string.chat_preview_photo),
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(200.dp)
-                            .clip(TwinTheme.shapes.small),
-                    )
-                    Text(
-                        url,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.inkMuted,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                } ?: run {
-                    Text(
-                        stringResource(R.string.chat_view_once_expired),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colors.inkMuted,
-                    )
-                }
-                GlassButton(
-                    text = stringResource(R.string.core_close),
-                    onClick = onClose,
-                    style = GlassButtonStyle.Primary,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+    TwinBackground {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(TwinTheme.spacing.xl),
+            verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m, Alignment.CenterVertically),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text("🔒", style = MaterialTheme.typography.displayLarge)
+            Text(stringResource(R.string.chat_locked_title), style = MaterialTheme.typography.titleLarge, color = colors.ink)
+            Text(stringResource(R.string.chat_locked_hint), style = MaterialTheme.typography.bodyMedium, color = colors.inkMuted)
+            GlassButton(text = stringResource(R.string.chat_unlock), onClick = onUnlock)
         }
+    }
+}
+
+/** Opens a link, map or video in another app; tells the person when none can open it. */
+private fun openExternally(context: Context, intent: Intent, viewModel: ChatViewModel) {
+    try {
+        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    } catch (e: ActivityNotFoundException) {
+        viewModel.showBanner(ChatBanner.Info(R.string.chat_no_app))
+    }
+}
+
+/** Saves the exported chat as a text file in the cache and offers it to the share sheet. */
+private fun shareExport(context: Context, exported: String) {
+    val uri = try {
+        val dir = File(context.cacheDir, "chat_export").apply { mkdirs() }
+        val file = File(dir, "chat-export.txt")
+        file.writeText(exported)
+        FileProvider.getUriForFile(context, "${context.packageName}.chatfiles", file)
+    } catch (e: java.io.IOException) {
+        null
+    } ?: return
+    val send = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    val chooser = Intent.createChooser(send, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    try {
+        context.startActivity(chooser)
+    } catch (e: ActivityNotFoundException) {
+        // Nothing can take a text file on this phone; there is nothing more to do.
     }
 }
 
@@ -536,110 +605,116 @@ private fun newCameraUri(context: Context): Uri? = try {
     val dir = File(context.cacheDir, "chat_camera").apply { mkdirs() }
     val file = File.createTempFile("photo-", ".jpg", dir)
     FileProvider.getUriForFile(context, "${context.packageName}.chatfiles", file)
-} catch (e: Exception) {
+} catch (e: java.io.IOException) {
+    null
+} catch (e: IllegalArgumentException) {
     null
 }
+
+/** Marker the menu uses for "more reactions…"; the screen turns it into the full emoji picker. */
+internal const val MORE_EMOJI = "…"
+
+/** Everything the screen can be asked to do, so [ChatContent] stays a plain function of state. */
+internal class ChatActions(
+    val onBack: () -> Unit = {},
+    val onCall: () -> Unit = {},
+    val onRetryLoad: () -> Unit = {},
+    val onSync: () -> Unit = {},
+    val onOpenSearch: () -> Unit = {},
+    val onOpenStarred: () -> Unit = {},
+    val onOpenScheduled: () -> Unit = {},
+    val onOpenShared: () -> Unit = {},
+    val onOpenWallpaper: () -> Unit = {},
+    val onNickname: () -> Unit = {},
+    val onDnd: () -> Unit = {},
+    val onDisappear: () -> Unit = {},
+    val onAutoLock: () -> Unit = {},
+    val onExport: () -> Unit = {},
+    val onClearChat: () -> Unit = {},
+    val onToggleMute: (Boolean) -> Unit = {},
+    val onCancelReply: () -> Unit = {},
+    val onCancelEdit: () -> Unit = {},
+    val onSelectionClose: () -> Unit = {},
+    val onSelectionReply: () -> Unit = {},
+    val onSelectionForward: () -> Unit = {},
+    val onSelectionCopy: () -> Unit = {},
+    val onSelectionStar: () -> Unit = {},
+    val onSelectionDelete: () -> Unit = {},
+    val onPinnedTap: (Long) -> Unit = {},
+    val onUnpin: (ChatMessage) -> Unit = {},
+    val onEffectDone: () -> Unit = {},
+    val bubble: BubbleActions = BubbleActions.None,
+    val composer: ComposerActions = ComposerActions({}, {}, {}, {}, {}, {}, {}),
+)
 
 @Composable
 internal fun ChatContent(
     state: ChatUiState,
     voice: VoicePlayerState,
+    text: String,
     recordingSeconds: Int?,
-    onBack: () -> Unit,
-    onCall: () -> Unit,
-    onRetryLoad: () -> Unit,
-    onSync: () -> Unit,
-    onSend: (String) -> Unit,
-    onGallery: () -> Unit,
-    onCamera: () -> Unit,
-    onStartRecording: () -> Unit,
-    onFinishRecording: (Boolean) -> Unit,
-    onReply: (ChatMessage) -> Unit,
-    onCancelReply: () -> Unit,
-    onCopy: (ChatMessage) -> Unit,
-    onStar: (ChatMessage) -> Unit,
-    onRetry: (ChatMessage) -> Unit,
-    onVoiceFailed: () -> Unit,
-    onOpenSearch: () -> Unit,
-    onOpenStarred: () -> Unit,
-    onOpenScheduled: () -> Unit,
-    onEdit: (ChatMessage) -> Unit,
-    onDelete: (ChatMessage) -> Unit,
-    onReact: (ChatMessage) -> Unit,
-    onViewOnce: (ChatMessage) -> Unit,
+    scrollTo: Long?,
+    onScrolled: () -> Unit,
+    actions: ChatActions,
 ) {
-    val partner = state.identity?.partnerName.orEmpty()
+    val partner = state.settings.nickname.ifBlank { state.identity?.partnerName.orEmpty() }
     val items = remember(state.messages) { buildChatItems(state.messages, LocalDate.now()) }
-    TwinBackground {
-        Column(Modifier.fillMaxSize().imePadding()) {
-            TwinTopBar(title = stringResource(R.string.chat_title), showLogo = true, onSearchClick = onOpenSearch, onSyncClick = onSync)
-            ChatHeader(
-                partnerName = partner,
-                presence = state.presence,
-                onBack = onBack,
-                onCall = onCall,
-                onStarred = onOpenStarred,
-                onSearch = onOpenSearch,
-                onScheduled = onOpenScheduled,
-            )
-            Box(Modifier.weight(1f).fillMaxWidth()) {
-                when {
-                    state.loading && state.messages.isEmpty() -> LoadingSkeleton(Modifier.padding(TwinTheme.spacing.l), lines = 6)
-                    state.loadError != null && state.messages.isEmpty() ->
-                        ErrorState(message = state.loadError.asText(), onRetry = onRetryLoad)
-                    state.messages.isEmpty() -> EmptyState(
-                        title = stringResource(R.string.chat_empty_title),
-                        message = stringResource(R.string.chat_empty_hint, partner.ifBlank { stringResource(R.string.chat_you) }),
-                    )
-                    else -> MessageList(
-                        items = items,
-                        allMessages = state.messages,
-                        partnerName = partner,
-                        voice = voice,
-                        onReply = onReply,
-                        onCopy = onCopy,
-                        onStar = onStar,
-                        onRetry = onRetry,
-                        onVoiceFailed = onVoiceFailed,
-                        onEdit = onEdit,
-                        onDelete = onDelete,
-                        onReact = onReact,
-                        modifier = Modifier.fillMaxSize(),
-                    )
+    Box(Modifier.fillMaxSize()) {
+        TwinBackground {
+            Box(Modifier.fillMaxSize()) {
+                WallpaperLayer(state.wallpaper, Modifier.fillMaxSize())
+                Column(Modifier.fillMaxSize().imePadding()) {
+                    TwinTopBar(title = stringResource(R.string.chat_title), showLogo = true, onSearchClick = actions.onOpenSearch, onSyncClick = actions.onSync)
+                    if (state.selected.isNotEmpty()) {
+                        SelectionBar(state, actions)
+                    } else {
+                        ChatHeader(partner, state, actions)
+                    }
+                    state.pinned.lastOrNull()?.let { PinnedBar(it, state.pinned.size, actions) }
+                    Box(Modifier.weight(1f).fillMaxWidth()) {
+                        when {
+                            state.loading && state.messages.isEmpty() -> LoadingSkeleton(Modifier.padding(TwinTheme.spacing.l), lines = 6)
+                            state.loadError != null && state.messages.isEmpty() ->
+                                ErrorState(message = state.loadError.asText(), onRetry = actions.onRetryLoad)
+                            state.messages.isEmpty() -> EmptyState(
+                                title = stringResource(R.string.chat_empty_title),
+                                message = stringResource(R.string.chat_empty_hint, partner.ifBlank { stringResource(R.string.chat_you) }),
+                            )
+                            else -> MessageList(
+                                items = items,
+                                allMessages = state.messages,
+                                partnerName = partner,
+                                voice = voice,
+                                selected = state.selected,
+                                actions = actions.bubble,
+                                scrollTo = scrollTo,
+                                onScrolled = onScrolled,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+                    }
+                    state.banner?.let { banner ->
+                        Text(
+                            text = banner.asText(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (banner is ChatBanner.Failure) TwinTheme.colors.error else TwinTheme.colors.success,
+                            modifier = Modifier.padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.xs),
+                        )
+                    }
+                    state.editing?.let { EditBar(it, actions.onCancelEdit) }
+                    state.replyingTo?.let { ReplyBar(it, partner, actions.onCancelReply) }
+                    Composer(text, recordingSeconds, editing = state.editing != null, actions = actions.composer)
                 }
             }
-            state.banner?.let { banner ->
-                Text(
-                    text = banner.asText(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (banner is ChatBanner.Failure) TwinTheme.colors.error else TwinTheme.colors.success,
-                    modifier = Modifier.padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.xs),
-                )
-            }
-            state.replyingTo?.let { ReplyBar(it, partner, onCancelReply) }
-            Composer(
-                recordingSeconds = recordingSeconds,
-                onSend = onSend,
-                onGallery = onGallery,
-                onCamera = onCamera,
-                onStartRecording = onStartRecording,
-                onFinishRecording = onFinishRecording,
-            )
         }
+        state.effect?.let { EffectOverlay(it, actions.onEffectDone) }
     }
 }
 
 @Composable
-private fun ChatHeader(
-    partnerName: String,
-    presence: PartnerPresence,
-    onBack: () -> Unit,
-    onCall: () -> Unit,
-    onStarred: () -> Unit,
-    onSearch: () -> Unit,
-    onScheduled: () -> Unit,
-) {
+private fun ChatHeader(partnerName: String, state: ChatUiState, actions: ChatActions) {
     val colors = TwinTheme.colors
+    val presence = state.presence
     var menu by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
@@ -648,8 +723,9 @@ private fun ChatHeader(
             .border(1.dp, colors.lineSoft)
             .padding(horizontal = TwinTheme.spacing.xs, vertical = TwinTheme.spacing.s),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.xs),
     ) {
-        IconButton(onClick = onBack) {
+        IconButton(onClick = actions.onBack, modifier = Modifier.size(HeaderButtonSize)) {
             Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.chat_back), tint = colors.ink)
         }
         Box(
@@ -658,8 +734,11 @@ private fun ChatHeader(
         ) {
             Text(partnerName.take(1).uppercase(), style = MaterialTheme.typography.titleMedium, color = colors.ink)
         }
-        Column(Modifier.weight(1f).padding(horizontal = TwinTheme.spacing.s)) {
-            Text(partnerName, style = MaterialTheme.typography.titleMedium, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Column(Modifier.weight(1f).padding(horizontal = TwinTheme.spacing.xs)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.xs)) {
+                Text(partnerName, style = MaterialTheme.typography.titleMedium, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                if (state.settings.muted) Icon(Icons.Rounded.VolumeOff, stringResource(R.string.chat_muted), tint = colors.inkMuted, modifier = Modifier.size(DotSize + DotSize))
+            }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.xs)) {
                 Box(
                     Modifier
@@ -680,120 +759,136 @@ private fun ChatHeader(
                 )
             }
         }
-        IconButton(onClick = onCall) { Icon(Icons.Rounded.Call, stringResource(R.string.chat_action_call), tint = colors.ink) }
-        IconButton(onClick = onCall) { Icon(Icons.Rounded.Videocam, stringResource(R.string.chat_action_video), tint = colors.ink) }
-        IconButton(onClick = onStarred) { Icon(Icons.Rounded.StarBorder, stringResource(R.string.chat_action_starred), tint = colors.ink) }
-        IconButton(onClick = onSearch) { Icon(Icons.Rounded.Search, stringResource(R.string.chat_action_search), tint = colors.ink) }
+        HeaderButton(Icons.Rounded.Call, stringResource(R.string.chat_action_call), actions.onCall)
+        HeaderButton(Icons.Rounded.Videocam, stringResource(R.string.chat_action_video), actions.onCall)
+        HeaderButton(Icons.Rounded.StarBorder, stringResource(R.string.chat_action_starred), actions.onOpenStarred)
+        HeaderButton(Icons.Rounded.Search, stringResource(R.string.chat_action_search), actions.onOpenSearch)
         Box {
-            IconButton(onClick = { menu = true }) { Icon(Icons.Rounded.MoreVert, stringResource(R.string.chat_action_more), tint = colors.ink) }
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                DropdownMenuItem(text = { Text(stringResource(R.string.chat_menu_scheduled)) }, onClick = { menu = false; onScheduled() })
+            HeaderButton(Icons.Rounded.MoreVert, stringResource(R.string.chat_action_more)) { menu = true }
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, modifier = Modifier.width(MenuWidth)) {
+                MenuSwitch(stringResource(R.string.chat_menu_mute), state.settings.muted) { actions.onToggleMute(it) }
+                MenuRow(stringResource(R.string.chat_menu_shared)) { menu = false; actions.onOpenShared() }
+                MenuRow(stringResource(R.string.chat_menu_wallpaper)) { menu = false; actions.onOpenWallpaper() }
+                MenuRow(stringResource(R.string.chat_menu_scheduled)) { menu = false; actions.onOpenScheduled() }
+                MenuRow(stringResource(R.string.chat_menu_nickname)) { menu = false; actions.onNickname() }
+                MenuRow(stringResource(R.string.chat_menu_export)) { menu = false; actions.onExport() }
+                MenuRow(stringResource(R.string.chat_menu_clear), danger = true) { menu = false; actions.onClearChat() }
+                MenuValue(stringResource(R.string.chat_menu_disappearing), disappearValue(state.disappearingSeconds)) { menu = false; actions.onDisappear() }
+                MenuValue(
+                    stringResource(R.string.chat_menu_autolock),
+                    if (state.settings.autoLockMinutes > 0) stringResource(R.string.chat_autolock_minutes, state.settings.autoLockMinutes) else stringResource(R.string.chat_value_off),
+                ) { menu = false; actions.onAutoLock() }
+                MenuValue(
+                    stringResource(R.string.chat_menu_dnd),
+                    if (state.settings.dndStart != null && state.settings.dndEnd != null) "${state.settings.dndStart}–${state.settings.dndEnd}" else stringResource(R.string.chat_value_off),
+                ) { menu = false; actions.onDnd() }
             }
         }
     }
 }
 
+/** Small round glass button of the chat header (small enough that all five fit on a narrow phone). */
 @Composable
-private fun ReplyBar(message: ChatMessage, partnerName: String, onCancel: () -> Unit) {
+private fun HeaderButton(icon: androidx.compose.ui.graphics.vector.ImageVector, description: String, onClick: () -> Unit) {
+    val colors = TwinTheme.colors
+    Box(
+        modifier = Modifier
+            .size(HeaderButtonSize)
+            .clip(TwinTheme.shapes.circle)
+            .background(colors.glass)
+            .border(1.dp, colors.lineSoft, TwinTheme.shapes.circle)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = description, tint = colors.ink, modifier = Modifier.size(HeaderIconSize))
+    }
+}
+
+private val HeaderButtonSize = 36.dp
+private val HeaderIconSize = 20.dp
+
+@Composable
+private fun MenuRow(label: String, danger: Boolean = false, onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = { Text(label, color = if (danger) TwinTheme.colors.error else TwinTheme.colors.ink, style = MaterialTheme.typography.bodyMedium) },
+        onClick = onClick,
+    )
+}
+
+@Composable
+private fun MenuValue(label: String, value: String, onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = { Text(label, color = TwinTheme.colors.ink, style = MaterialTheme.typography.bodyMedium) },
+        trailingIcon = { Text(value, color = TwinTheme.colors.pinkSoft, style = MaterialTheme.typography.labelLarge) },
+        onClick = onClick,
+    )
+}
+
+@Composable
+private fun MenuSwitch(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    DropdownMenuItem(
+        text = { Text(label, color = TwinTheme.colors.ink, style = MaterialTheme.typography.bodyMedium) },
+        trailingIcon = { PillSwitch(checked = checked, onCheckedChange = onChange) },
+        onClick = { onChange(!checked) },
+    )
+}
+
+@Composable
+private fun disappearValue(seconds: Int): String = when {
+    seconds <= 0 -> stringResource(R.string.chat_value_off)
+    seconds < DAY_SECONDS -> stringResource(R.string.chat_disappear_value_hours, seconds / HOUR_SECONDS)
+    else -> stringResource(R.string.chat_disappear_value_days, seconds / DAY_SECONDS)
+}
+
+private const val DAY_SECONDS = 86_400
+private const val HOUR_SECONDS = 3_600
+
+/** The header while messages are selected: close, count, and the actions that fit. */
+@Composable
+private fun SelectionBar(state: ChatUiState, actions: ChatActions) {
+    val colors = TwinTheme.colors
+    val picked = state.selectedMessages
+    val hasText = picked.any { !it.text.isNullOrBlank() }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(colors.glass)
+            .border(1.dp, colors.lineSoft)
+            .padding(horizontal = TwinTheme.spacing.xs, vertical = TwinTheme.spacing.s),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = actions.onSelectionClose) { Icon(Icons.Rounded.Close, stringResource(R.string.chat_close), tint = colors.ink) }
+        Text(stringResource(R.string.chat_selected_count, picked.size), style = MaterialTheme.typography.titleMedium, color = colors.ink, modifier = Modifier.weight(1f))
+        if (picked.size == 1) IconButton(onClick = actions.onSelectionReply) { Icon(Icons.Rounded.Reply, stringResource(R.string.chat_menu_reply), tint = colors.ink) }
+        IconButton(onClick = actions.onSelectionForward) { Icon(Icons.Rounded.Forward, stringResource(R.string.chat_menu_forward), tint = colors.ink) }
+        if (hasText) IconButton(onClick = actions.onSelectionCopy) { Icon(Icons.Rounded.ContentCopy, stringResource(R.string.chat_menu_copy), tint = colors.ink) }
+        IconButton(onClick = actions.onSelectionStar) { Icon(Icons.Rounded.StarBorder, stringResource(R.string.chat_menu_star), tint = colors.ink) }
+        IconButton(onClick = actions.onSelectionDelete) { Icon(Icons.Rounded.Delete, stringResource(R.string.chat_menu_delete_me), tint = colors.error) }
+    }
+}
+
+@Composable
+private fun PinnedBar(message: ChatMessage, count: Int, actions: ChatActions) {
     val colors = TwinTheme.colors
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(colors.glass)
+            .clickable { actions.onPinnedTap(message.id) }
             .padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.s),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
     ) {
+        Icon(Icons.Rounded.PushPin, null, tint = colors.pinkSoft)
         Column(Modifier.weight(1f)) {
             Text(
-                stringResource(R.string.chat_replying_to, if (message.mine) stringResource(R.string.chat_you) else partnerName),
+                if (count > 1) stringResource(R.string.chat_pinned_many, count) else stringResource(R.string.chat_pinned),
                 style = MaterialTheme.typography.labelMedium,
                 color = colors.pinkSoft,
             )
             Text(message.previewText(), style = MaterialTheme.typography.bodySmall, color = colors.inkMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        IconButton(onClick = onCancel) { Icon(Icons.Rounded.Close, stringResource(R.string.chat_cancel_reply), tint = colors.ink) }
-    }
-}
-
-@Composable
-private fun Composer(
-    recordingSeconds: Int?,
-    onSend: (String) -> Unit,
-    onGallery: () -> Unit,
-    onCamera: () -> Unit,
-    onStartRecording: () -> Unit,
-    onFinishRecording: (Boolean) -> Unit,
-) {
-    val colors = TwinTheme.colors
-    var text by rememberSaveable { mutableStateOf("") }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = TwinTheme.spacing.s, vertical = TwinTheme.spacing.s),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.xs),
-    ) {
-        if (recordingSeconds != null) {
-            IconButton(onClick = { onFinishRecording(false) }) {
-                Icon(Icons.Rounded.Close, stringResource(R.string.chat_recording_cancel), tint = colors.error)
-            }
-            Text(
-                text = "${stringResource(R.string.chat_recording_label)}  ${formatTimer(recordingSeconds)}",
-                style = MaterialTheme.typography.bodyLarge,
-                color = colors.ink,
-                modifier = Modifier.weight(1f),
-            )
-            RoundAction(Icons.AutoMirrored.Rounded.Send, stringResource(R.string.chat_recording_send)) { onFinishRecording(true) }
-        } else {
-            IconButton(onClick = onGallery) { Icon(Icons.Rounded.Image, stringResource(R.string.chat_attach), tint = colors.ink) }
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = ComposerMinHeight)
-                    .clip(TwinTheme.shapes.pill)
-                    .background(colors.glass)
-                    .border(1.dp, colors.lineSoft, TwinTheme.shapes.pill)
-                    .padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.s),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                if (text.isEmpty()) {
-                    Text(stringResource(R.string.chat_hint), style = MaterialTheme.typography.bodyLarge, color = colors.inkFaint)
-                }
-                BasicTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.ink),
-                    cursorBrush = SolidColor(colors.pinkSoft),
-                    maxLines = 5,
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = ImeAction.Default),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-            if (text.isBlank()) {
-                IconButton(onClick = onCamera) { Icon(Icons.Rounded.CameraAlt, stringResource(R.string.chat_camera), tint = colors.ink) }
-                RoundAction(Icons.Rounded.Mic, stringResource(R.string.chat_record), onStartRecording)
-            } else {
-                RoundAction(Icons.AutoMirrored.Rounded.Send, stringResource(R.string.chat_send)) {
-                    onSend(text)
-                    text = ""
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun RoundAction(icon: androidx.compose.ui.graphics.vector.ImageVector, description: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(TwinTheme.shapes.minTouch)
-            .clip(TwinTheme.shapes.circle)
-            .background(TwinTheme.colors.primaryBrush)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(icon, contentDescription = description, tint = TwinTheme.colors.ink)
+        IconButton(onClick = { actions.onUnpin(message) }) { Icon(Icons.Rounded.Close, stringResource(R.string.chat_menu_unpin), tint = colors.ink) }
     }
 }
 
@@ -802,29 +897,16 @@ private fun RoundAction(icon: androidx.compose.ui.graphics.vector.ImageVector, d
 private val previewWho = ChatIdentity("c", "user1", "Vamsi", "Likitha")
 
 private fun previewMessage(id: Long, mine: Boolean, text: String, minutesAgo: Long = 5) = ChatMessage(
-    id = id, clientId = "m$id", mine = mine, kind = com.twinhearts.app.feature.chat.domain.model.MessageKind.Text,
+    id = id, clientId = "m$id", mine = mine, kind = MessageKind.Text,
     text = text, mediaUrl = null, createdAt = Instant.now().minusSeconds(minutesAgo * 60),
 )
 
 @Composable
 private fun PreviewHost(state: ChatUiState, fontScale: Float = 1f) {
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    androidx.compose.runtime.CompositionLocalProvider(
-        androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(density.density, fontScale),
-    ) {
+    val density = LocalDensity.current
+    CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
         TwinTheme {
-            ChatContent(
-                state = state,
-                voice = VoicePlayerState(),
-                recordingSeconds = null,
-                onBack = {}, onCall = {}, onRetryLoad = {}, onSync = {},
-                onSend = {}, onGallery = {}, onCamera = {},
-                onStartRecording = {}, onFinishRecording = {},
-                onReply = {}, onCancelReply = {}, onCopy = {}, onStar = {},
-                onRetry = {}, onVoiceFailed = {},
-                onOpenSearch = {}, onOpenStarred = {}, onOpenScheduled = {},
-                onEdit = {}, onDelete = {}, onReact = {}, onViewOnce = {},
-            )
+            ChatContent(state, VoicePlayerState(), "", null, null, {}, ChatActions())
         }
     }
 }
@@ -835,14 +917,20 @@ private fun ChatPreview() {
     PreviewHost(
         ChatUiState(
             identity = previewWho, loading = false,
+            presence = PartnerPresence(PresenceState.Online, null),
             messages = listOf(
                 previewMessage(1, false, "Hlooo maa😘", 30),
                 previewMessage(2, true, "Hlooo maaa🥹", 20),
-                previewMessage(3, false, "Padukundhama🥺, eyes pain vastundhi maa", 10),
+                previewMessage(3, true, "*Bold* and _italic_ with https://example.com", 18),
+                previewMessage(4, false, "Padukundhama🥺, eyes pain vastundhi maa", 10),
             ),
         ),
     )
 }
+
+@Preview(showBackground = true, backgroundColor = 0xFF14030E, widthDp = 360, heightDp = 720)
+@Composable
+private fun ChatLoadingPreview() = PreviewHost(ChatUiState(identity = previewWho, loading = true))
 
 @Preview(showBackground = true, backgroundColor = 0xFF14030E, widthDp = 360, heightDp = 720)
 @Composable

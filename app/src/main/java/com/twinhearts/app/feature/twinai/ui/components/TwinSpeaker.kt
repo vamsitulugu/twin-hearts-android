@@ -1,6 +1,8 @@
 package com.twinhearts.app.feature.twinai.ui.components
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import androidx.compose.runtime.Composable
@@ -21,6 +23,10 @@ class TwinSpeaker internal constructor(context: Context, private val onError: ()
     var speakingId by mutableStateOf<String?>(null)
         private set
 
+    /** Called on the main thread when an answer has been read to the end (voice mode then listens again). */
+    var onFinished: (() -> Unit)? = null
+
+    private val main = Handler(Looper.getMainLooper())
     private var ready = false
     private var tts: TextToSpeech? = null
 
@@ -31,9 +37,9 @@ class TwinSpeaker internal constructor(context: Context, private val onError: ()
         }
         tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String?) = Unit
-            override fun onDone(utteranceId: String?) { speakingId = null }
+            override fun onDone(utteranceId: String?) { speakingId = null; main.post { onFinished?.invoke() } }
             @Deprecated("Required by the abstract class", ReplaceWith("onError(utteranceId, -1)"))
-            override fun onError(utteranceId: String?) { speakingId = null }
+            override fun onError(utteranceId: String?) { speakingId = null; main.post { onFinished?.invoke() } }
         })
     }
 

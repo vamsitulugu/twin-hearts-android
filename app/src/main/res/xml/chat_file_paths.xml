@@ -2,4 +2,5 @@
 <!-- Where the Chat camera may save a photo before it is sent (cache only, never shared outside the app). -->
 <paths>
     <cache-path name="chat_camera" path="chat_camera/" />
+    <cache-path name="chat_export" path="chat_export/" />
 </paths>

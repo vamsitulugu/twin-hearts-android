@@ -37,7 +37,6 @@ fun SessionDto.toDomain() = BothSession(
     title = title?.takeIf { it.isNotBlank() },
     roundCount = roundCount,
     lastActivity = parseServerInstant(lastActivityAt),
-    intent = intent?.takeIf { it.isNotBlank() }?.uppercase(),
 )
 
 fun SessionDetailDto.toDomain() = BothDiscussion(session.toDomain(), rounds.map { it.toDomain() })

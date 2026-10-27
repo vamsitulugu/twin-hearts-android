@@ -20,8 +20,8 @@ import kotlin.math.max
 class ImageCompressor @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
-    /** `null` when the file cannot be opened as a picture. */
-    suspend fun toJpeg(uri: Uri): ByteArray? = withContext(Dispatchers.IO) {
+    /** `null` when the file cannot be opened as a picture. [extraRotation] (0, 90, 180, 270) is the turn the person asked for. */
+    suspend fun toJpeg(uri: Uri, extraRotation: Int = 0): ByteArray? = withContext(Dispatchers.IO) {
         runCatching {
             val resolver = context.contentResolver
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -34,7 +34,7 @@ class ImageCompressor @Inject constructor(
                 BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
             } ?: return@runCatching null
 
-            val rotation = resolver.openInputStream(uri)?.use { exifDegrees(ExifInterface(it)) } ?: 0f
+            val rotation = (resolver.openInputStream(uri)?.use { exifDegrees(ExifInterface(it)) } ?: 0f) + extraRotation
             val upright = if (rotation == 0f) {
                 decoded
             } else {
