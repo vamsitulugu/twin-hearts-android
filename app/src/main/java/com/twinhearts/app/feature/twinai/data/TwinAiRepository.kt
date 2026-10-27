@@ -41,14 +41,16 @@ interface TwinAiRepository {
     /** Twin's answer to [question], piece by piece. Ends with [AiStreamEvent.Done] or [AiStreamEvent.Failure]. */
     fun reply(who: AiIdentity, question: String): Flow<AiStreamEvent>
 
-    suspend fun bothEnabled(who: AiIdentity): AppResult<Boolean>
+    /** True when this couple has Pro (the web only lets Pro couples open BOTH). */
+    suspend fun isPro(who: AiIdentity): AppResult<Boolean>
     suspend fun bothSessions(who: AiIdentity): AppResult<List<BothSession>>
     suspend fun startDiscussion(who: AiIdentity): AppResult<BothDiscussion>
     suspend fun discussion(who: AiIdentity, sessionId: String): AppResult<BothDiscussion>
     suspend fun round(who: AiIdentity, roundId: String): AppResult<BothRound>
     suspend fun submit(who: AiIdentity, roundId: String, text: String): AppResult<RoundStatus>
     suspend fun edit(who: AiIdentity, roundId: String, text: String): AppResult<Unit>
-    suspend fun nudge(who: AiIdentity, roundId: String): AppResult<Unit>
+    /** `true` when the partner was really notified, `false` when they have no push set up. */
+    suspend fun nudge(who: AiIdentity, roundId: String): AppResult<Boolean>
     suspend fun nextRound(sessionId: String): AppResult<BothRound>
     suspend fun retry(who: AiIdentity, roundId: String): AppResult<Unit>
     suspend fun delete(who: AiIdentity, sessionId: String): AppResult<Unit>
@@ -118,8 +120,8 @@ class TwinAiRepositoryImpl @Inject constructor(
         }
     }.flowOn(Dispatchers.IO)
 
-    override suspend fun bothEnabled(who: AiIdentity) =
-        safeApiCall { api.flag(who.coupleId) }.map { it.enabled }
+    override suspend fun isPro(who: AiIdentity) =
+        safeApiCall { api.proStatus(who.coupleId) }.map { it.isPro }
 
     override suspend fun bothSessions(who: AiIdentity) =
         safeApiCall { api.sessions(who.coupleId) }.map { list -> list.map { it.toDomain() } }
@@ -142,7 +144,7 @@ class TwinAiRepositoryImpl @Inject constructor(
         safeApiCall { api.edit(roundId, SubmitBody(who.coupleId, who.role, text)) }.map { }
 
     override suspend fun nudge(who: AiIdentity, roundId: String) =
-        safeApiCall { api.nudge(roundId, RoleBody(who.coupleId, who.role)) }.map { }
+        safeApiCall { api.nudge(roundId, RoleBody(who.coupleId, who.role)) }.map { it.sent }
 
     override suspend fun nextRound(sessionId: String) =
         safeApiCall { api.nextRound(sessionId) }.map { it.round.toDomain() }

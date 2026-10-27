@@ -32,6 +32,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.twinhearts.app.R
 import com.twinhearts.app.core.design.TwinTheme
+import com.twinhearts.app.feature.twinai.domain.model.OrbState
 import com.twinhearts.app.feature.twinai.domain.model.QuickPrompt
 
 /** The name shown on a chip or in the "+" sheet. Kept here so the screen and the dock share one list. */
@@ -57,6 +58,7 @@ fun TwinAiDock(
     quickOpen: Boolean,
     onPrompt: (QuickPrompt) -> Unit,
     sendEnabled: Boolean,
+    orb: OrbState,
     modifier: Modifier = Modifier,
 ) {
     val colors = TwinTheme.colors
@@ -138,7 +140,7 @@ fun TwinAiDock(
                     enabled = sendEnabled,
                 ) { Icon(Icons.AutoMirrored.Rounded.Send, null, tint = colors.ink, modifier = Modifier.size(22.dp)) }
             }
-            TwinOrb(Modifier.offset(y = 0.dp), size = 52.dp)
+            TwinOrb(Modifier.offset(y = 0.dp), size = 52.dp, state = orb)
         }
     }
 }

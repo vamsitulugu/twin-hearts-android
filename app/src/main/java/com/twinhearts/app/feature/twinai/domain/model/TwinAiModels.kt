@@ -83,6 +83,8 @@ data class BothSession(
     val title: String?,
     val roundCount: Int,
     val lastActivity: Instant?,
+    /** Server label such as CONFLICT; null until Twin has worked out what the talk is about. */
+    val intent: String? = null,
 )
 
 data class BothDiscussion(val session: BothSession, val rounds: List<BothRound>) {

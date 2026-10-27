@@ -12,12 +12,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -128,10 +132,27 @@ private fun TwinHero(name: String, compact: Boolean) {
     }
 }
 
+/** Index of "Write something sweet": the chip the row rests on, like the web carousel. */
+private const val CENTER_CHIP = 2
+private const val RECENTER_DELAY_MS = 2_000L
+
 @Composable
 private fun PromptChips(onPrompt: (QuickPrompt) -> Unit) {
     val colors = TwinTheme.colors
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
+    val listState = rememberLazyListState()
+
+    // Rest with the middle chip centred; after 2 s without touch, glide back to it.
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (listState.isScrollInProgress) return@LaunchedEffect
+        delay(RECENTER_DELAY_MS)
+        listState.centerChip(animate = true)
+    }
+    LaunchedEffect(Unit) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.isNotEmpty() }.first { it }
+        listState.centerChip(animate = false)
+    }
+
+    LazyRow(state = listState, horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
         items(QuickPrompt.entries.toList(), key = { it.name }) { p ->
             Row(
                 Modifier
@@ -148,4 +169,21 @@ private fun PromptChips(onPrompt: (QuickPrompt) -> Unit) {
             }
         }
     }
+}
+
+private suspend fun LazyListState.centerChip(animate: Boolean) {
+    if (layoutInfo.visibleItemsInfo.none { it.index == CENTER_CHIP }) {
+        scrollToItem(CENTER_CHIP)
+        snapshotFlow { layoutInfo.visibleItemsInfo.any { it.index == CENTER_CHIP } }.first { it }
+    }
+    val offset = centerOffset(this)
+    if (animate) animateScrollToItem(CENTER_CHIP, offset) else scrollToItem(CENTER_CHIP, offset)
+}
+
+/** Scroll offset that puts the middle chip in the middle of the row (negative = move it right). */
+private fun centerOffset(state: LazyListState): Int {
+    val info = state.layoutInfo
+    val chip = info.visibleItemsInfo.firstOrNull { it.index == CENTER_CHIP }?.size ?: return 0
+    val viewport = info.viewportEndOffset - info.viewportStartOffset
+    return -((viewport - chip) / 2)
 }

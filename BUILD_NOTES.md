@@ -24,3 +24,14 @@ The exact Android Studio error text (or a screenshot) and the file name. I will 
 
 ## Known gaps (see docs/features/twinai.md)
 Search and menu buttons show "built in a later step". Chat history is kept only while the app is open (same as the web page). The first question after a long idle can take ~1 minute (free Render server waking up).
+
+
+## Update 2: what to test (remaining Twin features)
+1. Open Twin. You should see **YOU / BOTH** straight away (no flag needed).
+2. Tap **BOTH**. Pro couple: the Together page opens and the subtitle says "For Both of Us". Not Pro: a card says "AI Both Mode is a Pro feature" and you stay on YOU.
+3. On BOTH: history cards show intent, date, title, rounds. Tap the vertical dots, then "Delete Discussion", read the warning, cancel.
+4. Start Together, type or tap the mic in the answer box, submit, tap Remind (toast with the partner's name).
+5. Press Back: discussion goes to the list; list goes to YOU; YOU goes Home.
+6. On YOU tap the **mic**: allow the microphone, say "give me a date idea". Watch Listening, Thinking, Speaking, and the screen closing by itself. Try tapping the mic while Twin speaks (interrupts), the X, the Back button, and staying silent (closes after about 1.2 s).
+7. Leave the chips alone for 2 s after scrolling them: they glide back to "Write something sweet".
+8. Manifest: add the third `<queries>` entry from SHARED_CHANGES.md (RecognitionService), otherwise voice mode says voice is not supported on Android 11+.

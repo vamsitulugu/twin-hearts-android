@@ -23,8 +23,8 @@ interface TwinAiApi {
 
     // ── BOTH mode ──
 
-    @GET("api/ai-both/flag/{coupleId}")
-    suspend fun flag(@Path("coupleId") coupleId: String): FlagDto
+    @GET("api/pro/status")
+    suspend fun proStatus(@Query("coupleId") coupleId: String): ProStatusDto
 
     @GET("api/ai-both/sessions/{coupleId}")
     suspend fun sessions(@Path("coupleId") coupleId: String, @Query("limit") limit: Int = 20): List<SessionDto>
@@ -45,7 +45,7 @@ interface TwinAiApi {
     suspend fun edit(@Path("id") id: String, @Body body: SubmitBody): StatusDto
 
     @POST("api/ai-both/rounds/{id}/nudge")
-    suspend fun nudge(@Path("id") id: String, @Body body: RoleBody): StatusDto
+    suspend fun nudge(@Path("id") id: String, @Body body: RoleBody): NudgeDto
 
     @POST("api/ai-both/rounds/{id}/retry")
     suspend fun retry(@Path("id") id: String, @Body body: CoupleBody): StatusDto

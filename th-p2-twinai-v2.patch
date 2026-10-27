@@ -1,0 +1,1787 @@
+diff --git a/BUILD_NOTES.md b/BUILD_NOTES.md
+index f7d274c..5532933 100644
+--- a/BUILD_NOTES.md
++++ b/BUILD_NOTES.md
+@@ -24,3 +24,14 @@ The exact Android Studio error text (or a screenshot) and the file name. I will
+ 
+ ## Known gaps (see docs/features/twinai.md)
+ Search and menu buttons show "built in a later step". Chat history is kept only while the app is open (same as the web page). The first question after a long idle can take ~1 minute (free Render server waking up).
++
++
++## Update 2: what to test (remaining Twin features)
++1. Open Twin. You should see **YOU / BOTH** straight away (no flag needed).
++2. Tap **BOTH**. Pro couple: the Together page opens and the subtitle says "For Both of Us". Not Pro: a card says "AI Both Mode is a Pro feature" and you stay on YOU.
++3. On BOTH: history cards show intent, date, title, rounds. Tap the vertical dots, then "Delete Discussion", read the warning, cancel.
++4. Start Together, type or tap the mic in the answer box, submit, tap Remind (toast with the partner's name).
++5. Press Back: discussion goes to the list; list goes to YOU; YOU goes Home.
++6. On YOU tap the **mic**: allow the microphone, say "give me a date idea". Watch Listening, Thinking, Speaking, and the screen closing by itself. Try tapping the mic while Twin speaks (interrupts), the X, the Back button, and staying silent (closes after about 1.2 s).
++7. Leave the chips alone for 2 s after scrolling them: they glide back to "Write something sweet".
++8. Manifest: add the third `<queries>` entry from SHARED_CHANGES.md (RecognitionService), otherwise voice mode says voice is not supported on Android 11+.
+diff --git a/SHARED_CHANGES.md b/SHARED_CHANGES.md
+index 02c6177..b42f3a9 100644
+--- a/SHARED_CHANGES.md
++++ b/SHARED_CHANGES.md
+@@ -15,9 +15,13 @@ File `app/src/main/AndroidManifest.xml`. Put this inside `<manifest>`, next to t
+     <intent>
+         <action android:name="android.intent.action.TTS_SERVICE" />
+     </intent>
++    <intent>
++        <action android:name="android.speech.RecognitionService" />
++    </intent>
+ </queries>
+ ```
+-(No new permission: the system voice dialog asks for the microphone itself. `RECORD_AUDIO` is already there for Chat.)
++The third entry is **new in this update**: the full-screen voice mode listens inside the app and Android 11+ needs it to find the phone's speech recognizer. If you already added the first two, just add this one.
++No new permission: `RECORD_AUDIO` is already in the manifest for Chat. Voice mode asks for it at the moment you tap the mic, and shows "Microphone access is needed to talk with Twin" if you say no.
+ 
+ ## 3. AppNavHost line — file `core/navigation/FeatureGraphs.kt`
+ a) Add the import and the line inside `featureGraphs(...)`, after `chatGraph(navController)`:
+@@ -52,4 +56,4 @@ None.
+ `res/values/strings_twinai.xml` is new (in the zip). No new permission.
+ 
+ ## 8. Backend changes
+-None required. Uses `/api/ai/chat/stream`, `/api/ai/chat`, and `/api/ai-both/*` as they are.
++None required. Uses `/api/ai/chat/stream`, `/api/ai/chat`, `/api/ai-both/*` and `/api/pro/status` as they are.
+diff --git a/app/src/main/java/com/twinhearts/app/feature/twinai/data/TwinAiRepository.kt b/app/src/main/java/com/twinhearts/app/feature/twinai/data/TwinAiRepository.kt
+index 11c3145..31208a9 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/twinai/data/TwinAiRepository.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/twinai/data/TwinAiRepository.kt
+@@ -41,14 +41,16 @@ interface TwinAiRepository {
+     /** Twin's answer to [question], piece by piece. Ends with [AiStreamEvent.Done] or [AiStreamEvent.Failure]. */
+     fun reply(who: AiIdentity, question: String): Flow<AiStreamEvent>
+ 
+-    suspend fun bothEnabled(who: AiIdentity): AppResult<Boolean>
++    /** True when this couple has Pro (the web only lets Pro couples open BOTH). */
++    suspend fun isPro(who: AiIdentity): AppResult<Boolean>
+     suspend fun bothSessions(who: AiIdentity): AppResult<List<BothSession>>
+     suspend fun startDiscussion(who: AiIdentity): AppResult<BothDiscussion>
+     suspend fun discussion(who: AiIdentity, sessionId: String): AppResult<BothDiscussion>
+     suspend fun round(who: AiIdentity, roundId: String): AppResult<BothRound>
+     suspend fun submit(who: AiIdentity, roundId: String, text: String): AppResult<RoundStatus>
+     suspend fun edit(who: AiIdentity, roundId: String, text: String): AppResult<Unit>
+-    suspend fun nudge(who: AiIdentity, roundId: String): AppResult<Unit>
++    /** `true` when the partner was really notified, `false` when they have no push set up. */
++    suspend fun nudge(who: AiIdentity, roundId: String): AppResult<Boolean>
+     suspend fun nextRound(sessionId: String): AppResult<BothRound>
+     suspend fun retry(who: AiIdentity, roundId: String): AppResult<Unit>
+     suspend fun delete(who: AiIdentity, sessionId: String): AppResult<Unit>
+@@ -118,8 +120,8 @@ class TwinAiRepositoryImpl @Inject constructor(
+         }
+     }.flowOn(Dispatchers.IO)
+ 
+-    override suspend fun bothEnabled(who: AiIdentity) =
+-        safeApiCall { api.flag(who.coupleId) }.map { it.enabled }
++    override suspend fun isPro(who: AiIdentity) =
++        safeApiCall { api.proStatus(who.coupleId) }.map { it.isPro }
+ 
+     override suspend fun bothSessions(who: AiIdentity) =
+         safeApiCall { api.sessions(who.coupleId) }.map { list -> list.map { it.toDomain() } }
+@@ -142,7 +144,7 @@ class TwinAiRepositoryImpl @Inject constructor(
+         safeApiCall { api.edit(roundId, SubmitBody(who.coupleId, who.role, text)) }.map { }
+ 
+     override suspend fun nudge(who: AiIdentity, roundId: String) =
+-        safeApiCall { api.nudge(roundId, RoleBody(who.coupleId, who.role)) }.map { }
++        safeApiCall { api.nudge(roundId, RoleBody(who.coupleId, who.role)) }.map { it.sent }
+ 
+     override suspend fun nextRound(sessionId: String) =
+         safeApiCall { api.nextRound(sessionId) }.map { it.round.toDomain() }
+diff --git a/app/src/main/java/com/twinhearts/app/feature/twinai/data/mapper/TwinAiMapper.kt b/app/src/main/java/com/twinhearts/app/feature/twinai/data/mapper/TwinAiMapper.kt
+index c7c2b4f..75149cf 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/twinai/data/mapper/TwinAiMapper.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/twinai/data/mapper/TwinAiMapper.kt
+@@ -37,6 +37,7 @@ fun SessionDto.toDomain() = BothSession(
+     title = title?.takeIf { it.isNotBlank() },
+     roundCount = roundCount,
+     lastActivity = parseServerInstant(lastActivityAt),
++    intent = intent?.takeIf { it.isNotBlank() }?.uppercase(),
+ )
+ 
+ fun SessionDetailDto.toDomain() = BothDiscussion(session.toDomain(), rounds.map { it.toDomain() })
+diff --git a/app/src/main/java/com/twinhearts/app/feature/twinai/data/remote/TwinAiApi.kt b/app/src/main/java/com/twinhearts/app/feature/twinai/data/remote/TwinAiApi.kt
+index cf865bc..f36a7a1 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/twinai/data/remote/TwinAiApi.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/twinai/data/remote/TwinAiApi.kt
+@@ -23,8 +23,8 @@ interface TwinAiApi {
+ 
+     // ── BOTH mode ──
+ 
+-    @GET("api/ai-both/flag/{coupleId}")
+-    suspend fun flag(@Path("coupleId") coupleId: String): FlagDto
++    @GET("api/pro/status")
++    suspend fun proStatus(@Query("coupleId") coupleId: String): ProStatusDto
+ 
+     @GET("api/ai-both/sessions/{coupleId}")
+     suspend fun sessions(@Path("coupleId") coupleId: String, @Query("limit") limit: Int = 20): List<SessionDto>
+@@ -45,7 +45,7 @@ interface TwinAiApi {
+     suspend fun edit(@Path("id") id: String, @Body body: SubmitBody): StatusDto
+ 
+     @POST("api/ai-both/rounds/{id}/nudge")
+-    suspend fun nudge(@Path("id") id: String, @Body body: RoleBody): StatusDto
++    suspend fun nudge(@Path("id") id: String, @Body body: RoleBody): NudgeDto
+ 
+     @POST("api/ai-both/rounds/{id}/retry")
+     suspend fun retry(@Path("id") id: String, @Body body: CoupleBody): StatusDto
+diff --git a/app/src/main/java/com/twinhearts/app/feature/twinai/data/remote/TwinAiDtos.kt b/app/src/main/java/com/twinhearts/app/feature/twinai/data/remote/TwinAiDtos.kt
+index a62f626..a9f62cf 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/twinai/data/remote/TwinAiDtos.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/twinai/data/remote/TwinAiDtos.kt
+@@ -22,8 +22,6 @@ data class AiReplyDto(val reply: String? = null)
+ @Serializable
+ data class SseChunkDto(val delta: String? = null, val error: String? = null)
+ 
+-@Serializable
+-data class FlagDto(val enabled: Boolean = false)
+ 
+ @Serializable
+ data class NewSessionBody(val coupleId: String, val role: String, val title: String? = null)
+@@ -56,6 +54,7 @@ data class SessionDto(
+     val title: String? = null,
+     @SerialName("last_activity_at") val lastActivityAt: String? = null,
+     @SerialName("round_count") val roundCount: Int = 0,
++    val intent: String? = null,
+ )
+ 
+ @Serializable
+@@ -79,3 +78,11 @@ data class CoupleBody(val coupleId: String)
+ /** Answers that only say "it worked" (`{status}`, `{deleted}`); the content is not needed. */
+ @Serializable
+ data class StatusDto(val status: String? = null, val deleted: Boolean? = null)
++
++/** `GET /api/pro/status` : BOTH is a Pro feature on the web, so the app checks the same flag. */
++@Serializable
++data class ProStatusDto(val isPro: Boolean = false)
++
++/** Answer of the remind button: `sent` is false when the partner has no push set up. */
++@Serializable
++data class NudgeDto(val sent: Boolean = false)
+diff --git a/app/src/main/java/com/twinhearts/app/feature/twinai/domain/model/OrbState.kt b/app/src/main/java/com/twinhearts/app/feature/twinai/domain/model/OrbState.kt
+new file mode 100644
+index 0000000..37c0682
+--- /dev/null
++++ b/app/src/main/java/com/twinhearts/app/feature/twinai/domain/model/OrbState.kt
+@@ -0,0 +1,4 @@
++package com.twinhearts.app.feature.twinai.domain.model
++
++/** What the Twin orb is doing. Mirrors the states of the web orb (idle, thinking, responding, error, listening, speaking). */
++enum class OrbState { Idle, Thinking, Responding, Error, Listening, Speaking }
+diff --git a/app/src/main/java/com/twinhearts/app/feature/twinai/domain/model/TwinAiModels.kt b/app/src/main/java/com/twinhearts/app/feature/twinai/domain/model/TwinAiModels.kt
+index 71a913e..e30b41c 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/twinai/domain/model/TwinAiModels.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/twinai/domain/model/TwinAiModels.kt
+@@ -83,6 +83,8 @@ data class BothSession(
+     val title: String?,
+     val roundCount: Int,
+     val lastActivity: Instant?,
++    /** Server label such as CONFLICT; null until Twin has worked out what the talk is about. */
++    val intent: String? = null,
+ )
+ 
+ data class BothDiscussion(val session: BothSession, val rounds: List<BothRound>) {
+diff --git a/app/src/main/java/com/twinhearts/app/feature/twinai/ui/BothViewModel.kt b/app/src/main/java/com/twinhearts/app/feature/twinai/ui/BothViewModel.kt
+index 5ff5ffd..9f7351f 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/twinai/ui/BothViewModel.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/twinai/ui/BothViewModel.kt
+@@ -26,6 +26,9 @@ import kotlinx.coroutines.isActive
+ import kotlinx.coroutines.launch
+ import javax.inject.Inject
+ 
++/** A short one-off message: a string resource (with optional arguments) or the server's own text. */
++data class BothToast(@StringRes val resId: Int? = null, val args: List<String> = emptyList(), val text: String? = null)
++
+ /** The "Recent discussions" list in its four states (R-41). */
+ sealed interface BothHistory {
+     data object Loading : BothHistory
+@@ -35,6 +38,7 @@ sealed interface BothHistory {
+ }
+ 
+ data class BothUiState(
++    val myName: String = "",
+     val partnerName: String = "",
+     val history: BothHistory = BothHistory.Loading,
+     /** Set while a discussion is open; null while the BOTH home page shows. */
+@@ -63,9 +67,9 @@ class BothViewModel @Inject constructor(
+     private val _state = MutableStateFlow(BothUiState())
+     val state: StateFlow<BothUiState> = _state.asStateFlow()
+ 
+-    private val _messages = MutableSharedFlow<Int>(extraBufferCapacity = 4)
+-    /** One-off texts (string ids) the screen shows as a short toast. */
+-    val messages: SharedFlow<Int> = _messages.asSharedFlow()
++    private val _messages = MutableSharedFlow<BothToast>(extraBufferCapacity = 4)
++    /** One-off texts the screen shows as a short toast. */
++    val messages: SharedFlow<BothToast> = _messages.asSharedFlow()
+ 
+     private var identity: AiIdentity? = null
+     private var visible = false
+@@ -86,7 +90,7 @@ class BothViewModel @Inject constructor(
+         viewModelScope.launch {
+             _state.update { it.copy(history = BothHistory.Loading) }
+             val who = who() ?: return@launch
+-            _state.update { it.copy(partnerName = who.partnerName) }
++            _state.update { it.copy(myName = who.myName, partnerName = who.partnerName) }
+             _state.update {
+                 it.copy(
+                     history = when (val r = repository.bothSessions(who)) {
+@@ -105,7 +109,7 @@ class BothViewModel @Inject constructor(
+             _state.update { it.copy(starting = true) }
+             val who = who()
+             val result = who?.let { repository.startDiscussion(it) }
+-            _state.update { it.copy(starting = false) }
++            _state.update { it.copy(starting = false, myName = who?.myName ?: it.myName, partnerName = who?.partnerName ?: it.partnerName) }
+             when (result) {
+                 is AppResult.Success -> {
+                     _state.update { it.copy(open = result.data, draft = "", editing = false, reminded = false) }
+@@ -122,7 +126,7 @@ class BothViewModel @Inject constructor(
+             _state.update { it.copy(opening = true) }
+             val who = who()
+             val result = who?.let { repository.discussion(it, sessionId) }
+-            _state.update { it.copy(opening = false) }
++            _state.update { it.copy(opening = false, myName = who?.myName ?: it.myName, partnerName = who?.partnerName ?: it.partnerName) }
+             when (result) {
+                 is AppResult.Success -> {
+                     _state.update { it.copy(open = result.data, draft = "", editing = false, reminded = false) }
+@@ -142,6 +146,12 @@ class BothViewModel @Inject constructor(
+ 
+     fun onDraftChange(text: String) = _state.update { it.copy(draft = text) }
+ 
++    /** Adds dictated words to the end of the answer box (the web mic does the same). */
++    fun appendToDraft(spoken: String) {
++        if (spoken.isBlank()) return
++        _state.update { it.copy(draft = if (it.draft.isBlank()) spoken.trim() else it.draft.trimEnd() + " " + spoken.trim()) }
++    }
++
+     fun submit() {
+         val round = _state.value.open?.current ?: return
+         val text = _state.value.draft.trim()
+@@ -189,7 +199,17 @@ class BothViewModel @Inject constructor(
+                     updateRound(round.id) { it.copy(yourContent = text) }
+                     _state.update { it.copy(editing = false, draft = "") }
+                 }
+-                is AppResult.Failure -> say(R.string.twinai_both_save_failed)
++                is AppResult.Failure -> {
++                    // A 409 means the partner submitted first and the round locked: show what the server now says.
++                    val fresh = who?.let { repository.round(it, round.id) }
++                    if (fresh is AppResult.Success && fresh.data.status != RoundStatus.Pending) {
++                        updateRound(round.id) { fresh.data.copy(yourContent = fresh.data.yourContent ?: it.yourContent) }
++                        _state.update { it.copy(editing = false, draft = "") }
++                        ensurePolling()
++                    } else {
++                        sayError(result.error, R.string.twinai_both_save_failed)
++                    }
++                }
+                 null -> say(R.string.twinai_both_save_failed)
+             }
+         }
+@@ -200,8 +220,14 @@ class BothViewModel @Inject constructor(
+         viewModelScope.launch {
+             val who = who() ?: return@launch
+             when (val r = repository.nudge(who, round.id)) {
+-                is AppResult.Success -> _state.update { it.copy(reminded = true) }
+-                is AppResult.Failure -> say(R.string.twinai_both_nudge_failed)
++                is AppResult.Success -> {
++                    _state.update { it.copy(reminded = true) }
++                    val name = _state.value.partnerName
++                    _messages.tryEmit(
++                        BothToast(if (r.data) R.string.twinai_both_nudged else R.string.twinai_both_nudge_no_push, listOf(name)),
++                    )
++                }
++                is AppResult.Failure -> sayError(r.error, R.string.twinai_both_nudge_failed)
+             }
+         }
+     }
+@@ -300,7 +326,17 @@ class BothViewModel @Inject constructor(
+     }
+ 
+     private fun say(@StringRes id: Int) {
+-        _messages.tryEmit(id)
++        _messages.tryEmit(BothToast(id))
++    }
++
++    /** The server writes its errors for people (e.g. "try again in 3 min"), so that text is shown when it exists. */
++    private fun sayError(error: AppError, @StringRes fallback: Int) {
++        val text = when (error) {
++            is AppError.Server -> error.message
++            is AppError.Unauthorized -> error.message
++            else -> null
++        }
++        _messages.tryEmit(if (text.isNullOrBlank()) BothToast(fallback) else BothToast(text = text))
+     }
+ 
+     private companion object {
+diff --git a/app/src/main/java/com/twinhearts/app/feature/twinai/ui/TwinAiScreen.kt b/app/src/main/java/com/twinhearts/app/feature/twinai/ui/TwinAiScreen.kt
+index 0b93279..199cc7d 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/twinai/ui/TwinAiScreen.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/twinai/ui/TwinAiScreen.kt
+@@ -1,8 +1,10 @@
+ package com.twinhearts.app.feature.twinai.ui
+ 
++import android.Manifest
+ import android.app.Activity
+ import android.content.ActivityNotFoundException
+ import android.content.Intent
++import android.content.pm.PackageManager
+ import android.speech.RecognizerIntent
+ import android.widget.Toast
+ import androidx.activity.compose.BackHandler
+@@ -14,6 +16,9 @@ import androidx.compose.foundation.layout.fillMaxSize
+ import androidx.compose.foundation.layout.fillMaxWidth
+ import androidx.compose.foundation.layout.imePadding
+ import androidx.compose.foundation.layout.padding
++import androidx.compose.material3.AlertDialog
++import androidx.compose.material3.Text
++import androidx.compose.material3.TextButton
+ import androidx.compose.runtime.Composable
+ import androidx.compose.runtime.LaunchedEffect
+ import androidx.compose.runtime.getValue
+@@ -21,11 +26,14 @@ import androidx.compose.runtime.remember
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.platform.LocalContext
+ import androidx.compose.ui.res.stringResource
++import androidx.core.content.ContextCompat
+ import androidx.hilt.navigation.compose.hiltViewModel
+ import androidx.lifecycle.compose.LifecycleStartEffect
+ import androidx.lifecycle.compose.collectAsStateWithLifecycle
+ import com.twinhearts.app.R
+ import com.twinhearts.app.core.design.TwinTheme
++import com.twinhearts.app.feature.twinai.domain.model.AiAuthor
++import com.twinhearts.app.feature.twinai.domain.model.AiMessageState
+ import com.twinhearts.app.feature.twinai.ui.components.BothActions
+ import com.twinhearts.app.feature.twinai.ui.components.BothContent
+ import com.twinhearts.app.feature.twinai.ui.components.TwinAiDock
+@@ -33,6 +41,8 @@ import com.twinhearts.app.feature.twinai.ui.components.TwinAiHeader
+ import com.twinhearts.app.feature.twinai.ui.components.TwinModeTabs
+ import com.twinhearts.app.feature.twinai.ui.components.YouContent
+ import com.twinhearts.app.feature.twinai.ui.components.rememberSpeaker
++import com.twinhearts.app.feature.twinai.ui.voice.TwinVoiceOverlay
++import com.twinhearts.app.feature.twinai.ui.voice.rememberTwinVoice
+ 
+ /**
+  * Why this file exists: the Twin AI page (bottom-bar orb). Header, YOU / BOTH switch, then either
+@@ -53,10 +63,47 @@ fun TwinAiScreen(
+ 
+     val speaker = rememberSpeaker { toast(R.string.twinai_tts_unavailable) }
+ 
++    //  voice mode (the full screen with the big orb) 
++    val voice = rememberTwinVoice { spoken ->
++        if (viewModel.state.value.streaming) {
++            false
++        } else {
++            viewModel.ask(spoken)
++            true
++        }
++    }
++    val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
++        if (granted) voice.open() else voice.openDenied()
++    }
++    fun startVoice() {
++        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
++        if (granted) voice.open() else micPermission.launch(Manifest.permission.RECORD_AUDIO)
++    }
++    // When Twin finishes answering a spoken question, voice mode reads the answer aloud.
++    LaunchedEffect(state.streaming) {
++        if (!state.streaming) {
++            val last = state.messages.lastOrNull { it.author == AiAuthor.Twin }
++            voice.onReplyFinished(failed = last?.state == AiMessageState.Failed, reply = last?.text)
++        }
++    }
++    // Leaving the app closes voice mode so the microphone is never left on (same as the web).
++    LifecycleStartEffect(Unit) { onStopOrDispose { voice.exit() } }
++
++    //  dictation into the BOTH answer box (one-shot, like the web mic) 
+     val speechPrompt = stringResource(R.string.twinai_speech_prompt)
+-    val speech = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
++    val dictate = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+         val heard = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+-        if (result.resultCode == Activity.RESULT_OK && !heard.isNullOrBlank()) viewModel.ask(heard)
++        if (result.resultCode == Activity.RESULT_OK && !heard.isNullOrBlank()) bothViewModel.appendToDraft(heard)
++    }
++    fun dictateAnswer() {
++        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
++            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
++            .putExtra(RecognizerIntent.EXTRA_PROMPT, speechPrompt)
++        try {
++            dictate.launch(intent)
++        } catch (e: ActivityNotFoundException) {
++            toast(R.string.twinai_mic_unavailable)
++        }
+     }
+ 
+     // BOTH only asks the server for updates while it is on screen (R-66).
+@@ -65,11 +112,22 @@ fun TwinAiScreen(
+         onStopOrDispose { bothViewModel.setVisible(false) }
+     }
+     LaunchedEffect(Unit) {
+-        bothViewModel.messages.collect { toast(it) }
++        bothViewModel.messages.collect { t ->
++            val text = t.text ?: t.resId?.let { context.getString(it, *t.args.toTypedArray()) }
++            if (text != null) Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
++        }
+     }
++    LaunchedEffect(Unit) { viewModel.messages.collect { toast(it) } }
+ 
+-    // Back closes an open discussion first; only then does it leave the page.
+-    BackHandler(enabled = state.tab == TwinTab.Both && both.open != null) { bothViewModel.close() }
++    // Back, like the web: delete card, then an open discussion, then BOTH home goes to YOU, then leave.
++    BackHandler(enabled = state.tab == TwinTab.Both) {
++        when {
++            both.deleteTarget != null -> bothViewModel.cancelDelete()
++            both.open != null -> bothViewModel.close()
++            else -> viewModel.backToYou()
++        }
++    }
++    BackHandler(enabled = state.tab == TwinTab.You && state.quickOpen) { viewModel.closeQuick() }
+ 
+     val actions = remember(bothViewModel) {
+         BothActions(
+@@ -80,21 +138,23 @@ fun TwinAiScreen(
+             onNudge = bothViewModel::nudge, onContinue = bothViewModel::continueTogether,
+             onRetry = bothViewModel::retry, onAskDelete = bothViewModel::askDelete,
+             onConfirmDelete = bothViewModel::confirmDelete, onCancelDelete = bothViewModel::cancelDelete,
++            onMic = ::dictateAnswer,
+         )
+     }
+ 
+-    Column(modifier.fillMaxSize().imePadding()) {
+-        TwinAiHeader(
+-            syncing = state.syncing,
+-            onBack = onBack,
+-            onMenu = { toast(R.string.twinai_pending_menu) },
+-            onSearch = { toast(R.string.twinai_pending_search) },
+-            onSync = {
+-                viewModel.refresh()
+-                if (state.tab == TwinTab.Both) bothViewModel.loadHistory()
+-            },
+-        )
+-        if (state.bothEnabled) {
++    Box(modifier.fillMaxSize()) {
++        Column(Modifier.fillMaxSize().imePadding()) {
++            TwinAiHeader(
++                subtitle = stringResource(if (state.tab == TwinTab.Both) R.string.twinai_subtitle_both else R.string.twinai_subtitle),
++                syncing = state.syncing,
++                onBack = { if (state.tab == TwinTab.Both) viewModel.backToYou() else onBack() },
++                onMenu = { toast(R.string.twinai_pending_menu) },
++                onSearch = { toast(R.string.twinai_pending_search) },
++                onSync = {
++                    viewModel.refresh()
++                    if (state.tab == TwinTab.Both) bothViewModel.loadHistory()
++                },
++            )
+             TwinModeTabs(
+                 options = listOf(stringResource(R.string.twinai_tab_you), stringResource(R.string.twinai_tab_both)),
+                 selectedIndex = state.tab.ordinal,
+@@ -103,41 +163,46 @@ fun TwinAiScreen(
+                     .padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.s)
+                     .fillMaxWidth(0.62f),
+             )
+-        }
+-        Box(Modifier.weight(1f)) {
+-            when (state.tab) {
+-                TwinTab.You -> YouContent(
+-                    greetingName = state.greetingName,
+-                    messages = state.messages,
+-                    speakingId = speaker.speakingId,
++            Box(Modifier.weight(1f)) {
++                when (state.tab) {
++                    TwinTab.You -> YouContent(
++                        greetingName = state.greetingName,
++                        messages = state.messages,
++                        speakingId = speaker.speakingId,
++                        onPrompt = { viewModel.ask(it.prompt) },
++                        onRetry = viewModel::askAgain,
++                        onRegenerate = viewModel::askAgain,
++                        onListen = { speaker.toggle(it.id, it.text) },
++                    )
++                    TwinTab.Both -> BothContent(both, actions)
++                }
++            }
++            if (state.tab == TwinTab.You) {
++                TwinAiDock(
++                    input = state.input,
++                    onInputChange = viewModel::onInputChange,
++                    onSend = viewModel::sendInput,
++                    onMic = ::startVoice,
++                    onTogglePlus = viewModel::toggleQuick,
++                    quickOpen = state.quickOpen,
+                     onPrompt = { viewModel.ask(it.prompt) },
+-                    onRetry = viewModel::askAgain,
+-                    onRegenerate = viewModel::askAgain,
+-                    onListen = { speaker.toggle(it.id, it.text) },
++                    sendEnabled = state.input.isNotBlank() && !state.streaming,
++                    orb = if (voice.isOpen) voice.orb else state.orb,
+                 )
+-                TwinTab.Both -> BothContent(both, actions)
+             }
+         }
+-        if (state.tab == TwinTab.You) {
+-            TwinAiDock(
+-                input = state.input,
+-                onInputChange = viewModel::onInputChange,
+-                onSend = viewModel::sendInput,
+-                onMic = {
+-                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+-                        .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+-                        .putExtra(RecognizerIntent.EXTRA_PROMPT, speechPrompt)
+-                    try {
+-                        speech.launch(intent)
+-                    } catch (e: ActivityNotFoundException) {
+-                        toast(R.string.twinai_mic_unavailable)
+-                    }
+-                },
+-                onTogglePlus = viewModel::toggleQuick,
+-                quickOpen = state.quickOpen,
+-                onPrompt = { viewModel.ask(it.prompt) },
+-                sendEnabled = state.input.isNotBlank() && !state.streaming,
+-            )
+-        }
++        TwinVoiceOverlay(voice)
++    }
++
++    if (state.proPrompt) {
++        AlertDialog(
++            onDismissRequest = viewModel::dismissProPrompt,
++            title = { Text(stringResource(R.string.twinai_pro_title)) },
++            text = { Text(stringResource(R.string.twinai_pro_body), color = TwinTheme.colors.inkMuted) },
++            confirmButton = { TextButton(onClick = viewModel::dismissProPrompt) { Text(stringResource(R.string.twinai_pro_ok)) } },
++            containerColor = TwinTheme.colors.card,
++            titleContentColor = TwinTheme.colors.ink,
++            textContentColor = TwinTheme.colors.inkMuted,
++        )
+     }
+ }
+diff --git a/app/src/main/java/com/twinhearts/app/feature/twinai/ui/TwinAiViewModel.kt b/app/src/main/java/com/twinhearts/app/feature/twinai/ui/TwinAiViewModel.kt
+index 295583c..da541a7 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/twinai/ui/TwinAiViewModel.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/twinai/ui/TwinAiViewModel.kt
+@@ -9,10 +9,15 @@ import com.twinhearts.app.feature.twinai.domain.model.AiAuthor
+ import com.twinhearts.app.feature.twinai.domain.model.AiIdentity
+ import com.twinhearts.app.feature.twinai.domain.model.AiMessage
+ import com.twinhearts.app.feature.twinai.domain.model.AiMessageState
++import com.twinhearts.app.R
+ import com.twinhearts.app.feature.twinai.domain.model.AiStreamEvent
++import com.twinhearts.app.feature.twinai.domain.model.OrbState
+ import dagger.hilt.android.lifecycle.HiltViewModel
+ import kotlinx.coroutines.Job
++import kotlinx.coroutines.flow.MutableSharedFlow
+ import kotlinx.coroutines.flow.MutableStateFlow
++import kotlinx.coroutines.flow.SharedFlow
++import kotlinx.coroutines.flow.asSharedFlow
+ import kotlinx.coroutines.flow.StateFlow
+ import kotlinx.coroutines.flow.asStateFlow
+ import kotlinx.coroutines.flow.update
+@@ -27,14 +32,27 @@ enum class TwinTab { You, Both }
+ data class TwinAiUiState(
+     val greetingName: String = "",
+     val tab: TwinTab = TwinTab.You,
+-    /** BOTH is hidden until the server's feature flag says it is on for this couple. */
+-    val bothEnabled: Boolean = false,
++    /** True while the "BOTH is a Pro feature" card shows (the web opens its Pro card the same way). */
++    val proPrompt: Boolean = false,
++    val checkingPro: Boolean = false,
+     val messages: List<AiMessage> = emptyList(),
+     val input: String = "",
+     val streaming: Boolean = false,
+     val quickOpen: Boolean = false,
+     val syncing: Boolean = false,
+ ) {
++    /** What the Twin orb is doing; the dock orb and the voice screen both draw it. */
++    val orb: OrbState
++        get() {
++            val last = messages.lastOrNull { it.author == AiAuthor.Twin }
++            return when {
++                streaming -> OrbState.Thinking
++                last?.state == AiMessageState.Failed -> OrbState.Error
++                last != null -> OrbState.Responding
++                else -> OrbState.Idle
++            }
++        }
++
+     /** True while the welcome chips show (no question asked yet). */
+     val isWelcome: Boolean get() = messages.isEmpty()
+ }
+@@ -60,28 +78,54 @@ class TwinAiViewModel @Inject constructor(
+         refresh()
+     }
+ 
+-    /** Loads the name for the greeting and checks whether BOTH is switched on. Also the Sync button. */
++    /** Loads the name for the greeting. Also the Sync button. */
+     fun refresh() {
+         viewModelScope.launch {
+             _state.update { it.copy(syncing = true) }
+             val who = repository.identity()
+             identity = who
+-            val enabled = when (val flag = who?.let { repository.bothEnabled(it) }) {
+-                is AppResult.Success -> flag.data
+-                else -> false
+-            }
+             _state.update {
+                 it.copy(
+                     greetingName = who?.myName?.trim()?.substringBefore(' ').orEmpty(),
+-                    bothEnabled = enabled,
+-                    tab = if (enabled) it.tab else TwinTab.You,
+                     syncing = false,
+                 )
+             }
+         }
+     }
+ 
+-    fun selectTab(tab: TwinTab) = _state.update { it.copy(tab = tab, quickOpen = false) }
++    private val _messages = MutableSharedFlow<Int>(extraBufferCapacity = 4)
++    /** One-off texts (string ids) the screen shows as a short toast. */
++    val messages: SharedFlow<Int> = _messages.asSharedFlow()
++
++    /**
++     * YOU is always open. BOTH is a Pro feature on the web, so the same check runs here: a couple
++     * without Pro stays on YOU and sees the Pro card instead.
++     */
++    fun selectTab(tab: TwinTab) {
++        if (tab == _state.value.tab || _state.value.checkingPro) return
++        if (tab == TwinTab.You) {
++            _state.update { it.copy(tab = TwinTab.You, quickOpen = false) }
++            return
++        }
++        viewModelScope.launch {
++            _state.update { it.copy(checkingPro = true) }
++            val who = identity ?: repository.identity().also { identity = it }
++            val pro = who?.let { repository.isPro(it) }
++            _state.update { it.copy(checkingPro = false) }
++            when (pro) {
++                is AppResult.Success ->
++                    if (pro.data) _state.update { it.copy(tab = TwinTab.Both, quickOpen = false) }
++                    else _state.update { it.copy(proPrompt = true) }
++                is AppResult.Failure -> _messages.tryEmit(R.string.twinai_pro_check_failed)
++                null -> _messages.tryEmit(R.string.twinai_no_session)
++            }
++        }
++    }
++
++    fun dismissProPrompt() = _state.update { it.copy(proPrompt = false) }
++
++    /** Back on the BOTH home goes to YOU first (same as tapping the YOU pill on the web). */
++    fun backToYou() = _state.update { it.copy(tab = TwinTab.You) }
+ 
+     fun onInputChange(text: String) = _state.update { it.copy(input = text) }
+ 
+diff --git a/app/src/main/java/com/twinhearts/app/feature/twinai/ui/components/BothContent.kt b/app/src/main/java/com/twinhearts/app/feature/twinai/ui/components/BothContent.kt
+index d83b2ca..1ebd13e 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/twinai/ui/components/BothContent.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/twinai/ui/components/BothContent.kt
+@@ -1,8 +1,10 @@
+ package com.twinhearts.app.feature.twinai.ui.components
+ 
+ import androidx.annotation.StringRes
++import androidx.compose.foundation.background
+ import androidx.compose.foundation.clickable
+ import androidx.compose.foundation.layout.Arrangement
++import androidx.compose.foundation.layout.Box
+ import androidx.compose.foundation.layout.Column
+ import androidx.compose.foundation.layout.PaddingValues
+ import androidx.compose.foundation.layout.Row
+@@ -14,21 +16,31 @@ import androidx.compose.foundation.layout.width
+ import androidx.compose.foundation.lazy.LazyColumn
+ import androidx.compose.foundation.lazy.items
+ import androidx.compose.material.icons.Icons
+-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+-import androidx.compose.material.icons.rounded.Close
+ import androidx.compose.material.icons.rounded.Edit
++import androidx.compose.material.icons.rounded.ExpandLess
++import androidx.compose.material.icons.rounded.ExpandMore
+ import androidx.compose.material.icons.rounded.Favorite
++import androidx.compose.material.icons.rounded.Mic
++import androidx.compose.material.icons.rounded.MoreVert
+ import androidx.compose.material.icons.rounded.PlayArrow
+ import androidx.compose.material.icons.rounded.Psychology
+ import androidx.compose.material3.AlertDialog
+ import androidx.compose.material3.CircularProgressIndicator
++import androidx.compose.material3.DropdownMenu
++import androidx.compose.material3.DropdownMenuItem
+ import androidx.compose.material3.Icon
+ import androidx.compose.material3.MaterialTheme
+ import androidx.compose.material3.Text
+ import androidx.compose.material3.TextButton
+ import androidx.compose.runtime.Composable
++import androidx.compose.runtime.getValue
++import androidx.compose.runtime.mutableStateOf
++import androidx.compose.runtime.remember
++import androidx.compose.runtime.saveable.rememberSaveable
++import androidx.compose.runtime.setValue
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
++import androidx.compose.ui.draw.clip
+ import androidx.compose.ui.graphics.vector.ImageVector
+ import androidx.compose.ui.res.stringResource
+ import androidx.compose.ui.text.SpanStyle
+@@ -39,6 +51,7 @@ import androidx.compose.ui.text.withStyle
+ import androidx.compose.ui.unit.dp
+ import com.twinhearts.app.R
+ import com.twinhearts.app.core.common.asText
++import com.twinhearts.app.core.design.Avatar
+ import com.twinhearts.app.core.design.ErrorState
+ import com.twinhearts.app.core.design.GlassButton
+ import com.twinhearts.app.core.design.GlassButtonStyle
+@@ -71,6 +84,7 @@ class BothActions(
+     val onAskDelete: (BothSession) -> Unit,
+     val onConfirmDelete: () -> Unit,
+     val onCancelDelete: () -> Unit,
++    val onMic: () -> Unit,
+ )
+ 
+ private val dateFormat: DateTimeFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
+@@ -100,9 +114,13 @@ fun BothContent(state: BothUiState, actions: BothActions, modifier: Modifier = M
+         AlertDialog(
+             onDismissRequest = actions.onCancelDelete,
+             title = { Text(stringResource(R.string.twinai_both_delete_title)) },
++            text = { Text(stringResource(R.string.twinai_both_delete_body), color = TwinTheme.colors.inkMuted) },
+             confirmButton = {
+                 TextButton(onClick = actions.onConfirmDelete, enabled = !state.deleting) {
+-                    Text(stringResource(R.string.twinai_both_delete), color = TwinTheme.colors.error)
++                    Text(
++                        stringResource(if (state.deleting) R.string.twinai_both_deleting else R.string.twinai_both_delete),
++                        color = TwinTheme.colors.error,
++                    )
+                 }
+             },
+             dismissButton = {
+@@ -110,6 +128,7 @@ fun BothContent(state: BothUiState, actions: BothActions, modifier: Modifier = M
+             },
+             containerColor = TwinTheme.colors.card,
+             titleContentColor = TwinTheme.colors.ink,
++            textContentColor = TwinTheme.colors.inkMuted,
+         )
+     }
+ }
+@@ -203,27 +222,46 @@ private fun HowRow(number: Int, icon: ImageVector, @StringRes text: Int) {
+ @Composable
+ private fun HistoryRow(session: BothSession, opening: Boolean, onOpen: () -> Unit, onDelete: () -> Unit) {
+     val colors = TwinTheme.colors
++    var menuOpen by remember { mutableStateOf(false) }
+     GlassCard(Modifier.fillMaxWidth(), contentPadding = TwinTheme.spacing.m) {
+         Row(verticalAlignment = Alignment.CenterVertically) {
+             Column(
+                 Modifier.weight(1f).clickable(enabled = !opening, onClick = onOpen).padding(vertical = TwinTheme.spacing.xs),
+                 verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.xs),
+             ) {
++                Row(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s), verticalAlignment = Alignment.CenterVertically) {
++                    Text(
++                        text = session.intent?.let { stringResource(intentLabel(it)) } ?: "…",
++                        style = MaterialTheme.typography.labelMedium, color = colors.pinkSoft, fontWeight = FontWeight.Bold,
++                    )
++                    session.lastActivity?.let {
++                        Text(dateFormat.format(it.atZone(ZoneId.systemDefault())), style = MaterialTheme.typography.labelSmall, color = colors.inkFaint)
++                    }
++                }
+                 Text(
+                     session.title ?: stringResource(R.string.twinai_both_untitled),
+                     style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 1,
+                 )
+-                val rounds = if (session.roundCount == 1) stringResource(R.string.twinai_both_round_one)
+-                else stringResource(R.string.twinai_both_rounds, session.roundCount)
+-                val date = session.lastActivity?.let { " · " + dateFormat.format(it.atZone(ZoneId.systemDefault())) }.orEmpty()
+-                Text(rounds + date, style = MaterialTheme.typography.bodySmall, color = colors.inkFaint)
++                Text(
++                    if (session.roundCount == 1) stringResource(R.string.twinai_both_round_one)
++                    else stringResource(R.string.twinai_both_rounds, session.roundCount),
++                    style = MaterialTheme.typography.bodySmall, color = colors.inkFaint,
++                )
++            }
++            Box {
++                Icon(
++                    Icons.Rounded.MoreVert,
++                    contentDescription = stringResource(R.string.twinai_both_menu),
++                    tint = colors.inkFaint,
++                    modifier = Modifier.size(TwinTheme.shapes.minTouch).clip(TwinTheme.shapes.circle).clickable { menuOpen = true }.padding(12.dp),
++                )
++                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, modifier = Modifier.background(colors.card)) {
++                    DropdownMenuItem(
++                        text = { Text(stringResource(R.string.twinai_both_delete_menu), color = colors.error) },
++                        onClick = { menuOpen = false; onDelete() },
++                    )
++                }
+             }
+-            Icon(
+-                Icons.Rounded.Close,
+-                contentDescription = stringResource(R.string.twinai_both_delete),
+-                tint = colors.inkFaint,
+-                modifier = Modifier.size(TwinTheme.shapes.minTouch).clickable(onClick = onDelete).padding(12.dp),
+-            )
+         }
+     }
+ }
+@@ -240,15 +278,9 @@ private fun DiscussionView(state: BothUiState, actions: BothActions, modifier: M
+     ) {
+         item {
+             Row(verticalAlignment = Alignment.CenterVertically) {
+-                Icon(
+-                    Icons.AutoMirrored.Rounded.ArrowBack,
+-                    contentDescription = stringResource(R.string.core_back),
+-                    tint = colors.ink,
+-                    modifier = Modifier
+-                        .size(TwinTheme.shapes.minTouch)
+-                        .clickable(onClick = actions.onClose)
+-                        .padding(12.dp),
+-                )
++                TextButton(onClick = actions.onClose) {
++                    Text(stringResource(R.string.twinai_both_back), color = colors.pinkSoft)
++                }
+                 Text(
+                     discussion.session.title ?: stringResource(R.string.twinai_both_untitled),
+                     style = MaterialTheme.typography.titleMedium,
+@@ -257,20 +289,31 @@ private fun DiscussionView(state: BothUiState, actions: BothActions, modifier: M
+                     maxLines = 1,
+                     modifier = Modifier.weight(1f),
+                 )
++                current?.let {
++                    Text(stringResource(R.string.twinai_both_round_label, it.number), style = MaterialTheme.typography.labelMedium, color = colors.inkFaint)
++                }
+             }
+         }
+-        // Earlier rounds, read-only.
+-        items(discussion.rounds.filter { it.id != current?.id }.sortedBy { it.number }, key = { it.id }) { round ->
+-            Column(verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
+-                Text(stringResource(R.string.twinai_both_round_label, round.number), style = MaterialTheme.typography.labelSmall, color = colors.inkFaint)
+-                round.result?.let { ResultCard(it, onContinue = null) }
++        item {
++            Row(
++                Modifier.fillMaxWidth(),
++                verticalAlignment = Alignment.CenterVertically,
++                horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s, Alignment.CenterHorizontally),
++            ) {
++                Avatar(state.myName, size = 32.dp)
++                Text(state.myName, style = MaterialTheme.typography.bodyMedium, color = colors.ink, maxLines = 1)
++                Text(stringResource(R.string.twinai_both_vs), style = MaterialTheme.typography.labelMedium, color = colors.accent)
++                Avatar(state.partnerName, size = 32.dp)
++                Text(state.partnerName, style = MaterialTheme.typography.bodyMedium, color = colors.ink, maxLines = 1)
+             }
+         }
++        // Earlier rounds that are finished: folded away, tap to open (like the web "details" rows).
++        items(
++            discussion.rounds.filter { it.id != current?.id && (it.status == RoundStatus.Done || it.status == RoundStatus.Safety) }.sortedBy { it.number },
++            key = { it.id },
++        ) { round -> PriorRound(round) }
+         if (current != null) {
+             item(key = "current") {
+-                if (discussion.rounds.size > 1) {
+-                    Text(stringResource(R.string.twinai_both_round_label, current.number), style = MaterialTheme.typography.labelSmall, color = colors.inkFaint)
+-                }
+                 RoundBody(current, state, actions)
+             }
+         }
+@@ -299,7 +342,7 @@ private fun RoundBody(round: BothRound, state: BothUiState, actions: BothActions
+             Text(stringResource(R.string.twinai_both_analyzing), style = MaterialTheme.typography.bodyLarge, color = colors.ink, textAlign = TextAlign.Center)
+         }
+         round.youSubmitted && state.editing -> GlassCard(Modifier.fillMaxWidth()) {
+-            GlassTextArea(value = state.draft, onValueChange = actions.onDraft, hint = stringResource(R.string.twinai_both_edit), minHeight = 120.dp, maxLines = 8)
++            GlassTextArea(value = state.draft, onValueChange = actions.onDraft, hint = stringResource(R.string.twinai_both_edit), minHeight = 120.dp, maxLines = 8, trailing = { MicButton(actions.onMic) })
+             Row(Modifier.fillMaxWidth().padding(top = TwinTheme.spacing.m), horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
+                 GlassButton(stringResource(R.string.twinai_both_cancel), actions.onCancelEdit, Modifier.weight(1f), GlassButtonStyle.Ghost)
+                 GlassButton(
+@@ -330,6 +373,7 @@ private fun RoundBody(round: BothRound, state: BothUiState, actions: BothActions
+                 hint = stringResource(R.string.twinai_both_placeholder, partner),
+                 minHeight = 120.dp,
+                 maxLines = 8,
++                trailing = { MicButton(actions.onMic) },
+             )
+             GlassButton(
+                 text = stringResource(R.string.twinai_both_submit),
+@@ -397,3 +441,51 @@ private fun ResultCard(result: BothResult, onContinue: (() -> Unit)?) {
+         }
+     }
+ }
++
++@Composable
++private fun PriorRound(round: BothRound) {
++    val colors = TwinTheme.colors
++    var expanded by rememberSaveable(round.id) { mutableStateOf(false) }
++    val result = round.result
++    GlassCard(Modifier.fillMaxWidth(), contentPadding = TwinTheme.spacing.m) {
++        Row(
++            Modifier.fillMaxWidth().clickable { expanded = !expanded },
++            verticalAlignment = Alignment.CenterVertically,
++        ) {
++            Text(
++                text = if (result == null) stringResource(R.string.twinai_both_prior_round_plain, round.number)
++                else stringResource(R.string.twinai_both_prior_round, round.number, stringResource(intentLabel(result.intent))),
++                style = MaterialTheme.typography.titleSmall, color = colors.ink, modifier = Modifier.weight(1f),
++            )
++            Icon(
++                if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
++                contentDescription = null, tint = colors.inkFaint,
++            )
++        }
++        if (expanded) {
++            if (result == null) {
++                Text(stringResource(R.string.twinai_both_no_result_short), color = colors.inkFaint, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = TwinTheme.spacing.s))
++            } else {
++                result.sections.forEach { section ->
++                    Text(
++                        buildAnnotatedString {
++                            withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(section.title) }
++                        },
++                        style = MaterialTheme.typography.titleSmall, color = colors.ink, modifier = Modifier.padding(top = TwinTheme.spacing.m),
++                    )
++                    Text(section.content, style = MaterialTheme.typography.bodyMedium, color = colors.inkMuted, modifier = Modifier.padding(top = TwinTheme.spacing.xs))
++                }
++            }
++        }
++    }
++}
++
++@Composable
++private fun MicButton(onClick: () -> Unit) {
++    Icon(
++        Icons.Rounded.Mic,
++        contentDescription = stringResource(R.string.twinai_both_mic),
++        tint = TwinTheme.colors.inkMuted,
++        modifier = Modifier.size(TwinTheme.shapes.minTouch).clip(TwinTheme.shapes.circle).clickable(onClick = onClick).padding(12.dp),
++    )
++}
+diff --git a/app/src/main/java/com/twinhearts/app/feature/twinai/ui/components/TwinAiDock.kt b/app/src/main/java/com/twinhearts/app/feature/twinai/ui/components/TwinAiDock.kt
+index 1557f67..278b560 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/twinai/ui/components/TwinAiDock.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/twinai/ui/components/TwinAiDock.kt
+@@ -32,6 +32,7 @@ import androidx.compose.ui.semantics.Role
+ import androidx.compose.ui.unit.dp
+ import com.twinhearts.app.R
+ import com.twinhearts.app.core.design.TwinTheme
++import com.twinhearts.app.feature.twinai.domain.model.OrbState
+ import com.twinhearts.app.feature.twinai.domain.model.QuickPrompt
+ 
+ /** The name shown on a chip or in the "+" sheet. Kept here so the screen and the dock share one list. */
+@@ -57,6 +58,7 @@ fun TwinAiDock(
+     quickOpen: Boolean,
+     onPrompt: (QuickPrompt) -> Unit,
+     sendEnabled: Boolean,
++    orb: OrbState,
+     modifier: Modifier = Modifier,
+ ) {
+     val colors = TwinTheme.colors
+@@ -138,7 +140,7 @@ fun TwinAiDock(
+                     enabled = sendEnabled,
+                 ) { Icon(Icons.AutoMirrored.Rounded.Send, null, tint = colors.ink, modifier = Modifier.size(22.dp)) }
+             }
+-            TwinOrb(Modifier.offset(y = 0.dp), size = 52.dp)
++            TwinOrb(Modifier.offset(y = 0.dp), size = 52.dp, state = orb)
+         }
+     }
+ }
+diff --git a/app/src/main/java/com/twinhearts/app/feature/twinai/ui/components/TwinAiHeader.kt b/app/src/main/java/com/twinhearts/app/feature/twinai/ui/components/TwinAiHeader.kt
+index 82db201..51e4c1d 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/twinai/ui/components/TwinAiHeader.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/twinai/ui/components/TwinAiHeader.kt
+@@ -53,6 +53,7 @@ import com.twinhearts.app.core.design.TwinTheme
+  */
+ @Composable
+ fun TwinAiHeader(
++    subtitle: String,
+     syncing: Boolean,
+     onBack: () -> Unit,
+     onMenu: () -> Unit,
+@@ -94,7 +95,7 @@ fun TwinAiHeader(
+                 maxLines = 1,
+             )
+             Text(
+-                stringResource(R.string.twinai_subtitle),
++                subtitle,
+                 style = MaterialTheme.typography.bodySmall,
+                 color = colors.inkMuted,
+                 maxLines = 1,
+diff --git a/app/src/main/java/com/twinhearts/app/feature/twinai/ui/components/TwinArt.kt b/app/src/main/java/com/twinhearts/app/feature/twinai/ui/components/TwinArt.kt
+index 606b6fc..13fcd26 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/twinai/ui/components/TwinArt.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/twinai/ui/components/TwinArt.kt
+@@ -22,10 +22,12 @@ import androidx.compose.ui.graphics.StrokeCap
+ import androidx.compose.ui.graphics.drawscope.DrawScope
+ import androidx.compose.ui.graphics.drawscope.Stroke
+ import androidx.compose.ui.graphics.drawscope.rotate
++import androidx.compose.ui.graphics.graphicsLayer
+ import androidx.compose.ui.unit.Dp
+ import androidx.compose.ui.unit.dp
+ import com.twinhearts.app.core.common.rememberReduceMotion
+ import com.twinhearts.app.core.design.TwinTheme
++import com.twinhearts.app.feature.twinai.domain.model.OrbState
+ 
+ /*
+  * Why this file exists: Twin's illustrations (the robot holding a heart, the small chat avatar and
+@@ -104,20 +106,53 @@ fun TwinAvatar(modifier: Modifier = Modifier, size: Dp = 32.dp) {
+     }
+ }
+ 
+-/** The glowing Twin orb that sits on the input bar. Slowly spins unless animations are off (R-55). */
++/**
++ * The glowing Twin orb. It spins slowly unless animations are off (R-55). [state] changes how it
++ * glows (thinking and speaking pulse, an error turns the glow red, listening follows your voice
++ * through [level], 0..1), like the states of the web orb.
++ */
+ @Composable
+-fun TwinOrb(modifier: Modifier = Modifier, size: Dp = 56.dp) {
++fun TwinOrb(
++    modifier: Modifier = Modifier,
++    size: Dp = 56.dp,
++    state: OrbState = OrbState.Idle,
++    level: Float = 0f,
++) {
+     val colors = TwinTheme.colors
+     val reduce = rememberReduceMotion()
+-    val angle = if (reduce) {
+-        0f
++    val angle: Float
++    val pulse: Float
++    if (reduce) {
++        angle = 0f
++        pulse = 0f
+     } else {
+         val t = rememberInfiniteTransition(label = "orb")
+-        val a by t.animateFloat(0f, 360f, infiniteRepeatable(tween(14_000, easing = LinearEasing), RepeatMode.Restart), label = "orbAngle")
+-        a
++        val a by t.animateFloat(0f, 360f, infiniteRepeatable(tween(if (state == OrbState.Thinking) 5_000 else 14_000, easing = LinearEasing), RepeatMode.Restart), label = "orbAngle")
++        val p by t.animateFloat(0f, 1f, infiniteRepeatable(tween(1_100, easing = LinearEasing), RepeatMode.Reverse), label = "orbPulse")
++        angle = a
++        pulse = p
+     }
+-    Canvas(modifier = modifier.size(size)) {
++    val glowColor = if (state == OrbState.Error) colors.error else colors.accent
++    val glow = when (state) {
++        OrbState.Idle -> 0.0f
++        OrbState.Responding -> 0.18f
++        OrbState.Error -> 0.35f
++        OrbState.Thinking -> 0.25f + 0.2f * pulse
++        OrbState.Speaking -> 0.3f + 0.25f * pulse
++        OrbState.Listening -> 0.25f + 0.5f * level
++    }
++    val grow = if (state == OrbState.Listening) 1f + 0.12f * level else 1f
++    Canvas(modifier = modifier.size(size).graphicsLayer { scaleX = grow; scaleY = grow }) {
+         val r = this.size.width / 2f
++        if (glow > 0f) {
++            drawCircle(
++                Brush.radialGradient(
++                    listOf(glowColor.copy(alpha = glow), Color.Transparent),
++                    center = center, radius = r * (1.55f + 0.2f * pulse),
++                ),
++                radius = r * (1.55f + 0.2f * pulse),
++            )
++        }
+         drawCircle(
+             Brush.radialGradient(
+                 listOf(colors.accent, colors.primaryEnd, colors.background),
+diff --git a/app/src/main/java/com/twinhearts/app/feature/twinai/ui/components/YouContent.kt b/app/src/main/java/com/twinhearts/app/feature/twinai/ui/components/YouContent.kt
+index cfff03e..426f247 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/twinai/ui/components/YouContent.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/twinai/ui/components/YouContent.kt
+@@ -12,12 +12,16 @@ import androidx.compose.foundation.layout.width
+ import androidx.compose.foundation.layout.Column
+ import androidx.compose.foundation.lazy.LazyColumn
+ import androidx.compose.foundation.lazy.LazyRow
++import androidx.compose.foundation.lazy.LazyListState
+ import androidx.compose.foundation.lazy.items
+ import androidx.compose.foundation.lazy.rememberLazyListState
+ import androidx.compose.material3.MaterialTheme
+ import androidx.compose.material3.Text
+ import androidx.compose.runtime.Composable
+ import androidx.compose.runtime.LaunchedEffect
++import androidx.compose.runtime.snapshotFlow
++import kotlinx.coroutines.flow.first
++import kotlinx.coroutines.delay
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.draw.clip
+@@ -128,10 +132,27 @@ private fun TwinHero(name: String, compact: Boolean) {
+     }
+ }
+ 
++/** Index of "Write something sweet": the chip the row rests on, like the web carousel. */
++private const val CENTER_CHIP = 2
++private const val RECENTER_DELAY_MS = 2_000L
++
+ @Composable
+ private fun PromptChips(onPrompt: (QuickPrompt) -> Unit) {
+     val colors = TwinTheme.colors
+-    LazyRow(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
++    val listState = rememberLazyListState()
++
++    // Rest with the middle chip centred; after 2 s without touch, glide back to it.
++    LaunchedEffect(listState.isScrollInProgress) {
++        if (listState.isScrollInProgress) return@LaunchedEffect
++        delay(RECENTER_DELAY_MS)
++        listState.centerChip(animate = true)
++    }
++    LaunchedEffect(Unit) {
++        snapshotFlow { listState.layoutInfo.visibleItemsInfo.isNotEmpty() }.first { it }
++        listState.centerChip(animate = false)
++    }
++
++    LazyRow(state = listState, horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
+         items(QuickPrompt.entries.toList(), key = { it.name }) { p ->
+             Row(
+                 Modifier
+@@ -149,3 +170,20 @@ private fun PromptChips(onPrompt: (QuickPrompt) -> Unit) {
+         }
+     }
+ }
++
++private suspend fun LazyListState.centerChip(animate: Boolean) {
++    if (layoutInfo.visibleItemsInfo.none { it.index == CENTER_CHIP }) {
++        scrollToItem(CENTER_CHIP)
++        snapshotFlow { layoutInfo.visibleItemsInfo.any { it.index == CENTER_CHIP } }.first { it }
++    }
++    val offset = centerOffset(this)
++    if (animate) animateScrollToItem(CENTER_CHIP, offset) else scrollToItem(CENTER_CHIP, offset)
++}
++
++/** Scroll offset that puts the middle chip in the middle of the row (negative = move it right). */
++private fun centerOffset(state: LazyListState): Int {
++    val info = state.layoutInfo
++    val chip = info.visibleItemsInfo.firstOrNull { it.index == CENTER_CHIP }?.size ?: return 0
++    val viewport = info.viewportEndOffset - info.viewportStartOffset
++    return -((viewport - chip) / 2)
++}
+diff --git a/app/src/main/java/com/twinhearts/app/feature/twinai/ui/voice/TwinVoiceController.kt b/app/src/main/java/com/twinhearts/app/feature/twinai/ui/voice/TwinVoiceController.kt
+new file mode 100644
+index 0000000..65c9a1c
+--- /dev/null
++++ b/app/src/main/java/com/twinhearts/app/feature/twinai/ui/voice/TwinVoiceController.kt
+@@ -0,0 +1,320 @@
++package com.twinhearts.app.feature.twinai.ui.voice
++
++import android.content.Context
++import android.content.Intent
++import android.os.Bundle
++import android.speech.RecognitionListener
++import android.speech.RecognizerIntent
++import android.speech.SpeechRecognizer
++import android.speech.tts.TextToSpeech
++import android.speech.tts.UtteranceProgressListener
++import androidx.annotation.StringRes
++import androidx.compose.runtime.Composable
++import androidx.compose.runtime.DisposableEffect
++import androidx.compose.runtime.Stable
++import androidx.compose.runtime.getValue
++import androidx.compose.runtime.mutableFloatStateOf
++import androidx.compose.runtime.mutableStateOf
++import androidx.compose.runtime.remember
++import androidx.compose.runtime.rememberUpdatedState
++import androidx.compose.runtime.rememberCoroutineScope
++import androidx.compose.runtime.setValue
++import androidx.compose.ui.platform.LocalContext
++import com.twinhearts.app.R
++import com.twinhearts.app.feature.twinai.domain.model.OrbState
++import kotlinx.coroutines.CoroutineScope
++import kotlinx.coroutines.Job
++import kotlinx.coroutines.delay
++import kotlinx.coroutines.launch
++import java.util.Locale
++
++/**
++ * Why this file exists: the Android version of the web "Twin voice mode". One tap opens a full
++ * screen that listens (phone speech recognizer), sends what you said through the normal Twin chat,
++ * reads the answer aloud (phone text-to-speech) and then closes itself, exactly like the web flow.
++ * Free: it only uses what the phone already has.
++ *
++ * Everything that closes the screen goes through [exit], so the microphone and the voice can never
++ * be left running (same single clean-up rule as the web code).
++ */
++@Stable
++class TwinVoiceController internal constructor(
++    private val context: Context,
++    private val scope: CoroutineScope,
++    /** Sends the spoken question to the Twin chat. Returns false when Twin is busy with another answer. */
++    private val submit: (String) -> Boolean,
++) {
++    /** True while the voice screen is on screen. */
++    var isOpen by mutableStateOf(false)
++        private set
++    var orb by mutableStateOf(OrbState.Idle)
++        private set
++    var muted by mutableStateOf(false)
++        private set
++    @get:StringRes var statusRes by mutableStateOf(R.string.twinai_voice_getting_ready)
++        private set
++    @get:StringRes var hintRes by mutableStateOf<Int?>(null)
++        private set
++    var finalText by mutableStateOf("")
++        private set
++    var interimText by mutableStateOf("")
++        private set
++
++    /** 0..1 loudness of your voice, smoothed. Drives the orb size while listening. */
++    var level by mutableFloatStateOf(0f)
++        private set
++
++    private var recognizer: SpeechRecognizer? = null
++    private var listening = false
++    private var manualStop = false
++    private var awaitingReply = false
++    private var token = 0
++    private var closeJob: Job? = null
++    private var watchdog: Job? = null
++
++    private var tts: TextToSpeech? = null
++    private var ttsReady = false
++
++    /** Opens the screen and starts listening. Call only after the microphone permission is granted. */
++    fun open() {
++        if (isOpen) return
++        isOpen = true
++        muted = false
++        awaitingReply = false
++        finalText = ""
++        interimText = ""
++        show(OrbState.Idle, R.string.twinai_voice_getting_ready, null)
++        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
++            show(OrbState.Error, R.string.twinai_voice_unsupported, R.string.twinai_voice_unsupported_hint)
++            closeLater(1_600)
++            return
++        }
++        startListening()
++    }
++
++    /** Shown when the microphone permission was refused: same message and auto-close as the web. */
++    fun openDenied() {
++        if (isOpen) return
++        isOpen = true
++        show(OrbState.Error, R.string.twinai_voice_mic_needed, R.string.twinai_voice_type_hint)
++        closeLater(1_600)
++    }
++
++    /** The one clean-up path: every way out of voice mode ends here. */
++    fun exit() {
++        if (!isOpen) return
++        isOpen = false
++        token++
++        manualStop = true
++        awaitingReply = false
++        closeJob?.cancel()
++        watchdog?.cancel()
++        stopListening()
++        tts?.stop()
++        level = 0f
++        orb = OrbState.Idle
++    }
++
++    /** The mic button on the voice screen: interrupts Twin while it speaks, otherwise mutes / unmutes. */
++    fun toggleMute() {
++        closeJob?.cancel()
++        if (orb == OrbState.Speaking) {
++            token++
++            watchdog?.cancel()
++            tts?.stop()
++            startListening()
++            return
++        }
++        muted = !muted
++        if (muted) {
++            stopListening()
++            tts?.stop()
++            show(OrbState.Idle, R.string.twinai_voice_muted, R.string.twinai_voice_muted_hint)
++        } else if (isOpen) {
++            startListening()
++        }
++    }
++
++    /** The screen calls this when Twin's answer is finished (or failed) after a spoken question. */
++    fun onReplyFinished(failed: Boolean, reply: String?) {
++        if (!awaitingReply) return
++        awaitingReply = false
++        if (!isOpen) return
++        if (failed || reply.isNullOrBlank()) {
++            show(OrbState.Error, R.string.twinai_voice_failed, R.string.twinai_voice_closing)
++            closeLater(1_600)
++            return
++        }
++        speak(reply)
++    }
++
++    internal fun shutdown() {
++        exit()
++        recognizer?.destroy()
++        recognizer = null
++        tts?.shutdown()
++        tts = null
++    }
++
++    //  listening 
++
++    private fun startListening() {
++        if (!isOpen || muted || listening) return
++        closeJob?.cancel()
++        manualStop = false
++        finalText = ""
++        interimText = ""
++        val engine = recognizer ?: SpeechRecognizer.createSpeechRecognizer(context).also { recognizer = it }
++        engine.setRecognitionListener(listener)
++        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
++            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
++            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
++            .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
++            .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
++        listening = true
++        runCatching { engine.startListening(intent) }.onFailure {
++            listening = false
++            show(OrbState.Error, R.string.twinai_voice_cant_start, R.string.twinai_voice_try_again)
++        }
++    }
++
++    private fun stopListening() {
++        manualStop = true
++        if (listening) runCatching { recognizer?.cancel() }
++        listening = false
++    }
++
++    private val listener = object : RecognitionListener {
++        override fun onReadyForSpeech(params: Bundle?) = show(OrbState.Listening, R.string.twinai_voice_listening, null)
++        override fun onBeginningOfSpeech() = Unit
++        override fun onBufferReceived(buffer: ByteArray?) = Unit
++        override fun onEndOfSpeech() = Unit
++        override fun onEvent(eventType: Int, params: Bundle?) = Unit
++
++        override fun onRmsChanged(rmsdB: Float) {
++            // rmsdB is roughly -2..10; smoothed like the web analyser so the orb does not flicker.
++            val raw = ((rmsdB + 2f) / 12f).coerceIn(0f, 1f)
++            level = level * 0.75f + raw * 0.25f
++        }
++
++        override fun onPartialResults(partialResults: Bundle?) {
++            interimText = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
++        }
++
++        override fun onResults(results: Bundle?) {
++            listening = false
++            level = 0f
++            if (manualStop || !isOpen) return
++            val heard = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.trim().orEmpty()
++            interimText = ""
++            if (heard.isEmpty()) {
++                show(OrbState.Idle, R.string.twinai_voice_ready, R.string.twinai_voice_closing)
++                closeLater(1_200)
++            } else {
++                send(heard)
++            }
++        }
++
++        override fun onError(error: Int) {
++            listening = false
++            level = 0f
++            if (manualStop || !isOpen) return
++            if (error == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS) {
++                show(OrbState.Error, R.string.twinai_voice_mic_needed, R.string.twinai_voice_type_hint)
++            } else {
++                // No speech, nothing matched, busy or network trouble: say so and close, never sit open.
++                show(OrbState.Error, R.string.twinai_voice_no_hear, R.string.twinai_voice_closing)
++            }
++            closeLater(1_200)
++        }
++    }
++
++    private fun send(question: String) {
++        show(OrbState.Thinking, R.string.twinai_voice_thinking, null)
++        finalText = question
++        token++
++        tts?.stop()
++        if (submit(question)) {
++            awaitingReply = true
++        } else {
++            show(OrbState.Error, R.string.twinai_voice_busy, R.string.twinai_voice_closing)
++            closeLater(1_600)
++        }
++    }
++
++    //  speaking 
++
++    private fun speak(text: String) {
++        val engine = tts ?: TextToSpeech(context.applicationContext) { status ->
++            ttsReady = status == TextToSpeech.SUCCESS
++        }.also { tts = it; wire(it) }
++        val mine = ++token
++        val plain = text.replace(Regex("[*_`#>]"), "").replace(Regex("\\n{2,}"), ". ").replace(Regex("\\s+"), " ").trim()
++        scope.launch {
++            // A fresh engine needs a moment to start; wait for it, but never forever.
++            var waited = 0
++            while (!ttsReady && waited < 2_000) { delay(100); waited += 100 }
++            if (mine != token || !isOpen) return@launch
++            if (!ttsReady) { exit(); return@launch }
++            engine.language = Locale.getDefault()
++            finalText = plain
++            interimText = ""
++            show(OrbState.Speaking, R.string.twinai_voice_speaking, R.string.twinai_voice_speaking_hint)
++            if (engine.speak(plain, TextToSpeech.QUEUE_FLUSH, null, "voice-$mine") == TextToSpeech.ERROR) {
++                exit()
++                return@launch
++            }
++            // Safety net only: some phones never report the end of speech.
++            val words = plain.split(' ').count { it.isNotBlank() }
++            val estimate = (words / 150.0 * 60_000 / 0.98).toLong()
++            watchdog?.cancel()
++            watchdog = scope.launch {
++                delay((estimate + 3_000).coerceIn(4_000, 30_000))
++                if (mine == token && isOpen) exit()
++            }
++        }
++    }
++
++    private fun wire(engine: TextToSpeech) {
++        engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
++            override fun onStart(utteranceId: String?) = Unit
++            override fun onDone(utteranceId: String?) = finished(utteranceId)
++            @Deprecated("Required by the abstract class", ReplaceWith("onError(utteranceId, -1)"))
++            override fun onError(utteranceId: String?) = finished(utteranceId)
++        })
++    }
++
++    /** Speech ended: close the voice screen, unless a newer turn (an interruption) already took over. */
++    private fun finished(utteranceId: String?) {
++        scope.launch {
++            val id = utteranceId?.removePrefix("voice-")?.toIntOrNull()
++            if (id == token && isOpen) exit()
++        }
++    }
++
++    //  small helpers 
++
++    private fun show(state: OrbState, @StringRes status: Int, @StringRes hint: Int?) {
++        orb = state
++        statusRes = status
++        hintRes = hint
++    }
++
++    private fun closeLater(ms: Long) {
++        closeJob?.cancel()
++        closeJob = scope.launch {
++            delay(ms)
++            if (isOpen) exit()
++        }
++    }
++}
++
++@Composable
++fun rememberTwinVoice(submit: (String) -> Boolean): TwinVoiceController {
++    val context = LocalContext.current
++    val scope = rememberCoroutineScope()
++    val latestSubmit = rememberUpdatedState(submit)
++    val controller = remember { TwinVoiceController(context, scope) { latestSubmit.value(it) } }
++    DisposableEffect(controller) { onDispose { controller.shutdown() } }
++    return controller
++}
+diff --git a/app/src/main/java/com/twinhearts/app/feature/twinai/ui/voice/TwinVoiceOverlay.kt b/app/src/main/java/com/twinhearts/app/feature/twinai/ui/voice/TwinVoiceOverlay.kt
+new file mode 100644
+index 0000000..513ebcd
+--- /dev/null
++++ b/app/src/main/java/com/twinhearts/app/feature/twinai/ui/voice/TwinVoiceOverlay.kt
+@@ -0,0 +1,137 @@
++package com.twinhearts.app.feature.twinai.ui.voice
++
++import androidx.activity.compose.BackHandler
++import androidx.compose.animation.AnimatedVisibility
++import androidx.compose.animation.fadeIn
++import androidx.compose.animation.fadeOut
++import androidx.compose.foundation.background
++import androidx.compose.foundation.border
++import androidx.compose.foundation.clickable
++import androidx.compose.foundation.gestures.detectTapGestures
++import androidx.compose.foundation.layout.Arrangement
++import androidx.compose.foundation.layout.Box
++import androidx.compose.foundation.layout.Column
++import androidx.compose.foundation.layout.Row
++import androidx.compose.foundation.layout.Spacer
++import androidx.compose.foundation.layout.fillMaxSize
++import androidx.compose.foundation.layout.fillMaxWidth
++import androidx.compose.foundation.layout.height
++import androidx.compose.foundation.layout.navigationBarsPadding
++import androidx.compose.foundation.layout.padding
++import androidx.compose.foundation.layout.size
++import androidx.compose.foundation.layout.statusBarsPadding
++import androidx.compose.foundation.rememberScrollState
++import androidx.compose.foundation.verticalScroll
++import androidx.compose.material.icons.Icons
++import androidx.compose.material.icons.rounded.Close
++import androidx.compose.material.icons.rounded.Mic
++import androidx.compose.material.icons.rounded.MicOff
++import androidx.compose.material3.Icon
++import androidx.compose.material3.MaterialTheme
++import androidx.compose.material3.Text
++import androidx.compose.runtime.Composable
++import androidx.compose.ui.Alignment
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.draw.clip
++import androidx.compose.ui.input.pointer.pointerInput
++import androidx.compose.ui.res.stringResource
++import androidx.compose.ui.semantics.Role
++import androidx.compose.ui.text.SpanStyle
++import androidx.compose.ui.text.buildAnnotatedString
++import androidx.compose.ui.text.style.TextAlign
++import androidx.compose.ui.text.withStyle
++import androidx.compose.ui.unit.dp
++import com.twinhearts.app.R
++import com.twinhearts.app.core.design.TwinTheme
++import com.twinhearts.app.feature.twinai.ui.components.TwinOrb
++
++/**
++ * Why this file exists: the full-screen "voice mode" of the Twin page: big orb, what Twin is doing
++ * ("Listening...", "Thinking...", "Speaking..."), the words, and the mic / end buttons.
++ * Back, the end button and leaving the app all close it through the controller.
++ */
++@Composable
++fun TwinVoiceOverlay(controller: TwinVoiceController, modifier: Modifier = Modifier) {
++    BackHandler(enabled = controller.isOpen) { controller.exit() }
++    AnimatedVisibility(visible = controller.isOpen, enter = fadeIn(), exit = fadeOut(), modifier = modifier) {
++        val colors = TwinTheme.colors
++        Box(
++            Modifier
++                .fillMaxSize()
++                .background(colors.background.copy(alpha = 0.97f))
++                // Swallow touches so nothing under the voice screen can be tapped.
++                .pointerInput(Unit) { detectTapGestures { } },
++        ) {
++            Column(
++                Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(TwinTheme.spacing.l),
++                horizontalAlignment = Alignment.CenterHorizontally,
++            ) {
++                Spacer(Modifier.weight(0.6f))
++                TwinOrb(size = 160.dp, state = controller.orb, level = controller.level)
++                Spacer(Modifier.height(TwinTheme.spacing.xl))
++                Text(
++                    stringResource(controller.statusRes),
++                    style = MaterialTheme.typography.headlineSmall,
++                    color = colors.ink,
++                    textAlign = TextAlign.Center,
++                )
++                Box(Modifier.weight(1f).fillMaxWidth().padding(top = TwinTheme.spacing.m), contentAlignment = Alignment.TopCenter) {
++                    Text(
++                        text = buildAnnotatedString {
++                            append(controller.finalText)
++                            if (controller.finalText.isNotEmpty() && controller.interimText.isNotEmpty()) append(' ')
++                            withStyle(SpanStyle(color = colors.inkFaint)) { append(controller.interimText) }
++                        },
++                        style = MaterialTheme.typography.bodyLarge,
++                        color = colors.inkMuted,
++                        textAlign = TextAlign.Center,
++                        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
++                    )
++                }
++                Row(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.xl), verticalAlignment = Alignment.CenterVertically) {
++                    VoiceButton(
++                        description = stringResource(if (controller.muted) R.string.twinai_voice_unmute else R.string.twinai_voice_mute),
++                        highlighted = controller.muted,
++                        onClick = controller::toggleMute,
++                    ) {
++                        Icon(
++                            if (controller.muted) Icons.Rounded.MicOff else Icons.Rounded.Mic,
++                            contentDescription = null, tint = colors.ink, modifier = Modifier.size(28.dp),
++                        )
++                    }
++                    VoiceButton(
++                        description = stringResource(R.string.twinai_voice_end),
++                        highlighted = true,
++                        onClick = controller::exit,
++                    ) { Icon(Icons.Rounded.Close, contentDescription = null, tint = colors.ink, modifier = Modifier.size(28.dp)) }
++                }
++                Text(
++                    text = controller.hintRes?.let { stringResource(it) }.orEmpty(),
++                    style = MaterialTheme.typography.bodySmall,
++                    color = colors.inkFaint,
++                    textAlign = TextAlign.Center,
++                    modifier = Modifier.padding(top = TwinTheme.spacing.m).height(20.dp),
++                )
++            }
++        }
++    }
++}
++
++@Composable
++private fun VoiceButton(
++    description: String,
++    highlighted: Boolean,
++    onClick: () -> Unit,
++    icon: @Composable () -> Unit,
++) {
++    val colors = TwinTheme.colors
++    Box(
++        Modifier
++            .size(64.dp)
++            .clip(TwinTheme.shapes.circle)
++            .background(if (highlighted) colors.primaryBrush else androidx.compose.ui.graphics.SolidColor(colors.glass))
++            .border(1.dp, colors.line, TwinTheme.shapes.circle)
++            .clickable(role = Role.Button, onClickLabel = description, onClick = onClick),
++        contentAlignment = Alignment.Center,
++    ) { icon() }
++}
+diff --git a/app/src/main/res/values/strings_twinai.xml b/app/src/main/res/values/strings_twinai.xml
+index 185f3f3..4133c3f 100644
+--- a/app/src/main/res/values/strings_twinai.xml
++++ b/app/src/main/res/values/strings_twinai.xml
+@@ -90,4 +90,45 @@
+     <string name="twinai_intent_discussion">💬 Discussion</string>
+     <string name="twinai_intent_fun">🎉 Fun</string>
+     <string name="twinai_intent_general">✨ General</string>
++
++    <!-- Added in the "remaining features" pass -->
++    <string name="twinai_subtitle_both">For Both of Us</string>
++    <string name="twinai_pro_check_failed">Couldn’t check your plan — try again.</string>
++    <string name="twinai_pro_title">AI Both Mode is a Pro feature</string>
++    <string name="twinai_pro_body">Upgrade to Pro to use Twin together with your partner. The Pro upgrade screen is built in a later step.</string>
++    <string name="twinai_pro_ok">OK</string>
++    <string name="twinai_both_nudged">Nudged %1$s 👋</string>
++    <string name="twinai_both_nudge_no_push">%1$s doesn’t have notifications enabled yet.</string>
++    <string name="twinai_both_delete_body">This permanently deletes all rounds, submissions, and Twin’s results for this discussion. This can’t be undone.</string>
++    <string name="twinai_both_deleting">Deleting…</string>
++    <string name="twinai_both_delete_menu">🗑 Delete Discussion</string>
++    <string name="twinai_both_menu">More options</string>
++    <string name="twinai_both_back">‹ Back</string>
++    <string name="twinai_both_vs">Twin</string>
++    <string name="twinai_both_prior_round">Round %1$d — %2$s</string>
++    <string name="twinai_both_prior_round_plain">Round %1$d</string>
++    <string name="twinai_both_no_result_short">No result.</string>
++    <string name="twinai_both_mic">Speak your side</string>
++    <string name="twinai_voice_getting_ready">Getting ready...</string>
++    <string name="twinai_voice_listening">Listening...</string>
++    <string name="twinai_voice_thinking">Thinking...</string>
++    <string name="twinai_voice_speaking">Speaking...</string>
++    <string name="twinai_voice_speaking_hint">Tap the mic to interrupt</string>
++    <string name="twinai_voice_muted">Muted</string>
++    <string name="twinai_voice_muted_hint">Tap the mic to resume</string>
++    <string name="twinai_voice_no_hear">I couldn’t hear that</string>
++    <string name="twinai_voice_closing">Closing…</string>
++    <string name="twinai_voice_ready">Ready</string>
++    <string name="twinai_voice_mic_needed">Microphone access is needed to talk with Twin</string>
++    <string name="twinai_voice_type_hint">You can still type below</string>
++    <string name="twinai_voice_unsupported">Voice input isn’t supported on this device</string>
++    <string name="twinai_voice_unsupported_hint">You can still type to Twin</string>
++    <string name="twinai_voice_failed">Twin couldn’t respond. Try again.</string>
++    <string name="twinai_voice_cant_start">Couldn’t start listening</string>
++    <string name="twinai_voice_try_again">Tap the mic to try again</string>
++    <string name="twinai_voice_busy">Twin is still answering</string>
++    <string name="twinai_voice_hint_tap">Tap the mic to speak</string>
++    <string name="twinai_voice_mute">Mute microphone</string>
++    <string name="twinai_voice_unmute">Turn microphone on</string>
++    <string name="twinai_voice_end">End voice mode</string>
+ </resources>
+diff --git a/app/src/test/java/com/twinhearts/app/feature/twinai/TwinAiMapperTest.kt b/app/src/test/java/com/twinhearts/app/feature/twinai/TwinAiMapperTest.kt
+index 5cb71fe..21d1036 100644
+--- a/app/src/test/java/com/twinhearts/app/feature/twinai/TwinAiMapperTest.kt
++++ b/app/src/test/java/com/twinhearts/app/feature/twinai/TwinAiMapperTest.kt
+@@ -38,6 +38,13 @@ class TwinAiMapperTest {
+         assertNull(SessionDto("s", title = "  ").toDomain().title)
+     }
+ 
++    @Test
++    fun sessionIntentIsUpperCasedAndBlankBecomesNull() {
++        assertEquals("CONFLICT", SessionDto("s", intent = "conflict").toDomain().intent)
++        assertNull(SessionDto("s", intent = " ").toDomain().intent)
++        assertNull(SessionDto("s").toDomain().intent)
++    }
++
+     @Test
+     fun parsesSupabaseTimes() {
+         assertNotNull(parseServerInstant("2026-10-26T09:00:00.123+00:00"))
+diff --git a/app/src/test/java/com/twinhearts/app/feature/twinai/TwinAiViewModelTest.kt b/app/src/test/java/com/twinhearts/app/feature/twinai/TwinAiViewModelTest.kt
+index 4b0d92a..dc9c4a3 100644
+--- a/app/src/test/java/com/twinhearts/app/feature/twinai/TwinAiViewModelTest.kt
++++ b/app/src/test/java/com/twinhearts/app/feature/twinai/TwinAiViewModelTest.kt
+@@ -8,6 +8,7 @@ import com.twinhearts.app.feature.twinai.domain.model.AiAuthor
+ import com.twinhearts.app.feature.twinai.domain.model.AiIdentity
+ import com.twinhearts.app.feature.twinai.domain.model.AiMessageState
+ import com.twinhearts.app.feature.twinai.domain.model.AiStreamEvent
++import com.twinhearts.app.feature.twinai.domain.model.OrbState
+ import com.twinhearts.app.feature.twinai.ui.TwinAiViewModel
+ import com.twinhearts.app.feature.twinai.ui.TwinTab
+ import io.mockk.coEvery
+@@ -25,9 +26,9 @@ class TwinAiViewModelTest {
+     private val repository = mockk<TwinAiRepository>(relaxed = true)
+     private val who = AiIdentity("c1", "user1", "Vamsi Krishna", "Likitha", "")
+ 
+-    private fun viewModel(bothOn: Boolean = false): TwinAiViewModel {
++    private fun viewModel(pro: Boolean = false): TwinAiViewModel {
+         coEvery { repository.identity() } returns who
+-        coEvery { repository.bothEnabled(who) } returns AppResult.Success(bothOn)
++        coEvery { repository.isPro(who) } returns AppResult.Success(pro)
+         return TwinAiViewModel(repository)
+     }
+ 
+@@ -37,12 +38,34 @@ class TwinAiViewModelTest {
+     }
+ 
+     @Test
+-    fun bothTabStaysHiddenUntilFlagIsOn() {
+-        val vm = viewModel(bothOn = false)
++    fun withoutProBothStaysOnYouAndShowsTheProCard() {
++        val vm = viewModel(pro = false)
+         vm.selectTab(TwinTab.Both)
+-        vm.refresh()
+         assertEquals(TwinTab.You, vm.state.value.tab)
+-        assertFalse(vm.state.value.bothEnabled)
++        assertTrue(vm.state.value.proPrompt)
++        vm.dismissProPrompt()
++        assertFalse(vm.state.value.proPrompt)
++    }
++
++    @Test
++    fun withProBothOpensAndBackReturnsToYou() {
++        val vm = viewModel(pro = true)
++        vm.selectTab(TwinTab.Both)
++        assertEquals(TwinTab.Both, vm.state.value.tab)
++        vm.backToYou()
++        assertEquals(TwinTab.You, vm.state.value.tab)
++    }
++
++    @Test
++    fun orbFollowsTheConversation() {
++        val vm = viewModel()
++        assertEquals(OrbState.Idle, vm.state.value.orb)
++        every { repository.reply(who, "hi") } returns flowOf(AiStreamEvent.Delta("ok"), AiStreamEvent.Done)
++        vm.ask("hi")
++        assertEquals(OrbState.Responding, vm.state.value.orb)
++        every { repository.reply(who, "again") } returns flowOf(AiStreamEvent.Failure(AppError.Network))
++        vm.ask("again")
++        assertEquals(OrbState.Error, vm.state.value.orb)
+     }
+ 
+     @Test
+diff --git a/docs/features/twinai.md b/docs/features/twinai.md
+index fd8c65e..eecca08 100644
+--- a/docs/features/twinai.md
++++ b/docs/features/twinai.md
+@@ -19,7 +19,7 @@ Reference: `docs/reference/images.pdf` page 9 (the Twin page). Web source: `publ
+ |---|---|---|---|
+ | Ask (streaming) | `POST /api/ai/chat/stream` | `{message, myName, partnerName, anniversary, recentMood}` | SSE lines `data: {"delta":"…"}`, `data: {"error":"…"}`, `data: [DONE]` |
+ | Ask (fallback) | `POST /api/ai/chat` | same | `{reply}` |
+-| BOTH on? | `GET /api/ai-both/flag/:coupleId` | – | `{enabled}` |
++| BOTH allowed? (Pro) | `GET /api/pro/status?coupleId=` | – | `{isPro, plan, expiresAt}` |
+ | History | `GET /api/ai-both/sessions/:coupleId?limit=20` | – | list of sessions (`id,title,last_activity_at,round_count`) |
+ | Start | `POST /api/ai-both/sessions` | `{coupleId, role}` | `{session, round}` |
+ | Open | `GET /api/ai-both/session/:id?role=` | – | `{session, rounds[]}` (partner text hidden until done) |
+@@ -37,17 +37,32 @@ Result shape: `{intent, sections:[{title,content}], safety_flag}`. Round status:
+ - Answer streams into the bubble. If the stream gives nothing, the app asks once for the whole answer (same as web). If text arrived and then the link broke, the bubble is marked failed with Retry.
+ - Regenerate / Retry ask the same question again in a new bubble (no second "me" bubble), as on the web.
+ - Max 120 bubbles kept.
+-- BOTH checks the server flag; the tab is hidden if the flag is off or unreachable (assumption, the web gives no visible text for it).
++- **Fixed in update 2:** the web always shows the YOU/BOTH switch (`both-mode.js` says the feature flag is no longer used). The first version hid BOTH behind the `ai_both_mode` flag, which was wrong. BOTH is now always visible; tapping it checks Pro, exactly like the web (`ProCard.requirePro('AI Both Mode')`). Not Pro: the tab stays on YOU and a Pro card shows.
+ - BOTH live updates: the web uses a realtime channel with polling fallback. Android polls every 3 s only while the BOTH tab is on screen and the round is waiting; it stops in the background (R-66).
+ - Back inside a discussion goes to the list; on the list it goes Home.
+ - Mic uses the phone's speech dialog and sends the words to Twin. Listen uses the phone's text-to-speech.
+ 
++## Added in update 2 (found by comparing with `index.html`, `both-mode.js`, `twin-art.js`)
++- **Voice mode (full screen)** `TwinVoiceController` + `TwinVoiceOverlay`: mic opens a screen with the big orb, "Listening... / Thinking... / Speaking...", live words, mute and end buttons. Spoken question goes through the same Twin chat; the answer is read aloud; then the screen closes itself. Tap the mic while Twin speaks to interrupt. Silence, no-speech, mic refused and failed answers all show a message and close after about 1.2 to 1.6 s. Back, the end button and leaving the app all close it. The orb grows with your voice (speech recognizer loudness).
++- **Orb states:** idle, thinking, responding, error, listening, speaking (`OrbState`), drawn on the dock orb and the voice screen.
++- **BOTH always visible + Pro check**, **subtitle "For Both of Us"** in BOTH, back on BOTH home goes to YOU.
++- **BOTH history cards:** intent label, date, title, round count, and the vertical-dots menu with "Delete Discussion". Delete card now has the web's full warning text and a "Deleting…" state.
++- **Discussion screen:** "Back", round number, you / Twin / partner row, and earlier finished rounds folded into "Round N - intent" rows you tap to open.
++- **Mic inside BOTH answer box** (one-shot dictation added to your text, like the web).
++- **Remind:** shows "Nudged <name>" or "<name> doesn't have notifications enabled yet", and shows the server's own text for the 5-minute wait.
++- **Edit answer:** if the partner submitted first (server says locked), the screen refreshes to the new state instead of staying stuck.
++- **Chip row** rests on "Write something sweet" and glides back to it after 2 s without touch.
++
+ ## Not ported (and why)
+-- Orb travelling from hero to dock and the full-screen "voice mode": the web itself dropped the hero travel in the redesign; voice mode is replaced by the system speech dialog + Listen (no extra permission or library).
+-- Chip carousel auto-recentering after 2 s: a plain scrolling row is used.
++- Orb travelling from hero to dock: the web itself dropped the hero travel in the redesign.
++- Live updates in BOTH: the web uses a realtime channel; Android asks the server every 3 s only while the BOTH tab is on screen (R-66).
++- Reopening the same discussion after the page reloads (web keeps it in sessionStorage): Android returns to the list when the app is closed.
++- Photos in the you / partner row: the saved Session has no photo link yet; initials show until Profile is built.
+ - `recentMood` is sent empty (the Journal is not built yet; the server treats it as optional).
+-- Real names endpoint `/api/ai-both/names`: names come from the saved Session (same source the server uses).
+-- Search and menu buttons: global search and the side menu are not built yet; they show the "built in a later step" note, like Chat's call buttons.
+-- Sync: re-reads your name and the BOTH flag and reloads the history (there is no shared app-state blob in this app).
++- Offline orb state: not drawn (no connectivity listener added); failed requests still show the error bubble and Retry.
++- Real names endpoint `/api/ai-both/names`: names come from the saved Session.
++- Search and menu buttons: global search and the side menu are not built yet; they show the "built in a later step" note.
++- Sync: re-reads your name and reloads the BOTH list (there is no shared app-state blob in this app).
+ - Chat text is not saved between app launches (the web page does not save it either).
+-- Voice input inside BOTH answers (the web has a mic there): not ported; typing only.
++- The Pro upgrade card (UPI payment screen) is its own feature; here a simple "AI Both Mode is a Pro feature" card shows.
++- Voice language follows the phone language (the web fixes en-US).

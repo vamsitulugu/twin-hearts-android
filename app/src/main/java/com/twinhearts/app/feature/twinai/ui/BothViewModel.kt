@@ -26,6 +26,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/** A short one-off message: a string resource (with optional arguments) or the server's own text. */
+data class BothToast(@StringRes val resId: Int? = null, val args: List<String> = emptyList(), val text: String? = null)
+
 /** The "Recent discussions" list in its four states (R-41). */
 sealed interface BothHistory {
     data object Loading : BothHistory
@@ -35,6 +38,7 @@ sealed interface BothHistory {
 }
 
 data class BothUiState(
+    val myName: String = "",
     val partnerName: String = "",
     val history: BothHistory = BothHistory.Loading,
     /** Set while a discussion is open; null while the BOTH home page shows. */
@@ -63,9 +67,9 @@ class BothViewModel @Inject constructor(
     private val _state = MutableStateFlow(BothUiState())
     val state: StateFlow<BothUiState> = _state.asStateFlow()
 
-    private val _messages = MutableSharedFlow<Int>(extraBufferCapacity = 4)
-    /** One-off texts (string ids) the screen shows as a short toast. */
-    val messages: SharedFlow<Int> = _messages.asSharedFlow()
+    private val _messages = MutableSharedFlow<BothToast>(extraBufferCapacity = 4)
+    /** One-off texts the screen shows as a short toast. */
+    val messages: SharedFlow<BothToast> = _messages.asSharedFlow()
 
     private var identity: AiIdentity? = null
     private var visible = false
@@ -86,7 +90,7 @@ class BothViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(history = BothHistory.Loading) }
             val who = who() ?: return@launch
-            _state.update { it.copy(partnerName = who.partnerName) }
+            _state.update { it.copy(myName = who.myName, partnerName = who.partnerName) }
             _state.update {
                 it.copy(
                     history = when (val r = repository.bothSessions(who)) {
@@ -105,7 +109,7 @@ class BothViewModel @Inject constructor(
             _state.update { it.copy(starting = true) }
             val who = who()
             val result = who?.let { repository.startDiscussion(it) }
-            _state.update { it.copy(starting = false) }
+            _state.update { it.copy(starting = false, myName = who?.myName ?: it.myName, partnerName = who?.partnerName ?: it.partnerName) }
             when (result) {
                 is AppResult.Success -> {
                     _state.update { it.copy(open = result.data, draft = "", editing = false, reminded = false) }
@@ -122,7 +126,7 @@ class BothViewModel @Inject constructor(
             _state.update { it.copy(opening = true) }
             val who = who()
             val result = who?.let { repository.discussion(it, sessionId) }
-            _state.update { it.copy(opening = false) }
+            _state.update { it.copy(opening = false, myName = who?.myName ?: it.myName, partnerName = who?.partnerName ?: it.partnerName) }
             when (result) {
                 is AppResult.Success -> {
                     _state.update { it.copy(open = result.data, draft = "", editing = false, reminded = false) }
@@ -141,6 +145,12 @@ class BothViewModel @Inject constructor(
     }
 
     fun onDraftChange(text: String) = _state.update { it.copy(draft = text) }
+
+    /** Adds dictated words to the end of the answer box (the web mic does the same). */
+    fun appendToDraft(spoken: String) {
+        if (spoken.isBlank()) return
+        _state.update { it.copy(draft = if (it.draft.isBlank()) spoken.trim() else it.draft.trimEnd() + " " + spoken.trim()) }
+    }
 
     fun submit() {
         val round = _state.value.open?.current ?: return
@@ -189,7 +199,17 @@ class BothViewModel @Inject constructor(
                     updateRound(round.id) { it.copy(yourContent = text) }
                     _state.update { it.copy(editing = false, draft = "") }
                 }
-                is AppResult.Failure -> say(R.string.twinai_both_save_failed)
+                is AppResult.Failure -> {
+                    // A 409 means the partner submitted first and the round locked: show what the server now says.
+                    val fresh = who?.let { repository.round(it, round.id) }
+                    if (fresh is AppResult.Success && fresh.data.status != RoundStatus.Pending) {
+                        updateRound(round.id) { fresh.data.copy(yourContent = fresh.data.yourContent ?: it.yourContent) }
+                        _state.update { it.copy(editing = false, draft = "") }
+                        ensurePolling()
+                    } else {
+                        sayError(result.error, R.string.twinai_both_save_failed)
+                    }
+                }
                 null -> say(R.string.twinai_both_save_failed)
             }
         }
@@ -200,8 +220,14 @@ class BothViewModel @Inject constructor(
         viewModelScope.launch {
             val who = who() ?: return@launch
             when (val r = repository.nudge(who, round.id)) {
-                is AppResult.Success -> _state.update { it.copy(reminded = true) }
-                is AppResult.Failure -> say(R.string.twinai_both_nudge_failed)
+                is AppResult.Success -> {
+                    _state.update { it.copy(reminded = true) }
+                    val name = _state.value.partnerName
+                    _messages.tryEmit(
+                        BothToast(if (r.data) R.string.twinai_both_nudged else R.string.twinai_both_nudge_no_push, listOf(name)),
+                    )
+                }
+                is AppResult.Failure -> sayError(r.error, R.string.twinai_both_nudge_failed)
             }
         }
     }
@@ -300,7 +326,17 @@ class BothViewModel @Inject constructor(
     }
 
     private fun say(@StringRes id: Int) {
-        _messages.tryEmit(id)
+        _messages.tryEmit(BothToast(id))
+    }
+
+    /** The server writes its errors for people (e.g. "try again in 3 min"), so that text is shown when it exists. */
+    private fun sayError(error: AppError, @StringRes fallback: Int) {
+        val text = when (error) {
+            is AppError.Server -> error.message
+            is AppError.Unauthorized -> error.message
+            else -> null
+        }
+        _messages.tryEmit(if (text.isNullOrBlank()) BothToast(fallback) else BothToast(text = text))
     }
 
     private companion object {

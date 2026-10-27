@@ -22,8 +22,6 @@ data class AiReplyDto(val reply: String? = null)
 @Serializable
 data class SseChunkDto(val delta: String? = null, val error: String? = null)
 
-@Serializable
-data class FlagDto(val enabled: Boolean = false)
 
 @Serializable
 data class NewSessionBody(val coupleId: String, val role: String, val title: String? = null)
@@ -56,6 +54,7 @@ data class SessionDto(
     val title: String? = null,
     @SerialName("last_activity_at") val lastActivityAt: String? = null,
     @SerialName("round_count") val roundCount: Int = 0,
+    val intent: String? = null,
 )
 
 @Serializable
@@ -79,3 +78,11 @@ data class CoupleBody(val coupleId: String)
 /** Answers that only say "it worked" (`{status}`, `{deleted}`); the content is not needed. */
 @Serializable
 data class StatusDto(val status: String? = null, val deleted: Boolean? = null)
+
+/** `GET /api/pro/status` : BOTH is a Pro feature on the web, so the app checks the same flag. */
+@Serializable
+data class ProStatusDto(val isPro: Boolean = false)
+
+/** Answer of the remind button: `sent` is false when the partner has no push set up. */
+@Serializable
+data class NudgeDto(val sent: Boolean = false)

@@ -15,9 +15,13 @@ File `app/src/main/AndroidManifest.xml`. Put this inside `<manifest>`, next to t
     <intent>
         <action android:name="android.intent.action.TTS_SERVICE" />
     </intent>
+    <intent>
+        <action android:name="android.speech.RecognitionService" />
+    </intent>
 </queries>
 ```
-(No new permission: the system voice dialog asks for the microphone itself. `RECORD_AUDIO` is already there for Chat.)
+The third entry is **new in this update**: the full-screen voice mode listens inside the app and Android 11+ needs it to find the phone's speech recognizer. If you already added the first two, just add this one.
+No new permission: `RECORD_AUDIO` is already in the manifest for Chat. Voice mode asks for it at the moment you tap the mic, and shows "Microphone access is needed to talk with Twin" if you say no.
 
 ## 3. AppNavHost line — file `core/navigation/FeatureGraphs.kt`
 a) Add the import and the line inside `featureGraphs(...)`, after `chatGraph(navController)`:
@@ -52,4 +56,4 @@ None.
 `res/values/strings_twinai.xml` is new (in the zip). No new permission.
 
 ## 8. Backend changes
-None required. Uses `/api/ai/chat/stream`, `/api/ai/chat`, and `/api/ai-both/*` as they are.
+None required. Uses `/api/ai/chat/stream`, `/api/ai/chat`, `/api/ai-both/*` and `/api/pro/status` as they are.

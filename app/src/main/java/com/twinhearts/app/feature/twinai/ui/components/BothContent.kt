@@ -1,8 +1,10 @@
 package com.twinhearts.app.feature.twinai.ui.components
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -14,21 +16,31 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -39,6 +51,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.twinhearts.app.R
 import com.twinhearts.app.core.common.asText
+import com.twinhearts.app.core.design.Avatar
 import com.twinhearts.app.core.design.ErrorState
 import com.twinhearts.app.core.design.GlassButton
 import com.twinhearts.app.core.design.GlassButtonStyle
@@ -71,6 +84,7 @@ class BothActions(
     val onAskDelete: (BothSession) -> Unit,
     val onConfirmDelete: () -> Unit,
     val onCancelDelete: () -> Unit,
+    val onMic: () -> Unit,
 )
 
 private val dateFormat: DateTimeFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
@@ -100,9 +114,13 @@ fun BothContent(state: BothUiState, actions: BothActions, modifier: Modifier = M
         AlertDialog(
             onDismissRequest = actions.onCancelDelete,
             title = { Text(stringResource(R.string.twinai_both_delete_title)) },
+            text = { Text(stringResource(R.string.twinai_both_delete_body), color = TwinTheme.colors.inkMuted) },
             confirmButton = {
                 TextButton(onClick = actions.onConfirmDelete, enabled = !state.deleting) {
-                    Text(stringResource(R.string.twinai_both_delete), color = TwinTheme.colors.error)
+                    Text(
+                        stringResource(if (state.deleting) R.string.twinai_both_deleting else R.string.twinai_both_delete),
+                        color = TwinTheme.colors.error,
+                    )
                 }
             },
             dismissButton = {
@@ -110,6 +128,7 @@ fun BothContent(state: BothUiState, actions: BothActions, modifier: Modifier = M
             },
             containerColor = TwinTheme.colors.card,
             titleContentColor = TwinTheme.colors.ink,
+            textContentColor = TwinTheme.colors.inkMuted,
         )
     }
 }
@@ -203,27 +222,46 @@ private fun HowRow(number: Int, icon: ImageVector, @StringRes text: Int) {
 @Composable
 private fun HistoryRow(session: BothSession, opening: Boolean, onOpen: () -> Unit, onDelete: () -> Unit) {
     val colors = TwinTheme.colors
+    var menuOpen by remember { mutableStateOf(false) }
     GlassCard(Modifier.fillMaxWidth(), contentPadding = TwinTheme.spacing.m) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(
                 Modifier.weight(1f).clickable(enabled = !opening, onClick = onOpen).padding(vertical = TwinTheme.spacing.xs),
                 verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.xs),
             ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = session.intent?.let { stringResource(intentLabel(it)) } ?: "…",
+                        style = MaterialTheme.typography.labelMedium, color = colors.pinkSoft, fontWeight = FontWeight.Bold,
+                    )
+                    session.lastActivity?.let {
+                        Text(dateFormat.format(it.atZone(ZoneId.systemDefault())), style = MaterialTheme.typography.labelSmall, color = colors.inkFaint)
+                    }
+                }
                 Text(
                     session.title ?: stringResource(R.string.twinai_both_untitled),
                     style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 1,
                 )
-                val rounds = if (session.roundCount == 1) stringResource(R.string.twinai_both_round_one)
-                else stringResource(R.string.twinai_both_rounds, session.roundCount)
-                val date = session.lastActivity?.let { " · " + dateFormat.format(it.atZone(ZoneId.systemDefault())) }.orEmpty()
-                Text(rounds + date, style = MaterialTheme.typography.bodySmall, color = colors.inkFaint)
+                Text(
+                    if (session.roundCount == 1) stringResource(R.string.twinai_both_round_one)
+                    else stringResource(R.string.twinai_both_rounds, session.roundCount),
+                    style = MaterialTheme.typography.bodySmall, color = colors.inkFaint,
+                )
             }
-            Icon(
-                Icons.Rounded.Close,
-                contentDescription = stringResource(R.string.twinai_both_delete),
-                tint = colors.inkFaint,
-                modifier = Modifier.size(TwinTheme.shapes.minTouch).clickable(onClick = onDelete).padding(12.dp),
-            )
+            Box {
+                Icon(
+                    Icons.Rounded.MoreVert,
+                    contentDescription = stringResource(R.string.twinai_both_menu),
+                    tint = colors.inkFaint,
+                    modifier = Modifier.size(TwinTheme.shapes.minTouch).clip(TwinTheme.shapes.circle).clickable { menuOpen = true }.padding(12.dp),
+                )
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, modifier = Modifier.background(colors.card)) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.twinai_both_delete_menu), color = colors.error) },
+                        onClick = { menuOpen = false; onDelete() },
+                    )
+                }
+            }
         }
     }
 }
@@ -240,15 +278,9 @@ private fun DiscussionView(state: BothUiState, actions: BothActions, modifier: M
     ) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.AutoMirrored.Rounded.ArrowBack,
-                    contentDescription = stringResource(R.string.core_back),
-                    tint = colors.ink,
-                    modifier = Modifier
-                        .size(TwinTheme.shapes.minTouch)
-                        .clickable(onClick = actions.onClose)
-                        .padding(12.dp),
-                )
+                TextButton(onClick = actions.onClose) {
+                    Text(stringResource(R.string.twinai_both_back), color = colors.pinkSoft)
+                }
                 Text(
                     discussion.session.title ?: stringResource(R.string.twinai_both_untitled),
                     style = MaterialTheme.typography.titleMedium,
@@ -257,20 +289,31 @@ private fun DiscussionView(state: BothUiState, actions: BothActions, modifier: M
                     maxLines = 1,
                     modifier = Modifier.weight(1f),
                 )
+                current?.let {
+                    Text(stringResource(R.string.twinai_both_round_label, it.number), style = MaterialTheme.typography.labelMedium, color = colors.inkFaint)
+                }
             }
         }
-        // Earlier rounds, read-only.
-        items(discussion.rounds.filter { it.id != current?.id }.sortedBy { it.number }, key = { it.id }) { round ->
-            Column(verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
-                Text(stringResource(R.string.twinai_both_round_label, round.number), style = MaterialTheme.typography.labelSmall, color = colors.inkFaint)
-                round.result?.let { ResultCard(it, onContinue = null) }
+        item {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s, Alignment.CenterHorizontally),
+            ) {
+                Avatar(state.myName, size = 32.dp)
+                Text(state.myName, style = MaterialTheme.typography.bodyMedium, color = colors.ink, maxLines = 1)
+                Text(stringResource(R.string.twinai_both_vs), style = MaterialTheme.typography.labelMedium, color = colors.accent)
+                Avatar(state.partnerName, size = 32.dp)
+                Text(state.partnerName, style = MaterialTheme.typography.bodyMedium, color = colors.ink, maxLines = 1)
             }
         }
+        // Earlier rounds that are finished: folded away, tap to open (like the web "details" rows).
+        items(
+            discussion.rounds.filter { it.id != current?.id && (it.status == RoundStatus.Done || it.status == RoundStatus.Safety) }.sortedBy { it.number },
+            key = { it.id },
+        ) { round -> PriorRound(round) }
         if (current != null) {
             item(key = "current") {
-                if (discussion.rounds.size > 1) {
-                    Text(stringResource(R.string.twinai_both_round_label, current.number), style = MaterialTheme.typography.labelSmall, color = colors.inkFaint)
-                }
                 RoundBody(current, state, actions)
             }
         }
@@ -299,7 +342,7 @@ private fun RoundBody(round: BothRound, state: BothUiState, actions: BothActions
             Text(stringResource(R.string.twinai_both_analyzing), style = MaterialTheme.typography.bodyLarge, color = colors.ink, textAlign = TextAlign.Center)
         }
         round.youSubmitted && state.editing -> GlassCard(Modifier.fillMaxWidth()) {
-            GlassTextArea(value = state.draft, onValueChange = actions.onDraft, hint = stringResource(R.string.twinai_both_edit), minHeight = 120.dp, maxLines = 8)
+            GlassTextArea(value = state.draft, onValueChange = actions.onDraft, hint = stringResource(R.string.twinai_both_edit), minHeight = 120.dp, maxLines = 8, trailing = { MicButton(actions.onMic) })
             Row(Modifier.fillMaxWidth().padding(top = TwinTheme.spacing.m), horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
                 GlassButton(stringResource(R.string.twinai_both_cancel), actions.onCancelEdit, Modifier.weight(1f), GlassButtonStyle.Ghost)
                 GlassButton(
@@ -330,6 +373,7 @@ private fun RoundBody(round: BothRound, state: BothUiState, actions: BothActions
                 hint = stringResource(R.string.twinai_both_placeholder, partner),
                 minHeight = 120.dp,
                 maxLines = 8,
+                trailing = { MicButton(actions.onMic) },
             )
             GlassButton(
                 text = stringResource(R.string.twinai_both_submit),
@@ -396,4 +440,52 @@ private fun ResultCard(result: BothResult, onContinue: (() -> Unit)?) {
             )
         }
     }
+}
+
+@Composable
+private fun PriorRound(round: BothRound) {
+    val colors = TwinTheme.colors
+    var expanded by rememberSaveable(round.id) { mutableStateOf(false) }
+    val result = round.result
+    GlassCard(Modifier.fillMaxWidth(), contentPadding = TwinTheme.spacing.m) {
+        Row(
+            Modifier.fillMaxWidth().clickable { expanded = !expanded },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = if (result == null) stringResource(R.string.twinai_both_prior_round_plain, round.number)
+                else stringResource(R.string.twinai_both_prior_round, round.number, stringResource(intentLabel(result.intent))),
+                style = MaterialTheme.typography.titleSmall, color = colors.ink, modifier = Modifier.weight(1f),
+            )
+            Icon(
+                if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                contentDescription = null, tint = colors.inkFaint,
+            )
+        }
+        if (expanded) {
+            if (result == null) {
+                Text(stringResource(R.string.twinai_both_no_result_short), color = colors.inkFaint, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = TwinTheme.spacing.s))
+            } else {
+                result.sections.forEach { section ->
+                    Text(
+                        buildAnnotatedString {
+                            withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(section.title) }
+                        },
+                        style = MaterialTheme.typography.titleSmall, color = colors.ink, modifier = Modifier.padding(top = TwinTheme.spacing.m),
+                    )
+                    Text(section.content, style = MaterialTheme.typography.bodyMedium, color = colors.inkMuted, modifier = Modifier.padding(top = TwinTheme.spacing.xs))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MicButton(onClick: () -> Unit) {
+    Icon(
+        Icons.Rounded.Mic,
+        contentDescription = stringResource(R.string.twinai_both_mic),
+        tint = TwinTheme.colors.inkMuted,
+        modifier = Modifier.size(TwinTheme.shapes.minTouch).clip(TwinTheme.shapes.circle).clickable(onClick = onClick).padding(12.dp),
+    )
 }

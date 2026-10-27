@@ -53,6 +53,7 @@ import com.twinhearts.app.core.design.TwinTheme
  */
 @Composable
 fun TwinAiHeader(
+    subtitle: String,
     syncing: Boolean,
     onBack: () -> Unit,
     onMenu: () -> Unit,
@@ -94,7 +95,7 @@ fun TwinAiHeader(
                 maxLines = 1,
             )
             Text(
-                stringResource(R.string.twinai_subtitle),
+                subtitle,
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.inkMuted,
                 maxLines = 1,

@@ -22,10 +22,12 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.twinhearts.app.core.common.rememberReduceMotion
 import com.twinhearts.app.core.design.TwinTheme
+import com.twinhearts.app.feature.twinai.domain.model.OrbState
 
 /*
  * Why this file exists: Twin's illustrations (the robot holding a heart, the small chat avatar and
@@ -104,20 +106,53 @@ fun TwinAvatar(modifier: Modifier = Modifier, size: Dp = 32.dp) {
     }
 }
 
-/** The glowing Twin orb that sits on the input bar. Slowly spins unless animations are off (R-55). */
+/**
+ * The glowing Twin orb. It spins slowly unless animations are off (R-55). [state] changes how it
+ * glows (thinking and speaking pulse, an error turns the glow red, listening follows your voice
+ * through [level], 0..1), like the states of the web orb.
+ */
 @Composable
-fun TwinOrb(modifier: Modifier = Modifier, size: Dp = 56.dp) {
+fun TwinOrb(
+    modifier: Modifier = Modifier,
+    size: Dp = 56.dp,
+    state: OrbState = OrbState.Idle,
+    level: Float = 0f,
+) {
     val colors = TwinTheme.colors
     val reduce = rememberReduceMotion()
-    val angle = if (reduce) {
-        0f
+    val angle: Float
+    val pulse: Float
+    if (reduce) {
+        angle = 0f
+        pulse = 0f
     } else {
         val t = rememberInfiniteTransition(label = "orb")
-        val a by t.animateFloat(0f, 360f, infiniteRepeatable(tween(14_000, easing = LinearEasing), RepeatMode.Restart), label = "orbAngle")
-        a
+        val a by t.animateFloat(0f, 360f, infiniteRepeatable(tween(if (state == OrbState.Thinking) 5_000 else 14_000, easing = LinearEasing), RepeatMode.Restart), label = "orbAngle")
+        val p by t.animateFloat(0f, 1f, infiniteRepeatable(tween(1_100, easing = LinearEasing), RepeatMode.Reverse), label = "orbPulse")
+        angle = a
+        pulse = p
     }
-    Canvas(modifier = modifier.size(size)) {
+    val glowColor = if (state == OrbState.Error) colors.error else colors.accent
+    val glow = when (state) {
+        OrbState.Idle -> 0.0f
+        OrbState.Responding -> 0.18f
+        OrbState.Error -> 0.35f
+        OrbState.Thinking -> 0.25f + 0.2f * pulse
+        OrbState.Speaking -> 0.3f + 0.25f * pulse
+        OrbState.Listening -> 0.25f + 0.5f * level
+    }
+    val grow = if (state == OrbState.Listening) 1f + 0.12f * level else 1f
+    Canvas(modifier = modifier.size(size).graphicsLayer { scaleX = grow; scaleY = grow }) {
         val r = this.size.width / 2f
+        if (glow > 0f) {
+            drawCircle(
+                Brush.radialGradient(
+                    listOf(glowColor.copy(alpha = glow), Color.Transparent),
+                    center = center, radius = r * (1.55f + 0.2f * pulse),
+                ),
+                radius = r * (1.55f + 0.2f * pulse),
+            )
+        }
         drawCircle(
             Brush.radialGradient(
                 listOf(colors.accent, colors.primaryEnd, colors.background),

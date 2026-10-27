@@ -39,6 +39,13 @@ class TwinAiMapperTest {
     }
 
     @Test
+    fun sessionIntentIsUpperCasedAndBlankBecomesNull() {
+        assertEquals("CONFLICT", SessionDto("s", intent = "conflict").toDomain().intent)
+        assertNull(SessionDto("s", intent = " ").toDomain().intent)
+        assertNull(SessionDto("s").toDomain().intent)
+    }
+
+    @Test
     fun parsesSupabaseTimes() {
         assertNotNull(parseServerInstant("2026-10-26T09:00:00.123+00:00"))
         assertNotNull(parseServerInstant("2026-10-26T09:00:00Z"))

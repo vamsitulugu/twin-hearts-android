@@ -19,7 +19,7 @@ Reference: `docs/reference/images.pdf` page 9 (the Twin page). Web source: `publ
 |---|---|---|---|
 | Ask (streaming) | `POST /api/ai/chat/stream` | `{message, myName, partnerName, anniversary, recentMood}` | SSE lines `data: {"delta":"…"}`, `data: {"error":"…"}`, `data: [DONE]` |
 | Ask (fallback) | `POST /api/ai/chat` | same | `{reply}` |
-| BOTH on? | `GET /api/ai-both/flag/:coupleId` | – | `{enabled}` |
+| BOTH allowed? (Pro) | `GET /api/pro/status?coupleId=` | – | `{isPro, plan, expiresAt}` |
 | History | `GET /api/ai-both/sessions/:coupleId?limit=20` | – | list of sessions (`id,title,last_activity_at,round_count`) |
 | Start | `POST /api/ai-both/sessions` | `{coupleId, role}` | `{session, round}` |
 | Open | `GET /api/ai-both/session/:id?role=` | – | `{session, rounds[]}` (partner text hidden until done) |
@@ -37,17 +37,32 @@ Result shape: `{intent, sections:[{title,content}], safety_flag}`. Round status:
 - Answer streams into the bubble. If the stream gives nothing, the app asks once for the whole answer (same as web). If text arrived and then the link broke, the bubble is marked failed with Retry.
 - Regenerate / Retry ask the same question again in a new bubble (no second "me" bubble), as on the web.
 - Max 120 bubbles kept.
-- BOTH checks the server flag; the tab is hidden if the flag is off or unreachable (assumption, the web gives no visible text for it).
+- **Fixed in update 2:** the web always shows the YOU/BOTH switch (`both-mode.js` says the feature flag is no longer used). The first version hid BOTH behind the `ai_both_mode` flag, which was wrong. BOTH is now always visible; tapping it checks Pro, exactly like the web (`ProCard.requirePro('AI Both Mode')`). Not Pro: the tab stays on YOU and a Pro card shows.
 - BOTH live updates: the web uses a realtime channel with polling fallback. Android polls every 3 s only while the BOTH tab is on screen and the round is waiting; it stops in the background (R-66).
 - Back inside a discussion goes to the list; on the list it goes Home.
 - Mic uses the phone's speech dialog and sends the words to Twin. Listen uses the phone's text-to-speech.
 
+## Added in update 2 (found by comparing with `index.html`, `both-mode.js`, `twin-art.js`)
+- **Voice mode (full screen)** `TwinVoiceController` + `TwinVoiceOverlay`: mic opens a screen with the big orb, "Listening... / Thinking... / Speaking...", live words, mute and end buttons. Spoken question goes through the same Twin chat; the answer is read aloud; then the screen closes itself. Tap the mic while Twin speaks to interrupt. Silence, no-speech, mic refused and failed answers all show a message and close after about 1.2 to 1.6 s. Back, the end button and leaving the app all close it. The orb grows with your voice (speech recognizer loudness).
+- **Orb states:** idle, thinking, responding, error, listening, speaking (`OrbState`), drawn on the dock orb and the voice screen.
+- **BOTH always visible + Pro check**, **subtitle "For Both of Us"** in BOTH, back on BOTH home goes to YOU.
+- **BOTH history cards:** intent label, date, title, round count, and the vertical-dots menu with "Delete Discussion". Delete card now has the web's full warning text and a "Deleting…" state.
+- **Discussion screen:** "Back", round number, you / Twin / partner row, and earlier finished rounds folded into "Round N - intent" rows you tap to open.
+- **Mic inside BOTH answer box** (one-shot dictation added to your text, like the web).
+- **Remind:** shows "Nudged <name>" or "<name> doesn't have notifications enabled yet", and shows the server's own text for the 5-minute wait.
+- **Edit answer:** if the partner submitted first (server says locked), the screen refreshes to the new state instead of staying stuck.
+- **Chip row** rests on "Write something sweet" and glides back to it after 2 s without touch.
+
 ## Not ported (and why)
-- Orb travelling from hero to dock and the full-screen "voice mode": the web itself dropped the hero travel in the redesign; voice mode is replaced by the system speech dialog + Listen (no extra permission or library).
-- Chip carousel auto-recentering after 2 s: a plain scrolling row is used.
+- Orb travelling from hero to dock: the web itself dropped the hero travel in the redesign.
+- Live updates in BOTH: the web uses a realtime channel; Android asks the server every 3 s only while the BOTH tab is on screen (R-66).
+- Reopening the same discussion after the page reloads (web keeps it in sessionStorage): Android returns to the list when the app is closed.
+- Photos in the you / partner row: the saved Session has no photo link yet; initials show until Profile is built.
 - `recentMood` is sent empty (the Journal is not built yet; the server treats it as optional).
-- Real names endpoint `/api/ai-both/names`: names come from the saved Session (same source the server uses).
-- Search and menu buttons: global search and the side menu are not built yet; they show the "built in a later step" note, like Chat's call buttons.
-- Sync: re-reads your name and the BOTH flag and reloads the history (there is no shared app-state blob in this app).
+- Offline orb state: not drawn (no connectivity listener added); failed requests still show the error bubble and Retry.
+- Real names endpoint `/api/ai-both/names`: names come from the saved Session.
+- Search and menu buttons: global search and the side menu are not built yet; they show the "built in a later step" note.
+- Sync: re-reads your name and reloads the BOTH list (there is no shared app-state blob in this app).
 - Chat text is not saved between app launches (the web page does not save it either).
-- Voice input inside BOTH answers (the web has a mic there): not ported; typing only.
+- The Pro upgrade card (UPI payment screen) is its own feature; here a simple "AI Both Mode is a Pro feature" card shows.
+- Voice language follows the phone language (the web fixes en-US).

@@ -8,6 +8,7 @@ import com.twinhearts.app.feature.twinai.domain.model.AiAuthor
 import com.twinhearts.app.feature.twinai.domain.model.AiIdentity
 import com.twinhearts.app.feature.twinai.domain.model.AiMessageState
 import com.twinhearts.app.feature.twinai.domain.model.AiStreamEvent
+import com.twinhearts.app.feature.twinai.domain.model.OrbState
 import com.twinhearts.app.feature.twinai.ui.TwinAiViewModel
 import com.twinhearts.app.feature.twinai.ui.TwinTab
 import io.mockk.coEvery
@@ -25,9 +26,9 @@ class TwinAiViewModelTest {
     private val repository = mockk<TwinAiRepository>(relaxed = true)
     private val who = AiIdentity("c1", "user1", "Vamsi Krishna", "Likitha", "")
 
-    private fun viewModel(bothOn: Boolean = false): TwinAiViewModel {
+    private fun viewModel(pro: Boolean = false): TwinAiViewModel {
         coEvery { repository.identity() } returns who
-        coEvery { repository.bothEnabled(who) } returns AppResult.Success(bothOn)
+        coEvery { repository.isPro(who) } returns AppResult.Success(pro)
         return TwinAiViewModel(repository)
     }
 
@@ -37,12 +38,34 @@ class TwinAiViewModelTest {
     }
 
     @Test
-    fun bothTabStaysHiddenUntilFlagIsOn() {
-        val vm = viewModel(bothOn = false)
+    fun withoutProBothStaysOnYouAndShowsTheProCard() {
+        val vm = viewModel(pro = false)
         vm.selectTab(TwinTab.Both)
-        vm.refresh()
         assertEquals(TwinTab.You, vm.state.value.tab)
-        assertFalse(vm.state.value.bothEnabled)
+        assertTrue(vm.state.value.proPrompt)
+        vm.dismissProPrompt()
+        assertFalse(vm.state.value.proPrompt)
+    }
+
+    @Test
+    fun withProBothOpensAndBackReturnsToYou() {
+        val vm = viewModel(pro = true)
+        vm.selectTab(TwinTab.Both)
+        assertEquals(TwinTab.Both, vm.state.value.tab)
+        vm.backToYou()
+        assertEquals(TwinTab.You, vm.state.value.tab)
+    }
+
+    @Test
+    fun orbFollowsTheConversation() {
+        val vm = viewModel()
+        assertEquals(OrbState.Idle, vm.state.value.orb)
+        every { repository.reply(who, "hi") } returns flowOf(AiStreamEvent.Delta("ok"), AiStreamEvent.Done)
+        vm.ask("hi")
+        assertEquals(OrbState.Responding, vm.state.value.orb)
+        every { repository.reply(who, "again") } returns flowOf(AiStreamEvent.Failure(AppError.Network))
+        vm.ask("again")
+        assertEquals(OrbState.Error, vm.state.value.orb)
     }
 
     @Test
