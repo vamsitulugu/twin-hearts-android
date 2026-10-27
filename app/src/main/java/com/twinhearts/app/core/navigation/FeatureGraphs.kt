@@ -11,6 +11,7 @@ import com.twinhearts.app.feature.auth.authGraph
 import com.twinhearts.app.feature.chat.chatGraph
 import com.twinhearts.app.feature.getstarted.getStartedGraph
 import com.twinhearts.app.feature.home.homeGraph
+import com.twinhearts.app.feature.movie.movieGraph
 import com.twinhearts.app.feature.pairing.pairingGraph
 import com.twinhearts.app.feature.twinai.twinAiGraph
 
@@ -26,6 +27,7 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
     homeGraph(navController) // 2.1 Home
     chatGraph(navController) // 2.2 Chat
     twinAiGraph(navController) // 2.3 Twin AI
+    movieGraph(navController) // 5.2 Watch Together (movies)
 }
 
 /**

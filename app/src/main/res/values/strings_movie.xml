@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Why this file exists: all Watch Together text. Wording copied from the web app (public/movie.html, movie.js). -->
+<resources>
+    <string name="movie_title">Watch Together</string>
+    <string name="movie_back">Back</string>
+    <string name="movie_history">History</string>
+
+    <string name="movie_tab_home">Home</string>
+    <string name="movie_tab_library">Library</string>
+    <string name="movie_tab_genres">Genres</string>
+    <string name="movie_tab_watch">Watch</string>
+
+    <string name="movie_home_watched_together">Watched Together</string>
+    <string name="movie_home_watching">🍿 Watching</string>
+    <string name="movie_home_watchlist">Watchlist</string>
+    <string name="movie_home_empty_title">No movies yet</string>
+    <string name="movie_home_empty_message">Search online in the Library tab to add your first movie.</string>
+
+    <string name="movie_search_hint">Search movies...</string>
+    <string name="movie_search_online">Search online</string>
+    <string name="movie_online_hint">Search movies online</string>
+    <string name="movie_online_none">No movies found</string>
+    <string name="movie_online_failed">Movie search failed. Please try again.</string>
+    <string name="movie_stat_total">Total</string>
+    <string name="movie_stat_watched">Watched</string>
+    <string name="movie_stat_watchlist">Watchlist</string>
+    <string name="movie_filter_all">All</string>
+    <string name="movie_filter_recent">Recent</string>
+    <string name="movie_filter_watchlist">🌟 Watchlist</string>
+    <string name="movie_filter_watching">🍿 Watching</string>
+    <string name="movie_filter_watched">✅ Watched</string>
+    <string name="movie_library_empty_title">No movies here</string>
+    <string name="movie_library_empty_message">Nothing matches this filter yet.</string>
+    <string name="movie_genres_title">Categories</string>
+    <string name="movie_clear_filter">Show all genres</string>
+
+    <string name="movie_detail_status">Status</string>
+    <string name="movie_detail_rating">Your rating</string>
+    <string name="movie_detail_remove">Remove from list</string>
+    <string name="movie_detail_add">Add to Watchlist</string>
+    <string name="movie_status_watchlist">🌟 Watchlist</string>
+    <string name="movie_status_watching">🍿 Watching</string>
+    <string name="movie_status_watched">✅ Watched</string>
+
+    <string name="movie_mode_direct">Direct Device Video</string>
+    <string name="movie_mode_cloud">Cloud Storage</string>
+    <string name="movie_direct_hint">Both of you pick the same movie file from your own phone.</string>
+    <string name="movie_choose">Choose Movie From Device</string>
+    <string name="movie_cloud_usage">Storage Used</string>
+    <string name="movie_cloud_empty_title">No shared movies yet</string>
+    <string name="movie_cloud_empty_message">Movies uploaded in your shared cloud storage appear here.</string>
+
+    <string name="movie_change">Change</string>
+    <string name="movie_playback_settings">Playback Settings</string>
+    <string name="movie_auto_sync">Auto Sync</string>
+    <string name="movie_always_on">Always on</string>
+    <string name="movie_you">You</string>
+    <string name="movie_partner">Partner</string>
+    <string name="movie_selecting">Selecting…</string>
+    <string name="movie_waiting">Waiting…</string>
+    <string name="movie_ready_state">Ready</string>
+    <string name="movie_match_ok">Both versions match ✓</string>
+    <string name="movie_match_bad">The two movies do not match yet</string>
+    <string name="movie_ready">I\'M READY</string>
+    <string name="movie_both_ready">❤️ Both Ready</string>
+    <string name="movie_start">START TOGETHER</string>
+    <string name="movie_waiting_partner">❤️ Waiting for Partner…</string>
+    <string name="movie_waiting_join">Waiting for your partner to join…</string>
+    <string name="movie_cancel">Cancel</string>
+    <string name="movie_cancel_together">✕ Cancel Movie Together</string>
+
+    <string name="movie_invite_kicker">🎬 MOVIE NIGHT</string>
+    <string name="movie_invite_text">Your partner wants to start the movie.</string>
+    <string name="movie_invite_ask">\"Ready to watch together?\"</string>
+    <string name="movie_not_now">NOT NOW</string>
+    <string name="movie_accept">❤️ ACCEPT</string>
+
+    <string name="movie_end_title">End Watch Together?</string>
+    <string name="movie_end_text">This will end the current movie session for both of you.</string>
+    <string name="movie_end">End</string>
+    <string name="movie_sync">Sync</string>
+    <string name="movie_in_sync">✓ In Sync</string>
+    <string name="movie_message">Message</string>
+    <string name="movie_log">Log</string>
+    <string name="movie_chat_title">Movie Chat</string>
+    <string name="movie_chat_hint">Message…</string>
+    <string name="movie_chat_empty">No messages yet</string>
+    <string name="movie_send">Send</string>
+    <string name="movie_play">Play</string>
+    <string name="movie_pause">Pause</string>
+    <string name="movie_back_10">Back 10 seconds</string>
+    <string name="movie_forward_10">Forward 10 seconds</string>
+    <string name="movie_finished">Movie finished ❤️</string>
+    <string name="movie_loading_video">Getting your movie ready…</string>
+
+    <string name="movie_history_title">Watch History</string>
+    <string name="movie_history_empty_title">No movies watched yet</string>
+    <string name="movie_history_empty_message">Movies you finish together will show up here.</string>
+    <string name="movie_history_clear_all">Clear all</string>
+    <string name="movie_history_delete">Delete</string>
+    <string name="movie_history_progress">%1$d%% watched</string>
+    <string name="movie_history_messages">%1$d messages</string>
+
+    <string name="movie_toast_select_again">Select the same movie again to resume</string>
+    <string name="movie_toast_bad_video">That file doesn\'t look like a supported video.</string>
+    <string name="movie_toast_cloud_unavailable">Cloud storage is unavailable right now.</string>
+    <string name="movie_toast_save_failed">Could not save selection — check your connection.</string>
+    <string name="movie_toast_ready_failed">Could not update ready state.</string>
+    <string name="movie_toast_start_failed">Could not start session.</string>
+    <string name="movie_toast_cancel_failed">Could not cancel.</string>
+    <string name="movie_toast_accept_failed">Could not accept.</string>
+    <string name="movie_toast_cancelled">Movie Together cancelled</string>
+    <string name="movie_toast_message_failed">Message failed to send.</string>
+    <string name="movie_toast_delete_failed">Could not delete — check your connection.</string>
+    <string name="movie_toast_clear_failed">Could not clear history — check your connection.</string>
+    <string name="movie_toast_added">Added to your list</string>
+    <string name="movie_toast_add_failed">Could not add this movie.</string>
+    <string name="movie_toast_update_failed">Could not update this movie.</string>
+    <string name="movie_toast_removed">Removed from your list</string>
+</resources>

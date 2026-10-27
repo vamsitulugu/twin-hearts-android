@@ -1,29 +1,36 @@
-# SHARED_CHANGES — Phase 2.2 Chat (v2)
+# SHARED_CHANGES — Phase 5 Watch Together (movies) v1
 
-## 1. AppNavHost / FeatureGraphs.kt
-Unchanged from v1 (already done): `chatGraph(navController)` registered, Chat pending line removed.
+All items below are **already applied inside this zip** (unzip over the project root). Listed so you can review.
 
-## 2. AndroidManifest.xml
-Add next to the other permissions (needed only for "Location" in the + menu):
-```xml
-<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+## Gradle / catalog lines
+`gradle/libs.versions.toml`:
+```toml
+[versions]    media3 = "1.4.1"
+[libraries]   androidx-media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
+              androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
 ```
-The zip contains the full AndroidManifest.xml with these two lines already added (RECORD_AUDIO and the `chatfiles` FileProvider were already there). `res/xml/chat_file_paths.xml` now also allows `chat_export/`.
+`app/build.gradle.kts` → `dependencies { }`:
+```kotlin
+implementation(libs.androidx.media3.exoplayer)
+implementation(libs.androidx.media3.ui)
+```
+(1.4.1 chosen to match Kotlin 2.0.21 / Compose BOM 2024.09 already in the catalog. Not looked up online; bump later if you want.)
 
-## 3. Gradle / catalog
-None required. **Optional (GIF search):** the Giphy key must not be typed in code. If you want GIF search:
-1. In `local.properties` (never committed): `GIPHY_API_KEY=your_key`
-2. In `app/build.gradle.kts` → `android { buildFeatures { buildConfig = true } defaultConfig { buildConfigField("String", "GIPHY_API_KEY", "\"${localProps.getProperty("GIPHY_API_KEY", "")}\"") } }` (read `local.properties` into `localProps`).
-Without it the GIF sheet says "GIF search is not set up yet" and everything else works.
+## Manifest entries
+None. (No new permission: the file picker needs none; INTERNET exists.)
 
-## 4. TwinDatabase / strings / permissions
-No entities. `strings_chat.xml` extended (all `chat_*`). Permissions: location (above), microphone (existing).
+## AppNavHost line
+`core/navigation/FeatureGraphs.kt`: `movieGraph(navController) // 5.2 Watch Together` + its import.
 
-## 5. Backend changes
+## CHANGE REQUEST: Routes.Movie (applied)
+`core/navigation/Routes.kt`: added `@Serializable data object Movie`. Affects: only Home.
+`feature/home/HomeRoute.kt`: added one line `HomeShortcut.Movie -> navController.navigate(Routes.Movie)`.
+
+## TwinDatabase entities
 None.
 
-## CHANGE REQUESTS (not done, need a catalog line)
-- CameraX, Media3 (as before).
-- `io.coil-kt:coil-gif` for animated GIFs.
-- A backend endpoint for the typing indicator.
+## Strings / permissions
+`res/values/strings_movie.xml` (all `movie_*`). No permissions.
+
+## Backend changes
+None.

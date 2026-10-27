@@ -1,19 +1,23 @@
-# BUILD_NOTES — Phase 2.2 Chat v2
+# BUILD_NOTES — Watch Together v1 (not compiled in the Claude sandbox)
 
-**Not compiled here.** Build in Android Studio and send me the first red error if there is one.
+## Steps (Windows)
+1. Unzip over your project folder (overwrite when asked).
+2. Android Studio → **File → Sync Project with Gradle Files** (downloads Media3).
+3. Run on your phone. Home → tap the **Movie** chip.
 
-## Apply (Windows)
-1. Close Android Studio. Unzip `th-p2-chat-v2.zip` over your project folder (replace files when asked).
-2. Read `SHARED_CHANGES.md` (manifest is already in the zip; GIF key is optional).
-3. Android Studio → **Sync Project with Gradle Files** → ▶ Run.
+## Tests
+- Unit tests: right-click `app/src/test/.../feature/movie/MovieLogicTest.kt` → Run. (ViewModel tests are not written yet; listed as a gap.)
 
-## Test by hand (phone + web chat open)
-1. Send text, then *bold* _italic_ ~strike~ and a link: styles show, link card opens the browser.
-2. Long-press a message: react ❤️, reply, edit (your own), pin (bar appears), star, info, delete for me / everyone. Check the web matches.
-3. "+" → Photos: pick 3, rotate one, caption, send. Tap it: full-screen. Send one photo with "View once"; open it on the other side.
-4. "+" → Poll: create, vote from web (reply) and see counts. Also try Location, Sticker, Gift, Document.
-5. ⋮ → Chat wallpaper: pick a photo, move & scale, dim, save; ⋮ → Shared media; ⋮ → Disappearing messages; long-press send → Hearts effect.
-6. Wi-Fi off, send: "Failed · tap to retry".
-7. Font size Large: header and composer still fit.
+## Manual test cases (needs two phones signed in as partners, both on the same movie file)
+1. **Library:** Library tab → Search online → search "Interstellar" → tap result → Add to Watchlist → it shows in Library and Home.
+2. **Pick:** Watch tab → Choose Movie From Device → pick a video on both phones. Both show "Both versions match ✓" (lengths within 3 s).
+3. **Start:** both tap I'M READY → one taps START TOGETHER → other phone shows MOVIE NIGHT → ACCEPT → both see 3·2·1 → both start playing.
+4. **Sync:** pause on one phone → other pauses within ~2 s. Drag the bar on one → other jumps. Tap Sync → "✓ In Sync".
+5. **Chat + end:** Message → send; partner sees it float. Log lists it. End → confirm → both return; Watch History (clock icon) shows the movie.
+Cloud: Watch tab → Cloud Storage lists movies uploaded on the web (needs the server's storage to be set up).
 
-Unit tests: `gradlew.bat testDebugUnitTest`.
+## Known gaps
+Cloud upload, subtitles, reactions, sleep timer, in-movie calls (see docs/features/movie.md). First request can be slow while Render wakes up.
+
+## If it fails
+Send the exact Android Studio error text.

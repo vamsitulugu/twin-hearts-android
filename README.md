@@ -314,6 +314,7 @@ Performance pass (Baseline Profile, jank check), signing, release APK, crash rep
 | 2026-10-26 | Phase 2.1 Home v3 — Card photos editor | th-p2-home-v3.zip | Not compiled in sandbox. |
 | 2026-10-27 | Phase 2.2 Chat v2 — full rebuild (media, polls, reactions, pin, edit/delete, forward, wallpaper, disappearing, export, auto-lock, effects) | th-p2-chat-v2.zip | Not compiled in sandbox. Typing indicator not ported (needs backend). |
 | 2026-10-26 | Phase 2.1 Home v2 — Coming up, Mood card, Mood Calendar | th-p2-home-v2.zip | Not compiled in sandbox. Search/chips/grid wait for their pages. |
+| 2026-10-27 | Phase 5 — Watch Together (movies) | th-p5-movie-v1.zip | Not compiled here. Needs Media3 catalog lines + Routes.Movie (applied in zip). Cloud upload, subtitles, reactions, sleep timer, in-movie calls not ported (see docs/features/movie.md). |
 
 ---
 

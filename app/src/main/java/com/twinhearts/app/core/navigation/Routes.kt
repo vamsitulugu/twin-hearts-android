@@ -24,6 +24,9 @@ object Routes {
     // Phase 2: opened from Home / Settings
     @Serializable data object Profile
 
+    // Phase 5: Watch Together (movies), opened from the Home "Movie" chip
+    @Serializable data object Movie
+
     // Debug builds only (the screen itself lives in src/debug)
     @Serializable data object DesignGallery
 }

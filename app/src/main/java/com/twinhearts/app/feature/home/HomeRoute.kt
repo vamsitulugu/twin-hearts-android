@@ -22,6 +22,7 @@ fun NavGraphBuilder.homeGraph(navController: NavHostController) {
             onShortcut = { shortcut ->
                 when (shortcut) {
                     HomeShortcut.OurProfile -> navController.navigate(Routes.Profile)
+                    HomeShortcut.Movie -> navController.navigate(Routes.Movie)
                     else -> Toast.makeText(context, R.string.core_pending_message, Toast.LENGTH_SHORT).show()
                 }
             },
