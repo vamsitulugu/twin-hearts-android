@@ -27,6 +27,9 @@ object Routes {
     // Phase 5: Watch Together (movies), opened from the Home "Movie" chip
     @Serializable data object Movie
 
+    // Phase 3: Us tab container (Love Counter · Collection · Dream Goals)
+    @Serializable data object Us
+
     // Debug builds only (the screen itself lives in src/debug)
     @Serializable data object DesignGallery
 }

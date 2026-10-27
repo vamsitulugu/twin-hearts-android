@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Us feature screens: Love Counter, Collection, Dream Goals.
+     Wording copied from lovecounter.html, collection.html, dreamgoals.html. -->
+<resources>
+    <!-- Love Counter (lovecounter.html) -->
+    <string name="us_love_counter_title">Love Counter</string>
+    <string name="us_days_together">days together</string>
+    <string name="us_time_together">Time Together</string>
+    <string name="us_years">Years</string>
+    <string name="us_months">Months</string>
+    <string name="us_days">Days</string>
+    <string name="us_hours">Hours</string>
+    <string name="us_minutes">Minutes</string>
+    <string name="us_seconds">Seconds</string>
+    <string name="us_live">Live</string>
+    <string name="us_milestones">Milestones</string>
+    <string name="us_anniversary">Anniversary</string>
+    <string name="us_anniversary_not_set">Not set yet</string>
+    <string name="us_anniversary_hint">Your anniversary date appears here once you set it in profile.</string>
+
+    <!-- Collection (collection.html) -->
+    <string name="us_collection_title">Collection</string>
+    <string name="us_shared_items">Shared Items</string>
+    <string name="us_albums">Albums</string>
+    <string name="us_downloads">Downloads</string>
+    <string name="us_favourites">Favourites</string>
+    <string name="us_search_memories">Search memories</string>
+    <string name="us_memories">Memories</string>
+    <string name="us_no_memories_title">No shared memories yet</string>
+    <string name="us_no_memories_hint">Start by sharing a photo or voice note.</string>
+    <string name="us_see_all">See all</string>
+    <string name="us_play">Play</string>
+    <string name="us_favorite">Favorite</string>
+    <string name="us_delete">Delete</string>
+    <string name="us_just_now">Just now</string>
+    <string name="us_minutes_ago">%1$dm ago</string>
+    <string name="us_hours_ago">%1$dh ago</string>
+    <string name="us_days_ago">%1$dd ago</string>
+
+    <!-- Dream Goals (dreamgoals.html) -->
+    <string name="us_dream_goals_title">Dream Goals</string>
+    <string name="us_goals">Goals</string>
+    <string name="us_completed">Completed</string>
+    <string name="us_high_priority">High Priority</string>
+    <string name="us_progress">Progress</string>
+    <string name="us_goals_dreamed_together">You\u2019ve dreamed %1$d times together</string>
+    <string name="us_keep_adding">Keep adding goals \u2014 big or small.</string>
+    <string name="us_in_progress">In Progress</string>
+    <string name="us_completed_goals">Completed</string>
+    <string name="us_all_goals">All Goals</string>
+    <string name="us_no_goals_title">No dream goals yet</string>
+    <string name="us_no_goals_hint">Add your first goal below.</string>
+    <string name="us_target">Target</string>
+    <string name="us_open">Open</string>
+    <string name="us_done">Done</string>
+    <string name="us_complete">Complete</string>
+    <string name="us_edit">Edit</string>
+    <string name="us_add_goal">Add Goal</string>
+
+    <!-- Shared -->
+    <string name="us_nothing_yet">Nothing here yet</string>
+    <string name="us_get_started_hint">Open the Love Counter, Collection or Dream Goals tab to get started.</string>
+    <string name="core_nothing_yet">Nothing here yet</string>
+</resources>

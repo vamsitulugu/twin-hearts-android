@@ -1,20 +1,36 @@
-# BUILD_NOTES — Watch Together v2 (not compiled in the Claude sandbox)
+# Build Notes — Phase 3 — Us (Love Counter · Collection · Dream Goals)
 
-## Steps (Windows)
-1. Unzip over the project folder (overwrite when asked).
-2. Android Studio → File → Sync Project with Gradle Files. Run on your phone.
-3. Optional: paste `backend-changes/movie/reactions.js.txt` into `routes/routes-movie.js` and redeploy.
+**What this delivery adds:** The Us tab container with three screens:
+1. **Love Counter** — days-together ring, time grid (years/months/days/hours/minutes/seconds), live dot, milestone card, anniversary card.
+2. **Collection** — hero stat tiles, search field, shared memory list rows (play / favourite / delete).
+3. **Dream Goals** — hero stats, insight card, category progress cards, dream cards grid (emoji, title, target, progress, complete/edit/delete).
 
-## Manual tests
-1. **Upload:** Watch → Cloud Storage → Upload Movie → pick an MP4 → bar moves → "Uploaded ❤️" → movie in list. Try Cancel upload mid-way: list stays clean.
-2. **Delete:** 🗑 on a row → confirm → "Movie deleted". Try during a session: server message appears.
-3. **Cloud watch:** both phones tap ▶ on the same movie → ready → start → plays on both.
-4. **Player ⋮:** Subtitles (.srt/.vtt), Screen Fit, Sleep Timer (try 15 min), Keep Screen On, Movie Info, Picture in Picture.
-5. **Reactions:** tap 😊 in the top bar, pick an emoji (partner sees it only with the backend patch).
-6. **Library:** Add Movie form; ⭐ on posters; Favorites filter; owner chips.
+**How to apply:**
+1. Unzip this delivery over the `twin-hearts-android/` project root. Paths inside the zip are project-relative.
+2. Apply the two core edits listed in `SHARED_CHANGES.md` (Routes.kt + FeatureGraphs.kt).
+3. Add `google-services.json` to `app/` if you haven't already (Firebase project — user-only task).
+4. Set `API_BASE_URL` in `local.properties` (user-only task; not committed).
+5. Open the project in Android Studio, Sync Project with Gradle Files, then Run on your phone.
 
-## Known gaps
-In-movie calls (needs Phase 2.3), poster/review/scene fields, background upload. Unit tests added for owner/favorite filters and sleep steps; still no ViewModel tests.
+**How to test:**
+1. Sign in and pair with a partner (Phase 1 features must be ✅ first).
+2. Navigate to the Us tab from the bottom bar.
+3. Love Counter: verify days-together count matches the web app's lovecounter.html for your anniversary.
+4. Collection: verify the memory list shows shared items from the shared state (`photos` key).
+5. Dream Goals: verify the dream cards grid shows bucket-list items from the shared state (`bucket` key).
+6. Rotate the phone — state survives (ViewModel + rememberSaveable where relevant).
+7. Turn on system "remove animations" — skeletons stay still, no crash.
 
-## If it fails
-Send the exact Android Studio error text; I will send only the changed files.
+**Known gaps:**
+- Dream goal creation form is not built yet (Add Goal FAB refreshes the screen only).
+- Collection upload from camera/gallery not built (CameraX is Phase 3).
+- Real-time push when partner adds a dream/memory — FCM push is Phase 2.5; this release loads on open.
+- Not compiled in this sandbox (no Android SDK). Build and verify in Android Studio on your PC/phone.
+
+**Manual test cases:**
+1. Open Us tab → shows Love Counter by default with days-together number.
+2. Tap Collection tab → shows hero stats + memory list (or empty hint if none).
+3. Tap Dream Goals tab → shows dream cards grid (or empty hint if none).
+4. Pull/refresh → reloads from the server (Render may sleep on first request — wait for loading skeleton).
+5. Large font (fontScale 1.3) → layout still readable, no overflow.
+6. Network off → error state with retry button shows, no crash.

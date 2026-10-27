@@ -14,6 +14,7 @@ import com.twinhearts.app.feature.home.homeGraph
 import com.twinhearts.app.feature.movie.movieGraph
 import com.twinhearts.app.feature.pairing.pairingGraph
 import com.twinhearts.app.feature.twinai.twinAiGraph
+import com.twinhearts.app.feature.us.UsRoute.usGraph
 
 /**
  * THE one place where finished features are plugged in (R-43).
@@ -28,6 +29,7 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
     chatGraph(navController) // 2.2 Chat
     twinAiGraph(navController) // 2.3 Twin AI
     movieGraph(navController) // 5.2 Watch Together (movies)
+    usGraph(navController) // 3.1 Us (Love Counter · Collection · Dream Goals)
 }
 
 /**
