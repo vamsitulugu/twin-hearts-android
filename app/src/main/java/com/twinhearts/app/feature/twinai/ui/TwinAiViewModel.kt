@@ -40,12 +40,15 @@ data class TwinAiUiState(
     val streaming: Boolean = false,
     val quickOpen: Boolean = false,
     val syncing: Boolean = false,
+    /** True while the phone has no internet; the orb turns grey. */
+    val offline: Boolean = false,
 ) {
     /** What the Twin orb is doing; the dock orb and the voice screen both draw it. */
     val orb: OrbState
         get() {
             val last = messages.lastOrNull { it.author == AiAuthor.Twin }
             return when {
+                offline -> OrbState.Offline
                 streaming -> OrbState.Thinking
                 last?.state == AiMessageState.Failed -> OrbState.Error
                 last != null -> OrbState.Responding
@@ -76,6 +79,9 @@ class TwinAiViewModel @Inject constructor(
 
     init {
         refresh()
+        viewModelScope.launch {
+            repository.online.collect { isOnline -> _state.update { it.copy(offline = !isOnline) } }
+        }
     }
 
     /** Loads the name for the greeting. Also the Sync button. */

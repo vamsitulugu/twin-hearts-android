@@ -35,3 +35,16 @@ Search and menu buttons show "built in a later step". Chat history is kept only 
 6. On YOU tap the **mic**: allow the microphone, say "give me a date idea". Watch Listening, Thinking, Speaking, and the screen closing by itself. Try tapping the mic while Twin speaks (interrupts), the X, the Back button, and staying silent (closes after about 1.2 s).
 7. Leave the chips alone for 2 s after scrolling them: they glide back to "Write something sweet".
 8. Manifest: add the third `<queries>` entry from SHARED_CHANGES.md (RecognitionService), otherwise voice mode says voice is not supported on Android 11+.
+
+
+## Update 3: what to test (web parity pass)
+**Not compiled here.** Apply the zip, sync Gradle, run. Also run `gradlew.bat testDebugUnitTest --tests "com.twinhearts.app.feature.twinai.*"` (new: `BothViewModelTest`, link tests, offline-orb test).
+1. **No bottom bar** on the Twin page; the orb sits on the input bar.
+2. **Voice / Listen:** on an Android 11+ phone, voice mode and Listen work (they used to say "unavailable").
+3. **Mood:** write a journal mood on the web, ask Twin on Android; the answer should reflect it.
+4. **Offline:** turn on airplane mode; the dock orb goes grey. Turn it off; it returns.
+5. **Chat feel:** new bubbles pop in; a blinking bar follows the last word while Twin writes; the send button grows when you type and spins while Twin answers; tap the page outside the "+" sheet to close it.
+6. **Links:** ask Twin for a link (e.g. "send me a recipe link in markdown"); it is pink, underlined and opens the browser.
+7. **BOTH:** hero shows the two robots; Start Together has a chevron. Open a discussion: you see "Opening discussion…" and then names with photos. Kill the app while a discussion is open and reopen Twin > BOTH: it comes back to that discussion.
+8. **Fixes:** edit an answer while the partner submits first (round number stays); submit second (says "analyzing", not "waiting"); Remind unlocks after 2 s and shows the server's 5-minute message; sign out and open BOTH (error card with Retry, not "Loading…").
+9. **Colour:** hero title, YOU/BOTH tab, send and BOTH buttons are the solid wine `#6B093A`.

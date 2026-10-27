@@ -111,7 +111,7 @@ private fun TwinHero(name: String, compact: Boolean) {
                 Text(
                     text = buildAnnotatedString {
                         append(stringResource(R.string.twinai_hero_title_pre))
-                        withStyle(SpanStyle(brush = colors.primaryBrush)) {
+                        withStyle(SpanStyle(color = colors.brand)) {
                             append(stringResource(R.string.twinai_hero_title_name))
                         }
                     },

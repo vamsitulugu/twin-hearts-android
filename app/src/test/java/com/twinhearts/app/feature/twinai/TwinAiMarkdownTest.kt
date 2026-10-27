@@ -37,4 +37,18 @@ class TwinAiMarkdownTest {
     fun lonelyMarkersStayPlain() {
         assertEquals("2 * 3", TwinAiMarkdown.spans("2 * 3").joinToString("") { it.text })
     }
+
+    @Test
+    fun markdownLinkKeepsLabelAndAddress() {
+        val spans = TwinAiMarkdown.spans("see [the guide](https://example.com/a) now")
+        assertEquals(listOf("see ", "the guide", " now"), spans.map { it.text })
+        assertEquals("https://example.com/a", spans[1].link)
+    }
+
+    @Test
+    fun onlyWebLinksAreLinks() {
+        val spans = TwinAiMarkdown.spans("[x](javascript:alert(1))")
+        assertTrue(spans.all { it.link == null })
+        assertEquals("[x](javascript:alert(1))", spans.joinToString("") { it.text })
+    }
 }

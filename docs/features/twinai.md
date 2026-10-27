@@ -56,13 +56,19 @@ Result shape: `{intent, sections:[{title,content}], safety_flag}`. Round status:
 ## Not ported (and why)
 - Orb travelling from hero to dock: the web itself dropped the hero travel in the redesign.
 - Live updates in BOTH: the web uses a realtime channel; Android asks the server every 3 s only while the BOTH tab is on screen (R-66).
-- Reopening the same discussion after the page reloads (web keeps it in sessionStorage): Android returns to the list when the app is closed.
-- Photos in the you / partner row: the saved Session has no photo link yet; initials show until Profile is built.
-- `recentMood` is sent empty (the Journal is not built yet; the server treats it as optional).
-- Offline orb state: not drawn (no connectivity listener added); failed requests still show the error bubble and Retry.
-- Real names endpoint `/api/ai-both/names`: names come from the saved Session.
 - Search and menu buttons: global search and the side menu are not built yet; they show the "built in a later step" note.
 - Sync: re-reads your name and reloads the BOTH list (there is no shared app-state blob in this app).
 - Chat text is not saved between app launches (the web page does not save it either).
 - The Pro upgrade card (UPI payment screen) is its own feature; here a simple "AI Both Mode is a Pro feature" card shows.
 - Voice language follows the phone language (the web fixes en-US).
+
+## Added in update 3 (web parity pass)
+- `recentMood`: read from `GET /api/data/state/:coupleId` (`journal[0].mood`), cached 60 s.
+- BOTH names and photos: saved names first, then `GET /api/ai-both/names/:coupleId`; photos from the same state (`profile.<role>.avatar`, http links only).
+- Open discussion is remembered through `SavedStateHandle` (survives the app being killed); "Opening discussion…" card while it loads.
+- Offline orb (grey) from a connectivity listener (`TwinAiConnectivity`).
+- Markdown links `[text](https://…)`; blinking stream caret; bubble pop-in; send button ready / sending states; tap outside closes the "+" sheet; safety-round formatting in folded earlier rounds; Start Together chevron.
+- Hero robot redrawn with the web shapes/gradients and a pair-of-robots hero for BOTH (`TwinRobotPair`).
+- Solid `#6B093A` (theme `brand`) for hero title, tabs, send and BOTH buttons (`TwinBrandButton`).
+- Bug fixes: round number kept after a 409 on Edit; "analyzing" instead of "waiting" when you submit second; Remind unlocks after 2 s; BOTH list no longer stuck on "Loading…" when signed out.
+- Bottom bar hidden on the Twin page; manifest `<queries>` applied.

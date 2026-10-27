@@ -14,6 +14,7 @@ import com.twinhearts.app.feature.twinai.ui.TwinTab
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -25,8 +26,10 @@ class TwinAiViewModelTest {
     @get:Rule val mainDispatcher = MainDispatcherRule()
     private val repository = mockk<TwinAiRepository>(relaxed = true)
     private val who = AiIdentity("c1", "user1", "Vamsi Krishna", "Likitha", "")
+    private val onlineFlow = MutableStateFlow(true)
 
     private fun viewModel(pro: Boolean = false): TwinAiViewModel {
+        every { repository.online } returns onlineFlow
         coEvery { repository.identity() } returns who
         coEvery { repository.isPro(who) } returns AppResult.Success(pro)
         return TwinAiViewModel(repository)
@@ -114,5 +117,14 @@ class TwinAiViewModelTest {
         vm.onInputChange("hello")
         vm.sendInput()
         assertEquals("", vm.state.value.input)
+    }
+
+    @Test
+    fun orbGoesGreyWhenThePhoneIsOffline() {
+        val vm = viewModel()
+        onlineFlow.value = false
+        assertEquals(OrbState.Offline, vm.state.value.orb)
+        onlineFlow.value = true
+        assertEquals(OrbState.Idle, vm.state.value.orb)
     }
 }

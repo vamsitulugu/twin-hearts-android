@@ -1,6 +1,7 @@
 package com.twinhearts.app.feature.twinai.ui
 
 import androidx.annotation.StringRes
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.twinhearts.app.R
@@ -40,6 +41,8 @@ sealed interface BothHistory {
 data class BothUiState(
     val myName: String = "",
     val partnerName: String = "",
+    val myAvatar: String? = null,
+    val partnerAvatar: String? = null,
     val history: BothHistory = BothHistory.Loading,
     /** Set while a discussion is open; null while the BOTH home page shows. */
     val open: BothDiscussion? = null,
@@ -62,6 +65,7 @@ data class BothUiState(
 @HiltViewModel
 class BothViewModel @Inject constructor(
     private val repository: TwinAiRepository,
+    private val saved: SavedStateHandle,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(BothUiState())
@@ -74,12 +78,19 @@ class BothViewModel @Inject constructor(
     private var identity: AiIdentity? = null
     private var visible = false
     private var pollJob: Job? = null
+    private var restored = false
+    private var remindJob: Job? = null
 
     /** The screen calls this when the BOTH tab appears or disappears (or the app goes to the background). */
     fun setVisible(isVisible: Boolean) {
         visible = isVisible
         if (isVisible) {
-            if (_state.value.open == null && _state.value.history is BothHistory.Loading) loadHistory()
+            // After the app was killed, come back to the discussion that was open (like the web remembers it).
+            if (!restored) {
+                restored = true
+                saved.get<String>(KEY_OPEN)?.let { open(it) }
+            }
+            if (_state.value.open == null && !_state.value.opening && _state.value.history is BothHistory.Loading) loadHistory()
             ensurePolling()
         } else {
             pollJob?.cancel()
@@ -89,8 +100,13 @@ class BothViewModel @Inject constructor(
     fun loadHistory() {
         viewModelScope.launch {
             _state.update { it.copy(history = BothHistory.Loading) }
-            val who = who() ?: return@launch
-            _state.update { it.copy(myName = who.myName, partnerName = who.partnerName) }
+            val who = who()
+            if (who == null) {
+                // Not signed in: show the error card with Retry instead of "Loading..." forever.
+                _state.update { it.copy(history = BothHistory.Error(AppError.Unauthorized())) }
+                return@launch
+            }
+            loadPeople(who)
             _state.update {
                 it.copy(
                     history = when (val r = repository.bothSessions(who)) {
@@ -112,8 +128,10 @@ class BothViewModel @Inject constructor(
             _state.update { it.copy(starting = false, myName = who?.myName ?: it.myName, partnerName = who?.partnerName ?: it.partnerName) }
             when (result) {
                 is AppResult.Success -> {
+                    saved[KEY_OPEN] = result.data.session.id
                     _state.update { it.copy(open = result.data, draft = "", editing = false, reminded = false) }
                     ensurePolling()
+                    who?.let { loadPeople(it) }
                 }
                 else -> say(R.string.twinai_both_start_failed)
             }
@@ -129,10 +147,16 @@ class BothViewModel @Inject constructor(
             _state.update { it.copy(opening = false, myName = who?.myName ?: it.myName, partnerName = who?.partnerName ?: it.partnerName) }
             when (result) {
                 is AppResult.Success -> {
+                    saved[KEY_OPEN] = result.data.session.id
                     _state.update { it.copy(open = result.data, draft = "", editing = false, reminded = false) }
                     ensurePolling()
+                    who?.let { loadPeople(it) }
                 }
-                else -> say(R.string.twinai_both_open_failed)
+                else -> {
+                    saved.remove<String>(KEY_OPEN)
+                    say(R.string.twinai_both_open_failed)
+                    if (_state.value.history is BothHistory.Loading) loadHistory()
+                }
             }
         }
     }
@@ -140,6 +164,8 @@ class BothViewModel @Inject constructor(
     /** Leaves the discussion and shows the list again, refreshed. */
     fun close() {
         pollJob?.cancel()
+        remindJob?.cancel()
+        saved.remove<String>(KEY_OPEN)
         _state.update { it.copy(open = null, draft = "", editing = false, reminded = false) }
         loadHistory()
     }
@@ -167,6 +193,8 @@ class BothViewModel @Inject constructor(
                         it.copy(
                             youSubmitted = true,
                             yourContent = text,
+                            // Submitting second means the partner already answered: Twin is working, not waiting.
+                            partnerSubmitted = it.partnerSubmitted || result.data == RoundStatus.Analyzing,
                             status = if (result.data == RoundStatus.Analyzing) RoundStatus.Analyzing else it.status,
                         )
                     }
@@ -203,7 +231,8 @@ class BothViewModel @Inject constructor(
                     // A 409 means the partner submitted first and the round locked: show what the server now says.
                     val fresh = who?.let { repository.round(it, round.id) }
                     if (fresh is AppResult.Success && fresh.data.status != RoundStatus.Pending) {
-                        updateRound(round.id) { fresh.data.copy(yourContent = fresh.data.yourContent ?: it.yourContent) }
+                        // The server's round answer has no round number, so keep the one the screen already knows.
+                        updateRound(round.id) { fresh.data.copy(number = it.number, yourContent = fresh.data.yourContent ?: it.yourContent) }
                         _state.update { it.copy(editing = false, draft = "") }
                         ensurePolling()
                     } else {
@@ -222,6 +251,12 @@ class BothViewModel @Inject constructor(
             when (val r = repository.nudge(who, round.id)) {
                 is AppResult.Success -> {
                     _state.update { it.copy(reminded = true) }
+                    // The web re-enables the button after 2 s; the server's 5-minute limit answers if it is tapped too soon.
+                    remindJob?.cancel()
+                    remindJob = viewModelScope.launch {
+                        delay(REMIND_LOCK_MS)
+                        _state.update { it.copy(reminded = false) }
+                    }
                     val name = _state.value.partnerName
                     _messages.tryEmit(
                         BothToast(if (r.data) R.string.twinai_both_nudged else R.string.twinai_both_nudge_no_push, listOf(name)),
@@ -289,6 +324,20 @@ class BothViewModel @Inject constructor(
 
     // ── helpers ──
 
+    /** Loads names and photos; failures just keep the names already known. */
+    private fun loadPeople(who: AiIdentity) {
+        _state.update { it.copy(myName = who.myName, partnerName = who.partnerName) }
+        viewModelScope.launch {
+            val people = repository.people(who)
+            _state.update {
+                it.copy(
+                    myName = people.myName, partnerName = people.partnerName,
+                    myAvatar = people.myAvatar, partnerAvatar = people.partnerAvatar,
+                )
+            }
+        }
+    }
+
     private suspend fun who(): AiIdentity? =
         identity ?: repository.identity().also { identity = it }
 
@@ -341,5 +390,7 @@ class BothViewModel @Inject constructor(
 
     private companion object {
         const val POLL_MS = 3_000L
+        const val REMIND_LOCK_MS = 2_000L
+        const val KEY_OPEN = "open_session"
     }
 }

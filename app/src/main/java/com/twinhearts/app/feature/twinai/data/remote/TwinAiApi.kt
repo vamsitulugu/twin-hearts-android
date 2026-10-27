@@ -21,6 +21,14 @@ interface TwinAiApi {
     @POST("api/ai/chat")
     suspend fun chat(@Body body: AiChatBody): AiReplyDto
 
+    /** The couple's saved app state (profile photos, journal). Read only; the server hands back JSON or `null`. */
+    @GET("api/data/state/{coupleId}")
+    suspend fun state(@Path("coupleId") coupleId: String): ResponseBody
+
+    /** Real names of both partners, the web falls back to this when its own copy is empty. */
+    @GET("api/ai-both/names/{coupleId}")
+    suspend fun names(@Path("coupleId") coupleId: String): NamesDto
+
     // ── BOTH mode ──
 
     @GET("api/pro/status")

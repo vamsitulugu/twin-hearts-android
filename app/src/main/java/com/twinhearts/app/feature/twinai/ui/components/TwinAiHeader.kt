@@ -186,7 +186,7 @@ fun TwinModeTabs(
                     .weight(1f)
                     .heightIn(min = 44.dp)
                     .clip(pill)
-                    .then(if (selected) Modifier.background(colors.primaryBrush) else Modifier)
+                    .then(if (selected) Modifier.background(colors.brand) else Modifier)
                     .clickable(role = Role.Tab, onClick = { onSelect(index) })
                     .semantics { this.selected = selected },
                 contentAlignment = Alignment.Center,

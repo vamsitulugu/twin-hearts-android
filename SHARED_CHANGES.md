@@ -6,22 +6,8 @@
 None. Every library used is already in your project.
 
 ## 2. Manifest entries
-File `app/src/main/AndroidManifest.xml`. Put this inside `<manifest>`, next to the other tags (it lets the mic button find the phone's speech app on Android 11+):
-```xml
-<queries>
-    <intent>
-        <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
-    </intent>
-    <intent>
-        <action android:name="android.intent.action.TTS_SERVICE" />
-    </intent>
-    <intent>
-        <action android:name="android.speech.RecognitionService" />
-    </intent>
-</queries>
-```
-The third entry is **new in this update**: the full-screen voice mode listens inside the app and Android 11+ needs it to find the phone's speech recognizer. If you already added the first two, just add this one.
-No new permission: `RECORD_AUDIO` is already in the manifest for Chat. Voice mode asks for it at the moment you tap the mic, and shows "Microphone access is needed to talk with Twin" if you say no.
+**Already applied in the zip** (file `app/src/main/AndroidManifest.xml` is included). It adds one `<queries>` block with `android.speech.RecognitionService`, `android.intent.action.TTS_SERVICE` and `android.speech.action.RECOGNIZE_SPEECH`, so voice mode, the mic button and Listen find the phone's speech apps on Android 11+. If you had already pasted your own `<queries>` block, keep only one (this one).
+No new permission: `RECORD_AUDIO` and `ACCESS_NETWORK_STATE` are already in the manifest (the offline orb uses the second).
 
 ## 3. AppNavHost line — file `core/navigation/FeatureGraphs.kt`
 a) Add the import and the line inside `featureGraphs(...)`, after `chatGraph(navController)`:
@@ -35,16 +21,12 @@ b) In `pendingGraphs(...)` **delete**:
     pending<Routes.TwinAi>(R.string.core_nav_twin, openGallery)
 ```
 
-## 4. CHANGE REQUEST: hide the bottom bar on the Twin page (one line)
-Why: in the web app and in your screenshot the Twin page has **no bottom bar**; the orb sits on the input bar instead. File `core/navigation/TwinApp.kt`, change:
-```kotlin
-val showBottomBar = selectedItem != null
-```
-to:
+## 4. CHANGE REQUEST (applied in the zip): hide the bottom bar on the Twin page
+Why: in the web app and your screenshot the Twin page has no bottom bar; the orb sits on the input bar. File `core/navigation/TwinApp.kt` is included with this one line changed:
 ```kotlin
 val showBottomBar = selectedItem != null && selectedItem.key != Routes.TwinAi
 ```
-Affects only the Twin page. If you skip this, the page still works, but the normal bottom bar shows under the input bar.
+Affects only the Twin page.
 
 ## 5. CHANGE REQUEST (optional, later): `subtitle` in TwinTopBar
 The Twin header needs a second line ("Your Personal AI"). `TwinTopBar` has none, so the feature has its own private header (`TwinAiHeader`). Later, add `subtitle: String? = null` to `TwinTopBar` and I will delete the private copy.
@@ -56,4 +38,7 @@ None.
 `res/values/strings_twinai.xml` is new (in the zip). No new permission.
 
 ## 8. Backend changes
-None required. Uses `/api/ai/chat/stream`, `/api/ai/chat`, `/api/ai-both/*` and `/api/pro/status` as they are.
+None required. Uses `/api/ai/chat/stream`, `/api/ai/chat`, `/api/ai-both/*`, `/api/pro/status`, and (new, read only) `/api/ai-both/names/:coupleId` and `/api/data/state/:coupleId` for names, photos and the latest journal mood.
+
+## 9. Files outside `feature/twinai` that this update touches
+`AndroidManifest.xml` (queries block) and `core/navigation/TwinApp.kt` (one line). Nothing else.

@@ -14,6 +14,7 @@ import com.twinhearts.app.feature.twinai.data.remote.SseChunkDto
 import com.twinhearts.app.feature.twinai.data.remote.SubmitBody
 import com.twinhearts.app.feature.twinai.data.remote.TwinAiApi
 import com.twinhearts.app.feature.twinai.domain.model.AiIdentity
+import com.twinhearts.app.feature.twinai.domain.model.BothPeople
 import com.twinhearts.app.feature.twinai.domain.model.AiStreamEvent
 import com.twinhearts.app.feature.twinai.domain.model.BothDiscussion
 import com.twinhearts.app.feature.twinai.domain.model.BothRound
@@ -24,6 +25,11 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.serialization.json.Json
@@ -35,6 +41,12 @@ import javax.inject.Inject
  * [AppResult] (or a Flow of events) so the ViewModels never see an exception (R-46).
  */
 interface TwinAiRepository {
+    /** `false` while the phone has no internet (the orb turns grey). */
+    val online: Flow<Boolean>
+
+    /** Names and photos for the BOTH header. Never fails: missing parts fall back to the saved names. */
+    suspend fun people(who: AiIdentity): BothPeople
+
     /** Who is talking to Twin; `null` when nobody is signed in. */
     suspend fun identity(): AiIdentity?
 
@@ -60,15 +72,68 @@ class TwinAiRepositoryImpl @Inject constructor(
     private val api: TwinAiApi,
     private val sessionStore: SessionStore,
     private val json: Json,
+    private val connectivity: TwinAiConnectivity,
 ) : TwinAiRepository {
+
+    override val online: Flow<Boolean> get() = connectivity.online
+
+    /** The saved state is read once and kept for a minute: mood and photos change slowly. */
+    private var cachedState: SavedInfo? = null
+    private var cachedAt = 0L
+
+    private class SavedInfo(val mood: String, val avatars: Map<String, String>)
+
+    private suspend fun savedInfo(who: AiIdentity): SavedInfo {
+        val now = System.currentTimeMillis()
+        cachedState?.takeIf { now - cachedAt < STATE_CACHE_MS }?.let { return it }
+        val fresh = when (val r = safeApiCall { withContext(Dispatchers.IO) { api.state(who.coupleId).string() } }) {
+            is AppResult.Success -> parseState(r.data)
+            is AppResult.Failure -> cachedState ?: SavedInfo("", emptyMap())
+        }
+        cachedState = fresh
+        cachedAt = now
+        return fresh
+    }
+
+    private fun parseState(raw: String): SavedInfo {
+        val root = runCatching { json.parseToJsonElement(raw) }.getOrNull() as? JsonObject
+            ?: return SavedInfo("", emptyMap())
+        fun text(element: Any?): String? = (element as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+        val profile = root["profile"] as? JsonObject
+        val avatars = buildMap {
+            listOf("user1", "user2").forEach { role ->
+                text((profile?.get(role) as? JsonObject)?.get("avatar"))?.let { put(role, it) }
+            }
+        }
+        // The web reads `S.journal[0].mood`: the newest entry is first.
+        val mood = text(((root["journal"] as? JsonArray)?.firstOrNull() as? JsonObject)?.get("mood")).orEmpty()
+        return SavedInfo(mood, avatars)
+    }
+
+    override suspend fun people(who: AiIdentity): BothPeople {
+        var mine = who.myName
+        var theirs = who.partnerName
+        // Same fallback as the web: when a name is missing, ask the server for the couple's real names.
+        if (mine.isBlank() || theirs.isBlank() || theirs == "Partner") {
+            (safeApiCall { api.names(who.coupleId) } as? AppResult.Success)?.data?.let { names ->
+                val (a, b) = if (who.role == "user2") names.user2 to names.user1 else names.user1 to names.user2
+                if (mine.isBlank() && a.isNotBlank()) mine = a
+                if ((theirs.isBlank() || theirs == "Partner") && b.isNotBlank()) theirs = b
+            }
+        }
+        val avatars = savedInfo(who).avatars
+        val otherRole = if (who.role == "user2") "user1" else "user2"
+        fun photo(role: String) = avatars[role]?.takeIf { it.startsWith("http") }
+        return BothPeople(mine, theirs, photo(who.role), photo(otherRole))
+    }
 
     override suspend fun identity(): AiIdentity? = sessionStore.session.first()?.let {
         AiIdentity(it.coupleId, it.role, it.myName, it.partnerName, it.anniversary)
     }
 
     override fun reply(who: AiIdentity, question: String): Flow<AiStreamEvent> = flow {
-        // The web app sends the latest journal mood too; the journal is not in this app yet, so it is left empty.
-        val body = AiChatBody(question, who.myName, who.partnerName, who.anniversary)
+        // The web app sends the newest journal mood with every question.
+        val body = AiChatBody(question, who.myName, who.partnerName, who.anniversary, savedInfo(who).mood)
         var gotText = false
         var failure: AppError? = null
 
@@ -154,4 +219,8 @@ class TwinAiRepositoryImpl @Inject constructor(
 
     override suspend fun delete(who: AiIdentity, sessionId: String) =
         safeApiCall { api.deleteSession(sessionId, CoupleBody(who.coupleId)) }.map { }
+
+    private companion object {
+        const val STATE_CACHE_MS = 60_000L
+    }
 }

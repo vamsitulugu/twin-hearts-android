@@ -86,3 +86,7 @@ data class ProStatusDto(val isPro: Boolean = false)
 /** Answer of the remind button: `sent` is false when the partner has no push set up. */
 @Serializable
 data class NudgeDto(val sent: Boolean = false)
+
+/** `GET /api/ai-both/names/:coupleId` answer. */
+@Serializable
+data class NamesDto(val user1: String = "", val user2: String = "")

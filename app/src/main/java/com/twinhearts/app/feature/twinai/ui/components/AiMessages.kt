@@ -56,7 +56,7 @@ private fun AiMessage.timeText(): String = timeFormat.format(time.atZone(ZoneId.
 @Composable
 fun MyBubble(message: AiMessage, modifier: Modifier = Modifier) {
     val colors = TwinTheme.colors
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+    Row(modifier.popIn(message.time).fillMaxWidth(), horizontalArrangement = Arrangement.End) {
         Column(
             modifier = Modifier
                 .widthIn(max = 300.dp)
@@ -89,7 +89,7 @@ fun TwinBubble(
     var copied by remember { mutableStateOf(false) }
     LaunchedEffect(copied) { if (copied) { delay(1_500); copied = false } }
 
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
+    Row(modifier.popIn(message.time).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
         TwinAvatar(size = 32.dp)
         Column(Modifier.weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.xs)) {
             val failed = message.state == AiMessageState.Failed
@@ -106,7 +106,10 @@ fun TwinBubble(
                         (message.error ?: com.twinhearts.app.core.common.AppError.Unknown).asText(),
                         style = MaterialTheme.typography.bodyMedium, color = colors.error,
                     )
-                    else -> AiMarkdownText(message.text)
+                    else -> {
+                        AiMarkdownText(message.text)
+                        if (message.state == AiMessageState.Streaming) StreamCaret()
+                    }
                 }
             }
             if (failed) {

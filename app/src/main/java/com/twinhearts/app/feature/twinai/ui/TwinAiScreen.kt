@@ -10,6 +10,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,6 +25,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
@@ -163,7 +165,18 @@ fun TwinAiScreen(
                     .padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.s)
                     .fillMaxWidth(0.62f),
             )
-            Box(Modifier.weight(1f)) {
+            Box(
+                Modifier
+                    .weight(1f)
+                    // Tapping the page outside the "+" sheet closes it (the web does the same). Buttons inside still get their own taps.
+                    .then(
+                        if (state.tab == TwinTab.You && state.quickOpen) {
+                            Modifier.pointerInput(Unit) { detectTapGestures(onTap = { viewModel.closeQuick() }) }
+                        } else {
+                            Modifier
+                        },
+                    ),
+            ) {
                 when (state.tab) {
                     TwinTab.You -> YouContent(
                         greetingName = state.greetingName,
@@ -188,6 +201,7 @@ fun TwinAiScreen(
                     onPrompt = { viewModel.ask(it.prompt) },
                     sendEnabled = state.input.isNotBlank() && !state.streaming,
                     orb = if (voice.isOpen) voice.orb else state.orb,
+                    sending = state.streaming,
                 )
             }
         }

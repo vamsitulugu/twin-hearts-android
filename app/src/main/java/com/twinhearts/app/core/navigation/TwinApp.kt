@@ -52,7 +52,8 @@ private fun TwinNavigation(startDestination: Any) {
     val selectedItem = bottomBarItems.firstOrNull { item ->
         destination?.hierarchy?.any { it.hasRoute(item.key::class) } == true
     }
-    val showBottomBar = selectedItem != null
+    // The Twin page has its own input dock with the orb, so the bar is hidden there (web reference).
+    val showBottomBar = selectedItem != null && selectedItem.key != Routes.TwinAi
 
     Scaffold(
         containerColor = Color.Transparent,

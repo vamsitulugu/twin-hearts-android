@@ -1,6 +1,12 @@
 package com.twinhearts.app.feature.twinai.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -22,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -31,6 +38,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.twinhearts.app.R
+import com.twinhearts.app.core.common.rememberReduceMotion
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.feature.twinai.domain.model.OrbState
 import com.twinhearts.app.feature.twinai.domain.model.QuickPrompt
@@ -60,6 +68,7 @@ fun TwinAiDock(
     sendEnabled: Boolean,
     orb: OrbState,
     modifier: Modifier = Modifier,
+    sending: Boolean = false,
 ) {
     val colors = TwinTheme.colors
     Column(modifier.fillMaxWidth().padding(horizontal = TwinTheme.spacing.m)) {
@@ -134,11 +143,21 @@ fun TwinAiDock(
                         },
                     )
                 }
+                // Web states: resting 92 %, ready (text typed) 100 % and slightly bigger, sending 60 % with a spinning icon.
                 RoundAction(
                     description = stringResource(R.string.twinai_send),
                     onClick = onSend,
                     enabled = sendEnabled,
-                ) { Icon(Icons.AutoMirrored.Rounded.Send, null, tint = colors.ink, modifier = Modifier.size(22.dp)) }
+                    modifier = Modifier.graphicsLayer {
+                        val scale = if (sendEnabled) 1.04f else 1f
+                        scaleX = scale; scaleY = scale
+                    },
+                    visualAlpha = when {
+                        sending -> 0.6f
+                        sendEnabled -> 1f
+                        else -> 0.92f
+                    },
+                ) { SendIcon(sending) }
             }
             TwinOrb(Modifier.offset(y = 0.dp), size = 52.dp, state = orb)
         }
@@ -151,16 +170,35 @@ private fun RoundAction(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    visualAlpha: Float = if (enabled) 1f else 0.5f,
     icon: @Composable () -> Unit,
 ) {
     val colors = TwinTheme.colors
     Box(
         modifier
             .size(TwinTheme.shapes.minTouch)
-            .alpha(if (enabled) 1f else 0.5f)
+            .alpha(visualAlpha)
             .clip(TwinTheme.shapes.circle)
-            .background(colors.primaryBrush)
+            .background(colors.brand)
             .clickable(enabled = enabled, role = Role.Button, onClickLabel = description, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { icon() }
+}
+
+/** The paper-plane; it spins while Twin is answering, like the web send button. */
+@Composable
+private fun SendIcon(sending: Boolean) {
+    val reduce = rememberReduceMotion()
+    val turn = if (sending && !reduce) {
+        val t = rememberInfiniteTransition(label = "send")
+        val a by t.animateFloat(0f, 360f, infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Restart), label = "sendTurn")
+        a
+    } else {
+        0f
+    }
+    Icon(
+        Icons.AutoMirrored.Rounded.Send, null,
+        tint = TwinTheme.colors.ink,
+        modifier = Modifier.size(22.dp).graphicsLayer { rotationZ = turn },
+    )
 }
