@@ -12,6 +12,7 @@ import com.twinhearts.app.feature.chat.chatGraph
 import com.twinhearts.app.feature.getstarted.getStartedGraph
 import com.twinhearts.app.feature.home.homeGraph
 import com.twinhearts.app.feature.pairing.pairingGraph
+import com.twinhearts.app.feature.twinai.twinAiGraph
 
 /**
  * THE one place where finished features are plugged in (R-43).
@@ -24,6 +25,7 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
     pairingGraph(navController) // 1.3 Partner pairing
     homeGraph(navController) // 2.1 Home
     chatGraph(navController) // 2.2 Chat
+    twinAiGraph(navController) // 2.3 Twin AI
 }
 
 /**
@@ -33,7 +35,6 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
  */
 internal fun NavGraphBuilder.pendingGraphs(navController: NavHostController) {
     val openGallery = { navController.navigate(Routes.DesignGallery) }
-    pending<Routes.TwinAi>(R.string.core_nav_twin, openGallery)
     pending<Routes.LiveMap>(R.string.core_nav_map, openGallery)
     pending<Routes.Settings>(R.string.core_nav_settings, openGallery)
     pending<Routes.Profile>(R.string.app_name, openGallery)
