@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccessTime
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Done
 import androidx.compose.material.icons.rounded.DoneAll
 import androidx.compose.material.icons.rounded.Edit
@@ -237,12 +238,12 @@ private fun MessageBubble(
                 if (message.mine && !message.deleted) {
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.chat_menu_edit)) },
-                        icon = { Icon(Icons.Rounded.Edit, null, modifier = Modifier.size(18.dp)) },
+                        leadingIcon = { Icon(Icons.Rounded.Edit, null, modifier = Modifier.size(18.dp)) },
                         onClick = { menu = false; onEdit() },
                     )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.chat_menu_delete)) },
-                        icon = { Icon(Icons.Rounded.Delete, null, tint = colors.error, modifier = Modifier.size(18.dp)) },
+                        leadingIcon = { Icon(Icons.Rounded.Delete, null, tint = colors.error, modifier = Modifier.size(18.dp)) },
                         onClick = { menu = false; onDelete() },
                     )
                 }
