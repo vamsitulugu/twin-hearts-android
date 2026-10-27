@@ -15,11 +15,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -65,6 +70,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import com.twinhearts.app.core.design.GlassButton
+import com.twinhearts.app.core.design.GlassButtonStyle
 import com.twinhearts.app.core.design.TwinTextField
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -808,7 +814,16 @@ private fun PreviewHost(state: ChatUiState, fontScale: Float = 1f) {
     ) {
         TwinTheme {
             ChatContent(
-                state, VoicePlayerState(), null, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {},
+                state = state,
+                voice = VoicePlayerState(),
+                recordingSeconds = null,
+                onBack = {}, onCall = {}, onRetryLoad = {}, onSync = {},
+                onSend = {}, onGallery = {}, onCamera = {},
+                onStartRecording = {}, onFinishRecording = {},
+                onReply = {}, onCancelReply = {}, onCopy = {}, onStar = {},
+                onRetry = {}, onVoiceFailed = {},
+                onOpenSearch = {}, onOpenStarred = {}, onOpenScheduled = {},
+                onEdit = {}, onDelete = {}, onReact = {}, onViewOnce = {},
             )
         }
     }

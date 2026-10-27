@@ -42,6 +42,8 @@
     <string name="chat_preview_sticker">Sticker</string>
     <string name="chat_preview_other">Message</string>
     <string name="chat_view_once">🔒 View-once photo</string>
+    <string name="chat_view_once_title">View-once photo</string>
+    <string name="chat_view_once_opened">Already opened</string>
     <string name="chat_view_once_expired">This media has expired</string>
 
     <string name="chat_menu_reply">Reply</string>

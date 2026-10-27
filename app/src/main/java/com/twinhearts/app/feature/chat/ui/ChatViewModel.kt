@@ -339,7 +339,7 @@ class ChatViewModel @Inject constructor(
                             messages = s.messages.map { m ->
                                 if (m.id == message.id) m.copy(viewOncePending = false, viewedAt = Instant.now()) else m
                             },
-                            viewOnceResult = result,
+                            viewOnceResult = result.data,
                         )
                     }
                 }
