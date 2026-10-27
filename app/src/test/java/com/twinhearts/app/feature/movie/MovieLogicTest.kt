@@ -4,7 +4,9 @@ import com.twinhearts.app.feature.movie.data.mapper.parseIsoMs
 import com.twinhearts.app.feature.movie.data.mapper.toDomain
 import com.twinhearts.app.feature.movie.data.remote.RoomDto
 import com.twinhearts.app.feature.movie.domain.LibraryFilter
+import com.twinhearts.app.feature.movie.domain.OwnerFilter
 import com.twinhearts.app.feature.movie.domain.applyFilter
+import com.twinhearts.app.feature.movie.ui.components.nextSleepStep
 import com.twinhearts.app.feature.movie.domain.formatClock
 import com.twinhearts.app.feature.movie.domain.formatRuntime
 import com.twinhearts.app.feature.movie.domain.model.MovieItem
@@ -68,5 +70,21 @@ class MovieLogicTest {
         assertEquals(listOf("2"), list.applyFilter(LibraryFilter.All, "Sci-Fi", "").map { it.id })
         assertEquals(listOf("3"), list.applyFilter(LibraryFilter.All, "Other", "").map { it.id })
         assertEquals(listOf("2"), list.applyFilter(LibraryFilter.All, null, "dun").map { it.id })
+    }
+
+    @Test
+    fun ownerAndFavoriteFilters() {
+        fun m(id: String, by: String?) = MovieItem(id, null, id, null, null, null, null, null, null, WatchStatus.Watchlist, by)
+        val list = listOf(m("1", "user1"), m("2", "user2"), m("3", "both"), m("4", null))
+        assertEquals(listOf("1", "4"), list.applyFilter(LibraryFilter.All, null, "", OwnerFilter.Mine, "user1").map { it.id })
+        assertEquals(listOf("2"), list.applyFilter(LibraryFilter.All, null, "", OwnerFilter.Partner, "user1").map { it.id })
+        assertEquals(listOf("3"), list.applyFilter(LibraryFilter.All, null, "", OwnerFilter.Together, "user1").map { it.id })
+        assertEquals(listOf("2", "3"), list.applyFilter(LibraryFilter.Favorites, null, "", favorites = setOf("2", "3")).map { it.id })
+    }
+
+    @Test
+    fun sleepTimerCycles() {
+        assertEquals(15, nextSleepStep(0))
+        assertEquals(0, nextSleepStep(60))
     }
 }

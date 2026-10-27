@@ -1,23 +1,20 @@
-# BUILD_NOTES — Watch Together v1 (not compiled in the Claude sandbox)
+# BUILD_NOTES — Watch Together v2 (not compiled in the Claude sandbox)
 
 ## Steps (Windows)
-1. Unzip over your project folder (overwrite when asked).
-2. Android Studio → **File → Sync Project with Gradle Files** (downloads Media3).
-3. Run on your phone. Home → tap the **Movie** chip.
+1. Unzip over the project folder (overwrite when asked).
+2. Android Studio → File → Sync Project with Gradle Files. Run on your phone.
+3. Optional: paste `backend-changes/movie/reactions.js.txt` into `routes/routes-movie.js` and redeploy.
 
-## Tests
-- Unit tests: right-click `app/src/test/.../feature/movie/MovieLogicTest.kt` → Run. (ViewModel tests are not written yet; listed as a gap.)
-
-## Manual test cases (needs two phones signed in as partners, both on the same movie file)
-1. **Library:** Library tab → Search online → search "Interstellar" → tap result → Add to Watchlist → it shows in Library and Home.
-2. **Pick:** Watch tab → Choose Movie From Device → pick a video on both phones. Both show "Both versions match ✓" (lengths within 3 s).
-3. **Start:** both tap I'M READY → one taps START TOGETHER → other phone shows MOVIE NIGHT → ACCEPT → both see 3·2·1 → both start playing.
-4. **Sync:** pause on one phone → other pauses within ~2 s. Drag the bar on one → other jumps. Tap Sync → "✓ In Sync".
-5. **Chat + end:** Message → send; partner sees it float. Log lists it. End → confirm → both return; Watch History (clock icon) shows the movie.
-Cloud: Watch tab → Cloud Storage lists movies uploaded on the web (needs the server's storage to be set up).
+## Manual tests
+1. **Upload:** Watch → Cloud Storage → Upload Movie → pick an MP4 → bar moves → "Uploaded ❤️" → movie in list. Try Cancel upload mid-way: list stays clean.
+2. **Delete:** 🗑 on a row → confirm → "Movie deleted". Try during a session: server message appears.
+3. **Cloud watch:** both phones tap ▶ on the same movie → ready → start → plays on both.
+4. **Player ⋮:** Subtitles (.srt/.vtt), Screen Fit, Sleep Timer (try 15 min), Keep Screen On, Movie Info, Picture in Picture.
+5. **Reactions:** tap 😊 in the top bar, pick an emoji (partner sees it only with the backend patch).
+6. **Library:** Add Movie form; ⭐ on posters; Favorites filter; owner chips.
 
 ## Known gaps
-Cloud upload, subtitles, reactions, sleep timer, in-movie calls (see docs/features/movie.md). First request can be slow while Render wakes up.
+In-movie calls (needs Phase 2.3), poster/review/scene fields, background upload. Unit tests added for owner/favorite filters and sleep steps; still no ViewModel tests.
 
 ## If it fails
-Send the exact Android Studio error text.
+Send the exact Android Studio error text; I will send only the changed files.

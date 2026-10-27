@@ -69,7 +69,12 @@ data class MovieItem(
     val overview: String?,
     val rating: Double?,
     val status: WatchStatus,
+    /** Who added it: "user1", "user2" or "both" (watched together). Null for older rows. */
+    val addedBy: String? = null,
 )
+
+/** The three "belongs to" choices of the web form and the owner chips of the Library tab. */
+enum class MovieOwner { Mine, Partner, Together }
 
 data class ChatMessage(
     val id: String,
@@ -88,6 +93,10 @@ data class HistoryItem(
     val chatCount: Int,
 )
 
-data class SharedMovie(val id: String, val title: String, val sizeBytes: Long, val durationSec: Double)
+/** [ready] is false for an upload that never finished (the web shows it as "Incomplete upload"). */
+data class SharedMovie(val id: String, val title: String, val sizeBytes: Long, val durationSec: Double, val ready: Boolean = true)
 
-data class CloudLibrary(val movies: List<SharedMovie>, val usedBytes: Long, val limitBytes: Long)
+data class CloudLibrary(val movies: List<SharedMovie>, val usedBytes: Long, val limitBytes: Long, val maxFileBytes: Long = 0)
+
+/** A short emoji the partner (or this phone) sent while watching. [id] is unique so each one floats once. */
+data class MovieReaction(val id: Long, val emoji: String, val fromMe: Boolean, val shownAtMs: Long = System.currentTimeMillis())

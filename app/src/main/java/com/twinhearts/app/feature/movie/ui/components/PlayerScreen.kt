@@ -1,10 +1,18 @@
 package com.twinhearts.app.feature.movie.ui.components
 
 import android.app.Activity
+import android.app.PictureInPictureParams
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.OpenableColumns
+import android.util.Rational
 import android.widget.Toast
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -20,7 +28,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.EmojiEmotions
 import androidx.compose.material.icons.rounded.Forward10
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Replay10
@@ -49,13 +59,18 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.app.PictureInPictureModeChangedInfo
+import androidx.core.util.Consumer
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.twinhearts.app.R
 import com.twinhearts.app.core.design.GlassButton
@@ -63,7 +78,9 @@ import com.twinhearts.app.core.design.GlassButtonStyle
 import com.twinhearts.app.core.design.TwinTextField
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.feature.movie.domain.formatClock
+import com.twinhearts.app.feature.movie.domain.formatRuntime
 import com.twinhearts.app.feature.movie.domain.model.ChatMessage
+import com.twinhearts.app.feature.movie.domain.model.MovieReaction
 import com.twinhearts.app.feature.movie.domain.model.WatchRoom
 import kotlinx.coroutines.delay
 import kotlin.math.abs
@@ -83,6 +100,12 @@ fun PlayerScreen(
     onAction: (playing: Boolean, positionSec: Double) -> Unit,
     onSendChat: (text: String, positionSec: Double) -> Unit,
     onEnd: (positionSec: Double) -> Unit,
+    reactions: List<MovieReaction>,
+    onReaction: (String) -> Unit,
+    keepScreenOn: Boolean,
+    onKeepScreenOn: (Boolean) -> Unit,
+    isCloud: Boolean,
+    cloudSizeText: String?,
 ) {
     val context = LocalContext.current
     val colors = TwinTheme.colors
@@ -98,12 +121,57 @@ fun PlayerScreen(
     var draft by remember { mutableStateOf("") }
     var syncedPill by remember { mutableStateOf(false) }
     var floating by remember { mutableStateOf<ChatMessage?>(null) }
+    var showMore by remember { mutableStateOf(false) }
+    var showReactions by remember { mutableStateOf(false) }
+    var fit by remember { mutableStateOf(ScreenFit.Fit) }
+    var sleepMin by remember { mutableIntStateOf(0) }
+    var subs by remember { mutableStateOf<SubtitleChoice?>(null) }
+    var inPip by remember { mutableStateOf(false) }
+    val activity = remember(context) { context.findActivity() }
+    val pipAvailable = remember(context) { context.packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE) }
     val durationSec = (room.myDurationSec ?: 1.0).coerceAtLeast(1.0)
 
     val exo = player
     ImmersiveEffect()
+    KeepScreenOnEffect(keepScreenOn && room.playing)
     BackHandler { showEnd = true }
     DisposableEffect(player) { onDispose { player.release() } }
+    // Show the .srt/.vtt file even when the movie has no language tag of its own.
+    LaunchedEffect(player) {
+        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+            .setPreferredTextLanguage(SUBTITLE_LANGUAGE)
+            .setSelectUndeterminedTextLanguage(true)
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+            .build()
+    }
+    // Picture in Picture: hide the controls while the small window is up.
+    DisposableEffect(activity) {
+        val host = activity as? ComponentActivity
+        val listener = Consumer<PictureInPictureModeChangedInfo> { inPip = it.isInPictureInPictureMode }
+        host?.addOnPictureInPictureModeChangedListener(listener)
+        onDispose { host?.removeOnPictureInPictureModeChangedListener(listener) }
+    }
+    val subsPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val choice = readSubtitle(context, uri)
+        if (choice == null) {
+            Toast.makeText(context, R.string.movie_toast_subs_failed, Toast.LENGTH_SHORT).show()
+        } else {
+            subs = choice
+            Toast.makeText(context, R.string.movie_toast_subs_loaded, Toast.LENGTH_SHORT).show()
+        }
+    }
+    // Sleep timer: pauses the movie for both of you, like the web page.
+    LaunchedEffect(sleepMin) {
+        if (sleepMin <= 0) return@LaunchedEffect
+        delay(sleepMin * MS_PER_MINUTE)
+        sleepMin = 0
+        if (player.playWhenReady) {
+            player.playWhenReady = false
+            onAction(false, player.currentPosition / MS)
+            Toast.makeText(context, R.string.movie_toast_sleep, Toast.LENGTH_LONG).show()
+        }
+    }
     DisposableEffect(player) {
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
@@ -118,12 +186,15 @@ fun PlayerScreen(
     }
 
     // Open the movie, then jump to where the room says we should be (also covers rejoining mid-movie).
-    LaunchedEffect(streamUrl) {
+    LaunchedEffect(streamUrl, subs) {
         val url = streamUrl ?: return@LaunchedEffect
-        player.setMediaItem(MediaItem.fromUri(url))
+        // Adding or removing subtitles reloads the movie; keep the same spot and play state.
+        val reload = player.mediaItemCount > 0
+        val startMs = if (reload) player.currentPosition else (latestRoom.expectedPositionSec(serverNowMs()) * 1000).toLong()
+        val playing = if (reload) player.playWhenReady else latestRoom.playing
+        player.setMediaItem(buildMediaItem(url, subs), startMs)
         player.prepare()
-        player.seekTo((latestRoom.expectedPositionSec(serverNowMs()) * 1000).toLong())
-        player.playWhenReady = latestRoom.playing
+        player.playWhenReady = playing
     }
 
     // Someone (the partner, or this phone's own echo) played, paused or jumped.
@@ -195,6 +266,7 @@ fun PlayerScreen(
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(
             factory = { ctx -> PlayerView(ctx).apply { useController = false; this.player = exo } },
+            update = { view -> view.resizeMode = fit.resizeMode() },
             modifier = Modifier.fillMaxSize(),
         )
         if (streamUrl == null) {
@@ -203,13 +275,16 @@ fun PlayerScreen(
                 Text(stringResource(R.string.movie_loading_video), color = colors.inkMuted, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = TwinTheme.spacing.m))
             }
         }
+        if (inPip) return@Box
         // Tap anywhere to show or hide the controls.
         Box(
             Modifier.fillMaxSize().clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
                 controlsVisible = !controlsVisible
+                showReactions = false
                 touches++
             },
         )
+        ReactionsLayer(reactions)
         floating?.let {
             Text(
                 it.text, color = colors.ink, style = MaterialTheme.typography.bodyLarge,
@@ -232,7 +307,19 @@ fun PlayerScreen(
                 IconButton({ showEnd = true }) {
                     Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.movie_back), tint = colors.ink)
                 }
-                Text(room.myTitle.orEmpty(), color = colors.ink, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                Text(room.myTitle.orEmpty(), color = colors.ink, style = MaterialTheme.typography.titleMedium, maxLines = 1, modifier = Modifier.weight(1f))
+                IconButton({ showReactions = !showReactions; touches++ }) {
+                    Icon(Icons.Rounded.EmojiEmotions, stringResource(R.string.movie_reactions), tint = colors.ink)
+                }
+                IconButton({ showMore = true }) {
+                    Icon(Icons.Rounded.MoreVert, stringResource(R.string.movie_more_title), tint = colors.ink)
+                }
+            }
+            if (showReactions) {
+                ReactionBar(
+                    onPick = { onReaction(it); showReactions = false },
+                    modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = REACTION_BAR_TOP_DP.dp, end = TwinTheme.spacing.s),
+                )
             }
             Row(Modifier.align(Alignment.Center), horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.xl), verticalAlignment = Alignment.CenterVertically) {
                 IconButton({ seekTo(player.currentPosition / MS - SKIP_SEC) }) {
@@ -297,6 +384,94 @@ fun PlayerScreen(
     }
     if (showEnd) EndDialog(onConfirm = { showEnd = false; onEnd(player.currentPosition / MS) }, onDismiss = { showEnd = false })
     if (showLog) ChatLogSheet(chat, onDismiss = { showLog = false })
+    if (showMore) {
+        PlayerMoreSheet(
+            info = MovieInfo(
+                title = room.myTitle.orEmpty(),
+                lengthText = formatRuntime(durationSec),
+                cloud = isCloud,
+                sizeText = cloudSizeText,
+                subtitles = subs?.name,
+            ),
+            fit = fit,
+            sleepMinutes = sleepMin,
+            keepScreenOn = keepScreenOn,
+            pipAvailable = pipAvailable,
+            onSubtitles = {
+                if (subs != null) {
+                    subs = null
+                    Toast.makeText(context, R.string.movie_toast_subs_off, Toast.LENGTH_SHORT).show()
+                } else {
+                    subsPicker.launch(arrayOf("*/*"))
+                }
+            },
+            onFit = { fit = fit.next() },
+            onPip = {
+                showMore = false
+                val params = PictureInPictureParams.Builder().setAspectRatio(Rational(PIP_W, PIP_H)).build()
+                val entered = runCatching { activity?.enterPictureInPictureMode(params) == true }.getOrDefault(false)
+                if (!entered) Toast.makeText(context, R.string.movie_toast_pip_failed, Toast.LENGTH_SHORT).show()
+            },
+            onSleep = { sleepMin = nextSleepStep(sleepMin) },
+            onKeepScreenOn = onKeepScreenOn,
+            onEnd = { showMore = false; showEnd = true },
+            onDismiss = { showMore = false },
+        )
+    }
+}
+
+/** A subtitle file the person chose on this phone. It is never uploaded; each phone loads its own. */
+private data class SubtitleChoice(val uri: Uri, val name: String, val mime: String)
+
+@OptIn(UnstableApi::class)
+private fun buildMediaItem(url: String, subs: SubtitleChoice?): MediaItem {
+    val builder = MediaItem.Builder().setUri(url)
+    if (subs != null) {
+        builder.setSubtitleConfigurations(
+            listOf(
+                MediaItem.SubtitleConfiguration.Builder(subs.uri)
+                    .setMimeType(subs.mime)
+                    .setLanguage(SUBTITLE_LANGUAGE)
+                    .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+                    .build(),
+            ),
+        )
+    }
+    return builder.build()
+}
+
+/** Media3 reads .srt and .vtt directly (the web page has to convert .srt first). Anything else is refused. */
+@OptIn(UnstableApi::class)
+private fun readSubtitle(context: Context, uri: Uri): SubtitleChoice? {
+    val name = runCatching {
+        context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+            if (c.moveToFirst()) c.getString(0) else null
+        }
+    }.getOrNull() ?: return null
+    val lower = name.lowercase()
+    val mime = when {
+        lower.endsWith(".srt") -> MimeTypes.APPLICATION_SUBRIP
+        lower.endsWith(".vtt") -> MimeTypes.TEXT_VTT
+        else -> return null
+    }
+    return SubtitleChoice(uri, name, mime)
+}
+
+@OptIn(UnstableApi::class)
+private fun ScreenFit.resizeMode(): Int = when (this) {
+    ScreenFit.Fit -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+    ScreenFit.Fill -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+    ScreenFit.Zoom -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+}
+
+/** Keeps the screen awake only while the movie plays and the switch is on (like the web wake lock). */
+@Composable
+private fun KeepScreenOnEffect(on: Boolean) {
+    val view = LocalView.current
+    DisposableEffect(view, on) {
+        view.keepScreenOn = on
+        onDispose { view.keepScreenOn = false }
+    }
 }
 
 @Composable
@@ -304,7 +479,7 @@ private fun SmallAction(label: Int, modifier: Modifier, onClick: () -> Unit) {
     GlassButton(stringResource(label), onClick, modifier, style = GlassButtonStyle.Secondary)
 }
 
-/** Hides the system bars and keeps the screen on while a movie plays. */
+/** Hides the system bars while a movie plays. */
 @Composable
 private fun ImmersiveEffect() {
     val view = LocalView.current
@@ -313,11 +488,7 @@ private fun ImmersiveEffect() {
         val controller = window?.let { WindowCompat.getInsetsController(it, view) }
         controller?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         controller?.hide(WindowInsetsCompat.Type.systemBars())
-        view.keepScreenOn = true
-        onDispose {
-            controller?.show(WindowInsetsCompat.Type.systemBars())
-            view.keepScreenOn = false
-        }
+        onDispose { controller?.show(WindowInsetsCompat.Type.systemBars()) }
     }
 }
 
@@ -335,3 +506,8 @@ private const val POSITION_EVERY_MS = 500L
 private const val HIDE_AFTER_MS = 4000L
 private const val FLOAT_MS = 5000L
 private const val PILL_MS = 2000L
+private const val MS_PER_MINUTE = 60_000L
+private const val SUBTITLE_LANGUAGE = "en"
+private const val PIP_W = 16
+private const val PIP_H = 9
+private const val REACTION_BAR_TOP_DP = 56

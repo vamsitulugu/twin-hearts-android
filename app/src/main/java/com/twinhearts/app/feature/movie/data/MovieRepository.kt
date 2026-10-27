@@ -10,6 +10,7 @@ import com.twinhearts.app.feature.movie.data.remote.ChatBody
 import com.twinhearts.app.feature.movie.data.remote.EndBody
 import com.twinhearts.app.feature.movie.data.remote.MovieApi
 import com.twinhearts.app.feature.movie.data.remote.PickMovieBody
+import com.twinhearts.app.feature.movie.data.remote.ReactionBody
 import com.twinhearts.app.feature.movie.data.remote.ReadyBody
 import com.twinhearts.app.feature.movie.data.remote.RoleBody
 import com.twinhearts.app.feature.movie.data.remote.RoomDto
@@ -20,6 +21,7 @@ import com.twinhearts.app.feature.movie.domain.model.CloudLibrary
 import com.twinhearts.app.feature.movie.domain.model.HistoryItem
 import com.twinhearts.app.feature.movie.domain.model.MovieIdentity
 import com.twinhearts.app.feature.movie.domain.model.MovieItem
+import com.twinhearts.app.feature.movie.domain.model.MovieReaction
 import com.twinhearts.app.feature.movie.domain.model.WatchRoom
 import com.twinhearts.app.feature.movie.domain.model.WatchStatus
 import kotlinx.coroutines.flow.first
@@ -59,6 +61,10 @@ interface MovieRepository {
     suspend fun library(who: MovieIdentity): AppResult<CloudLibrary>
     suspend fun selectShared(who: MovieIdentity, movieId: String): AppResult<WatchRoom>
     suspend fun playbackUrl(who: MovieIdentity, movieId: String): AppResult<String>
+    suspend fun deleteShared(who: MovieIdentity, movieId: String): AppResult<Unit>
+
+    suspend fun sendReaction(who: MovieIdentity, emoji: String): AppResult<Unit>
+    suspend fun reactions(who: MovieIdentity, afterMs: Long): AppResult<List<MovieReaction>>
 }
 
 class MovieRepositoryImpl @Inject constructor(
@@ -140,7 +146,7 @@ class MovieRepositoryImpl @Inject constructor(
             ?: movie.tmdbId?.let { runCatching { api.details(it).genre }.getOrNull() }
         val body = AddFavoriteBody(
             who.coupleId, movie.tmdbId, movie.title, movie.year, genre, movie.posterUrl, movie.backdropUrl,
-            movie.overview, movie.rating, movie.status.api, who.role,
+            movie.overview, movie.rating, movie.status.api, movie.addedBy ?: who.role,
         )
         api.addFavorite(body).favorite?.toDomain() ?: movie
     }
@@ -159,6 +165,15 @@ class MovieRepositoryImpl @Inject constructor(
 
     override suspend fun playbackUrl(who: MovieIdentity, movieId: String) =
         safeApiCall { api.playbackUrl(who.coupleId, movieId, who.userId).url }
+
+    override suspend fun deleteShared(who: MovieIdentity, movieId: String) =
+        safeApiCall { api.deleteShared(who.coupleId, movieId, who.userId); Unit }
+
+    override suspend fun sendReaction(who: MovieIdentity, emoji: String) =
+        safeApiCall { api.sendReaction(who.coupleId, ReactionBody(who.role, emoji)); Unit }
+
+    override suspend fun reactions(who: MovieIdentity, afterMs: Long) =
+        safeApiCall { api.reactions(who.coupleId, afterMs).map { it.toDomain(who.role) } }
 
     private companion object {
         const val COUNTDOWN_MS = 4000

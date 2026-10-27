@@ -20,6 +20,8 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:supportsPictureInPicture="true"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.TwinHearts">
             <intent-filter>

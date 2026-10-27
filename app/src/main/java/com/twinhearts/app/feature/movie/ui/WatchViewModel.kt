@@ -8,10 +8,15 @@ import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.core.common.UiState
 import com.twinhearts.app.feature.movie.data.MovieRepository
+import com.twinhearts.app.feature.movie.data.local.MovieLocalStore
+import com.twinhearts.app.feature.movie.data.upload.CloudUploader
+import com.twinhearts.app.feature.movie.data.upload.UploadRequest
+import com.twinhearts.app.feature.movie.data.upload.UploadState
 import com.twinhearts.app.feature.movie.domain.model.ChatMessage
 import com.twinhearts.app.feature.movie.domain.model.CloudLibrary
 import com.twinhearts.app.feature.movie.domain.model.HistoryItem
 import com.twinhearts.app.feature.movie.domain.model.MovieIdentity
+import com.twinhearts.app.feature.movie.domain.model.MovieReaction
 import com.twinhearts.app.feature.movie.domain.model.RoomStatus
 import com.twinhearts.app.feature.movie.domain.model.SharedMovie
 import com.twinhearts.app.feature.movie.domain.model.WatchRoom
@@ -43,6 +48,9 @@ data class WatchUiState(
     val chat: List<ChatMessage> = emptyList(),
     val cloud: UiState<CloudLibrary> = UiState.Loading,
     val history: UiState<List<HistoryItem>> = UiState.Loading,
+    /** Emoji floating over the movie right now (this phone's and the partner's). */
+    val reactions: List<MovieReaction> = emptyList(),
+    val keepScreenOn: Boolean = true,
 ) {
     /** The partner asked to start and this phone has not answered yet. */
     val inviteVisible: Boolean
@@ -57,6 +65,8 @@ data class WatchUiState(
 @HiltViewModel
 class WatchViewModel @Inject constructor(
     private val repo: MovieRepository,
+    private val uploader: CloudUploader,
+    private val store: MovieLocalStore,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(WatchUiState())
@@ -65,13 +75,32 @@ class WatchViewModel @Inject constructor(
     private val _messages = MutableSharedFlow<Int>(extraBufferCapacity = 4)
     val messages: SharedFlow<Int> = _messages.asSharedFlow()
 
+    /** The server's own friendly sentence (for example "A movie session is already in progress."), shown as is. */
+    private val _notes = MutableSharedFlow<String>(extraBufferCapacity = 4)
+    val notes: SharedFlow<String> = _notes.asSharedFlow()
+
+    /** Progress of a cloud upload. It keeps running when this screen is closed. */
+    val upload: StateFlow<UploadState> = uploader.state
+
     private var clockOffsetMs = 0L
     private var lastSeq = 0L
     private var lastChatStamp: String? = null
     private var localUri: String? = null
     private var sentFirstState = false
+    private var reactionsSupported = true
+    private var lastReactionAt = 0L
 
     init {
+        viewModelScope.launch { store.keepScreenOn.collect { on -> _state.update { it.copy(keepScreenOn = on) } } }
+        viewModelScope.launch {
+            uploader.state.collect { s ->
+                if (s is UploadState.Done) {
+                    _messages.tryEmit(R.string.movie_toast_uploaded)
+                    uploader.dismiss()
+                    loadCloud()
+                }
+            }
+        }
         viewModelScope.launch {
             val who = repo.identity()
             if (who == null) {
@@ -93,6 +122,8 @@ class WatchViewModel @Inject constructor(
             updateStage()
             if (tick % POLL_EVERY == 0) refreshRoom(first = false)
             if (tick % CHAT_EVERY == 0 && _state.value.stage == WatchStage.Watching) refreshChat()
+            if (tick % REACTION_EVERY == 0 && _state.value.stage == WatchStage.Watching) refreshReactions()
+            trimReactions()
             tick++
             delay(TICK_MS)
         }
@@ -126,7 +157,10 @@ class WatchViewModel @Inject constructor(
         val start = room?.scheduledStartMs
         val running = room != null && (room.status == RoomStatus.Countdown || room.status == RoomStatus.Watching)
         if (room == null || !running || start == null) {
-            if (s.stage != WatchStage.Setup) _state.update { it.copy(stage = WatchStage.Setup, streamUrl = null, chat = emptyList()) }
+            if (s.stage != WatchStage.Setup) {
+                lastReactionAt = 0L
+                _state.update { it.copy(stage = WatchStage.Setup, streamUrl = null, chat = emptyList(), reactions = emptyList()) }
+            }
             return
         }
         val msLeft = start - serverNowMs()
@@ -207,7 +241,7 @@ class WatchViewModel @Inject constructor(
         viewModelScope.launch {
             when (val r = call(who)) {
                 is AppResult.Success -> applyRoom(r.data)
-                is AppResult.Failure -> _messages.tryEmit(failure)
+                is AppResult.Failure -> tell(r.error, failure)
             }
             _state.update { it.copy(busy = false) }
         }
@@ -312,7 +346,84 @@ class WatchViewModel @Inject constructor(
         }
     }
 
+    /** Shows the server's sentence when it sent one, otherwise the app's own fallback text. */
+    private fun tell(error: AppError, @StringRes fallback: Int) {
+        val text = (error as? AppError.Server)?.message
+        if (text != null) _notes.tryEmit(text) else _messages.tryEmit(fallback)
+    }
+
+    // ── Cloud upload and delete ──
+
+    fun uploadMovie(video: LocalVideo) {
+        uploader.start(UploadRequest(video.uri, video.title, video.sizeBytes, video.mime, video.durationSec.toDouble()))
+    }
+
+    fun cancelUpload() {
+        uploader.cancel()
+        _messages.tryEmit(R.string.movie_toast_upload_cancelled)
+    }
+
+    fun dismissUpload() = uploader.dismiss()
+
+    fun deleteShared(movie: SharedMovie) {
+        val who = _state.value.who ?: return
+        viewModelScope.launch {
+            when (val r = repo.deleteShared(who, movie.id)) {
+                is AppResult.Success -> {
+                    _messages.tryEmit(R.string.movie_toast_movie_deleted)
+                    refreshRoom(first = false)
+                    loadCloud()
+                }
+                is AppResult.Failure -> tell(r.error, R.string.movie_toast_delete_failed)
+            }
+        }
+    }
+
+    // ── Player extras ──
+
+    fun setKeepScreenOn(on: Boolean) {
+        viewModelScope.launch { store.setKeepScreenOn(on) }
+    }
+
+    /** Shows the emoji at once on this phone, then tells the partner (best effort: it is not saved anywhere). */
+    fun sendReaction(emoji: String) {
+        val who = _state.value.who ?: return
+        val mine = MovieReaction(id = System.nanoTime(), emoji = emoji, fromMe = true)
+        _state.update { it.copy(reactions = (it.reactions + mine).takeLast(MAX_REACTIONS)) }
+        if (!reactionsSupported) return
+        viewModelScope.launch { repo.sendReaction(who, emoji) }
+    }
+
+    private suspend fun refreshReactions() {
+        if (!reactionsSupported) return
+        val who = _state.value.who ?: return
+        if (lastReactionAt == 0L) lastReactionAt = serverNowMs()
+        when (val r = repo.reactions(who, lastReactionAt)) {
+            is AppResult.Success -> {
+                if (r.data.isEmpty()) return
+                lastReactionAt = maxOf(lastReactionAt, r.data.maxOf { it.id })
+                val theirs = r.data.filterNot { it.fromMe }
+                if (theirs.isNotEmpty()) _state.update { it.copy(reactions = (it.reactions + theirs).takeLast(MAX_REACTIONS)) }
+            }
+            // An older server has no reaction route yet. Stop asking; own reactions still show on this phone.
+            is AppResult.Failure -> {
+                val e = r.error
+                if (e is AppError.Server && e.code == NOT_FOUND) reactionsSupported = false
+            }
+        }
+    }
+
+    private fun trimReactions() {
+        if (_state.value.reactions.isEmpty()) return
+        val now = System.currentTimeMillis()
+        _state.update { s -> s.copy(reactions = s.reactions.filter { now - it.shownAtMs < REACTION_LIFE_MS }) }
+    }
+
     private companion object {
+        const val REACTION_EVERY = 4   // 1 s
+        const val REACTION_LIFE_MS = 3000L
+        const val MAX_REACTIONS = 8
+        const val NOT_FOUND = 404
         const val TICK_MS = 250L
         const val POLL_EVERY = 6   // 1.5 s
         const val CHAT_EVERY = 8   // 2 s

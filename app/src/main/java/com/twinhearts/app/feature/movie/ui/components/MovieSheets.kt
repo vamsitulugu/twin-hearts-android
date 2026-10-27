@@ -60,6 +60,8 @@ fun MovieDetailSheet(
     onRate: (Int) -> Unit,
     onRemove: () -> Unit,
     onAdd: () -> Unit,
+    isFavorite: Boolean,
+    onFavorite: () -> Unit,
 ) {
     val colors = TwinTheme.colors
     val saved = movie.id.isNotEmpty()
@@ -95,6 +97,10 @@ fun MovieDetailSheet(
                         }
                     }
                 }
+                GlassButton(
+                    stringResource(if (isFavorite) R.string.movie_fav_in else R.string.movie_fav_add), onFavorite,
+                    Modifier.fillMaxWidth(), style = GlassButtonStyle.Secondary,
+                )
                 GlassButton(stringResource(R.string.movie_detail_remove), onRemove, Modifier.fillMaxWidth(), style = GlassButtonStyle.Ghost)
             } else {
                 GlassButton(stringResource(R.string.movie_detail_add), onAdd, Modifier.fillMaxWidth())

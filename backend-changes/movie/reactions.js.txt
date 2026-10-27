@@ -1,0 +1,22 @@
+// PASTE into routes/routes-movie.js (the /api/movie router) just above `module.exports = router;`
+// Ephemeral emoji reactions for the Android app. Kept in memory only, never written to the database.
+const REACTION_TTL_MS = 10000;
+const REACTION_EMOJI = new Set(['❤️', '😂', '🥺', '😱', '😘']);
+const reactionBuf = new Map(); // coupleId -> [{ at, role, emoji }]
+
+router.post('/:coupleId/reaction', (req, res) => {
+  const { role, emoji } = req.body || {};
+  if (!['user1', 'user2'].includes(role) || !REACTION_EMOJI.has(emoji)) return res.status(400).json({ error: 'Invalid reaction.' });
+  const now = Date.now();
+  const list = (reactionBuf.get(req.params.coupleId) || []).filter(r => now - r.at < REACTION_TTL_MS);
+  const last = list.length ? list[list.length - 1].at : 0;
+  list.push({ at: Math.max(now, last + 1), role, emoji }); // strictly increasing, so the app never shows one twice
+  reactionBuf.set(req.params.coupleId, list.slice(-30));
+  res.json({ ok: true });
+});
+
+router.get('/:coupleId/reactions', (req, res) => {
+  const after = Number(req.query.after) || 0;
+  const now = Date.now();
+  res.json((reactionBuf.get(req.params.coupleId) || []).filter(r => r.at > after && now - r.at < REACTION_TTL_MS));
+});

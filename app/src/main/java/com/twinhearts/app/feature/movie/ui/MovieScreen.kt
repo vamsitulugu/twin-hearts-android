@@ -31,6 +31,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.twinhearts.app.R
+import com.twinhearts.app.core.common.UiState
 import com.twinhearts.app.core.common.asText
 import com.twinhearts.app.core.design.ErrorState
 import com.twinhearts.app.core.design.GlassIconButton
@@ -38,6 +39,7 @@ import com.twinhearts.app.core.design.LoadingSkeleton
 import com.twinhearts.app.core.design.SerifFamily
 import com.twinhearts.app.core.design.TwinBackground
 import com.twinhearts.app.core.design.TwinTheme
+import com.twinhearts.app.feature.movie.domain.formatBytes
 import com.twinhearts.app.feature.movie.domain.model.RoomStatus
 import com.twinhearts.app.feature.movie.ui.components.CountdownContent
 import com.twinhearts.app.feature.movie.ui.components.HistorySheet
@@ -58,6 +60,7 @@ fun MovieScreen(
     browseVm: BrowseViewModel = hiltViewModel(),
 ) {
     val state by watchVm.state.collectAsStateWithLifecycle()
+    val upload by watchVm.upload.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var showHistory by rememberSaveable { mutableStateOf(false) }
@@ -72,6 +75,10 @@ fun MovieScreen(
     LaunchedEffect(watchVm, browseVm) {
         merge(watchVm.messages, browseVm.messages).collect { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
     }
+    // Sentences the server wrote for the user are shown as they are.
+    LaunchedEffect(watchVm) {
+        watchVm.notes.collect { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+    }
 
     TwinBackground(Modifier.fillMaxSize()) {
         when (state.stage) {
@@ -84,6 +91,13 @@ fun MovieScreen(
                     onAction = watchVm::sendAction,
                     onSendChat = watchVm::sendChat,
                     onEnd = watchVm::endMovie,
+                    reactions = state.reactions,
+                    onReaction = watchVm::sendReaction,
+                    keepScreenOn = state.keepScreenOn,
+                    onKeepScreenOn = watchVm::setKeepScreenOn,
+                    isCloud = room.sharedMovieId != null,
+                    cloudSizeText = (state.cloud as? UiState.Content)?.data?.movies
+                        ?.firstOrNull { it.id == room.sharedMovieId }?.sizeBytes?.let(::formatBytes),
                 )
             }
             WatchStage.Countdown -> CountdownContent(state.countdown)
@@ -109,9 +123,14 @@ fun MovieScreen(
                         onTab = { tab = it },
                         browseVm = browseVm,
                         cloud = state.cloud,
+                        upload = upload,
                         onLoadCloud = watchVm::loadCloud,
                         onPickLocal = { uri, title, sec -> changing = false; watchVm.pickLocalMovie(uri, title, sec) },
                         onPickShared = { movie -> changing = false; watchVm.pickSharedMovie(movie) },
+                        onUpload = watchVm::uploadMovie,
+                        onCancelUpload = watchVm::cancelUpload,
+                        onDismissUpload = watchVm::dismissUpload,
+                        onDeleteShared = watchVm::deleteShared,
                     )
                 }
             }

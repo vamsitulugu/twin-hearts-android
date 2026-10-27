@@ -51,4 +51,20 @@ interface MovieApi {
     suspend fun playbackUrl(@Path("c") c: String, @Path("m") m: String, @Header("x-user-id") uid: String): UrlDto
     @POST("api/movie-library/{c}/{m}/select")
     suspend fun selectShared(@Path("c") c: String, @Path("m") m: String, @Header("x-user-id") uid: String): RoomDto
+    @DELETE("api/movie-library/{c}/{m}")
+    suspend fun deleteShared(@Path("c") c: String, @Path("m") m: String, @Header("x-user-id") uid: String): OkDto
+
+    // ── Cloud upload: start, sign part links, finish or cancel (the bytes go straight to storage) ──
+    @POST("api/movie-library/{c}/uploads")
+    suspend fun startUpload(@Path("c") c: String, @Header("x-user-id") uid: String, @Body b: StartUploadBody): StartUploadDto
+    @POST("api/movie-library/{c}/uploads/{m}/parts")
+    suspend fun signParts(@Path("c") c: String, @Path("m") m: String, @Header("x-user-id") uid: String, @Body b: PartsBody): PartsDto
+    @POST("api/movie-library/{c}/uploads/{m}/complete")
+    suspend fun completeUpload(@Path("c") c: String, @Path("m") m: String, @Header("x-user-id") uid: String, @Body b: CompleteBody): SharedMovieDto
+    @POST("api/movie-library/{c}/uploads/{m}/abort")
+    suspend fun abortUpload(@Path("c") c: String, @Path("m") m: String, @Header("x-user-id") uid: String): OkDto
+
+    // ── Reactions: short-lived emoji (server change needed, see backend-changes/movie) ──
+    @POST("api/movie/{c}/reaction") suspend fun sendReaction(@Path("c") c: String, @Body b: ReactionBody): OkDto
+    @GET("api/movie/{c}/reactions") suspend fun reactions(@Path("c") c: String, @Query("after") after: Long): List<ReactionDto>
 }

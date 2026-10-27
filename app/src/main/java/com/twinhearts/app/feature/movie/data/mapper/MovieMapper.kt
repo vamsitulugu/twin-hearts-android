@@ -4,12 +4,14 @@ import com.twinhearts.app.feature.movie.data.remote.ChatMessageDto
 import com.twinhearts.app.feature.movie.data.remote.FavoriteDto
 import com.twinhearts.app.feature.movie.data.remote.HistoryDto
 import com.twinhearts.app.feature.movie.data.remote.LibraryDto
+import com.twinhearts.app.feature.movie.data.remote.ReactionDto
 import com.twinhearts.app.feature.movie.data.remote.RoomDto
 import com.twinhearts.app.feature.movie.data.remote.SearchItemDto
 import com.twinhearts.app.feature.movie.domain.model.ChatMessage
 import com.twinhearts.app.feature.movie.domain.model.CloudLibrary
 import com.twinhearts.app.feature.movie.domain.model.HistoryItem
 import com.twinhearts.app.feature.movie.domain.model.MovieItem
+import com.twinhearts.app.feature.movie.domain.model.MovieReaction
 import com.twinhearts.app.feature.movie.domain.model.RoomStatus
 import com.twinhearts.app.feature.movie.domain.model.SharedMovie
 import com.twinhearts.app.feature.movie.domain.model.WatchRoom
@@ -54,7 +56,7 @@ fun RoomDto.toDomain(role: String): WatchRoom {
 fun FavoriteDto.toDomain() = MovieItem(
     id = id?.content.orEmpty(), tmdbId = tmdbId?.content?.takeIf { it != "null" }, title = title, year = year,
     genre = genre, posterUrl = posterUrl, backdropUrl = backdropUrl, overview = overview, rating = rating,
-    status = WatchStatus.from(status),
+    status = WatchStatus.from(status), addedBy = addedBy,
 )
 
 fun SearchItemDto.toDomain() = MovieItem(
@@ -73,6 +75,10 @@ fun HistoryDto.toDomain() = HistoryItem(
 )
 
 fun LibraryDto.toDomain() = CloudLibrary(
-    movies = movies.filter { it.status == "ready" }.map { SharedMovie(it.id, it.title, it.sizeBytes, it.durationSec) },
-    usedBytes = usage.usedBytes, limitBytes = usage.limitBytes,
+    // Unfinished uploads stay in the list so they can be deleted, like on the web.
+    movies = movies.map { SharedMovie(it.id, it.title, it.sizeBytes, it.durationSec, ready = it.status == "ready") },
+    usedBytes = usage.usedBytes, limitBytes = usage.limitBytes, maxFileBytes = usage.maxFileBytes,
 )
+
+/** Reactions from the partner only; this phone already showed its own the moment it was tapped. */
+fun ReactionDto.toDomain(role: String) = MovieReaction(id = at, emoji = emoji, fromMe = this.role == role)

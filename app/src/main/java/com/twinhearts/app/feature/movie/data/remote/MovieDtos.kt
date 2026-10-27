@@ -77,6 +77,7 @@ data class FavoriteDto(
     val overview: String? = null,
     val rating: Double? = null,
     val status: String? = null,
+    @SerialName("added_by") val addedBy: String? = null,
 )
 
 @Serializable
@@ -102,10 +103,23 @@ data class SearchItemDto(
 @Serializable data class DetailsDto(val genre: String? = null)
 
 @Serializable data class LibraryDto(val movies: List<SharedMovieDto> = emptyList(), val usage: UsageDto = UsageDto())
-@Serializable data class UsageDto(val usedBytes: Long = 0, val limitBytes: Long = 0)
+@Serializable data class UsageDto(val usedBytes: Long = 0, val limitBytes: Long = 0, val maxFileBytes: Long = 0)
 @Serializable
 data class SharedMovieDto(
     val id: String = "", val title: String = "", val sizeBytes: Long = 0, val durationSec: Double = 0.0,
     val status: String = "",
 )
 @Serializable data class UrlDto(val url: String = "")
+
+// ── Cloud upload (movie-library.js: uploads / parts / complete / abort) ──
+@Serializable data class StartUploadBody(val title: String, val size: Long, val mime: String, val durationSec: Double)
+@Serializable data class StartUploadDto(val movieId: String = "", val partSize: Long = 0, val totalParts: Int = 0)
+@Serializable data class PartsBody(val partNumbers: List<Int>)
+@Serializable data class PartsDto(val urls: Map<String, String> = emptyMap())
+@Serializable data class PartEtagDto(@SerialName("PartNumber") val partNumber: Int, @SerialName("ETag") val etag: String)
+@Serializable data class CompleteBody(val parts: List<PartEtagDto>)
+
+// ── Reactions (needs backend-changes/movie/reactions) ──
+@Serializable data class ReactionBody(val role: String, val emoji: String)
+@Serializable
+data class ReactionDto(val at: Long = 0, val role: String = "", val emoji: String = "")

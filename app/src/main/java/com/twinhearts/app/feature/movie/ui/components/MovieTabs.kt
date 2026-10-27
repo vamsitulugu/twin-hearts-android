@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,7 +23,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -49,7 +47,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.ui.text.font.FontWeight
@@ -70,16 +67,17 @@ import com.twinhearts.app.core.design.StatTile
 import com.twinhearts.app.core.design.TwinFilterChip
 import com.twinhearts.app.core.design.TwinTextField
 import com.twinhearts.app.core.design.TwinTheme
+import com.twinhearts.app.feature.movie.data.upload.UploadState
 import com.twinhearts.app.feature.movie.domain.LibraryFilter
+import com.twinhearts.app.feature.movie.domain.OwnerFilter
 import com.twinhearts.app.feature.movie.domain.applyFilter
 import com.twinhearts.app.feature.movie.domain.countByStatus
-import com.twinhearts.app.feature.movie.domain.formatBytes
-import com.twinhearts.app.feature.movie.domain.formatRuntime
 import com.twinhearts.app.feature.movie.domain.model.CloudLibrary
 import com.twinhearts.app.feature.movie.domain.model.MovieItem
 import com.twinhearts.app.feature.movie.domain.model.SharedMovie
 import com.twinhearts.app.feature.movie.domain.model.WatchStatus
 import com.twinhearts.app.feature.movie.domain.movieGenres
+import com.twinhearts.app.feature.movie.ui.LocalVideo
 import com.twinhearts.app.feature.movie.ui.BrowseViewModel
 import com.twinhearts.app.feature.movie.ui.OnlineSearch
 import com.twinhearts.app.feature.movie.ui.readLocalVideo
@@ -95,13 +93,21 @@ fun MovieTabsContent(
     onTab: (Int) -> Unit,
     browseVm: BrowseViewModel,
     cloud: UiState<CloudLibrary>,
+    upload: UploadState,
     onLoadCloud: () -> Unit,
     onPickLocal: (uri: String, title: String, durationSec: Int) -> Unit,
     onPickShared: (SharedMovie) -> Unit,
+    onUpload: (LocalVideo) -> Unit,
+    onCancelUpload: () -> Unit,
+    onDismissUpload: () -> Unit,
+    onDeleteShared: (SharedMovie) -> Unit,
 ) {
     val movies by browseVm.movies.collectAsState()
     val online by browseVm.online.collectAsState()
+    val favorites by browseVm.favorites.collectAsState()
+    val role by browseVm.role.collectAsState()
     var selected by remember { mutableStateOf<MovieItem?>(null) }
+    var adding by rememberSaveable { mutableStateOf(false) }
     var genre by rememberSaveable { mutableStateOf<String?>(null) }
     val edge = TwinTheme.spacing.screenEdge
 
@@ -116,18 +122,20 @@ fun MovieTabsContent(
             modifier = Modifier.padding(horizontal = edge, vertical = TwinTheme.spacing.s),
         )
         if (tab == 3) {
-            WatchTab(cloud, onLoadCloud, onPickLocal, onPickShared)
+            WatchTab(cloud, upload, onLoadCloud, onPickLocal, onPickShared, onUpload, onCancelUpload, onDismissUpload, onDeleteShared)
         } else when (val m = movies) {
             UiState.Loading -> LoadingSkeleton(Modifier.padding(edge))
             is UiState.Error -> ErrorState(message = m.error.asText(), onRetry = browseVm::load)
             else -> {
                 val list = if (m is UiState.Content) m.data else emptyList()
                 when (tab) {
-                    0 -> HomeTab(list) { selected = it }
+                    0 -> HomeTab(list, favorites, browseVm::toggleFavorite) { selected = it }
                     1 -> LibraryTab(
                         list = list, online = online, genre = genre, onClearGenre = { genre = null },
                         onOpen = { selected = it }, onSearchOnline = browseVm::searchOnline,
                         onClearOnline = browseVm::clearSearch,
+                        favorites = favorites, role = role, onToggleFavorite = browseVm::toggleFavorite,
+                        onAddMovie = { adding = true },
                     )
                     else -> GenresTab(list) { genre = it; onTab(1) }
                 }
@@ -142,6 +150,16 @@ fun MovieTabsContent(
             onRate = { browseVm.setRating(movie, it); selected = movie.copy(rating = it.toDouble()) },
             onRemove = { browseVm.remove(movie); selected = null },
             onAdd = { browseVm.add(movie); selected = null },
+            isFavorite = movie.id in favorites,
+            onFavorite = { browseVm.toggleFavorite(movie) },
+        )
+    }
+    if (adding) {
+        AddMovieSheet(
+            onSave = { title, year, genre, status, stars, owner ->
+                browseVm.addManual(title, year, genre, status, stars, owner) { adding = false }
+            },
+            onDismiss = { adding = false },
         )
     }
 }
@@ -149,7 +167,7 @@ fun MovieTabsContent(
 // ── Home ──
 
 @Composable
-private fun HomeTab(list: List<MovieItem>, onOpen: (MovieItem) -> Unit) {
+private fun HomeTab(list: List<MovieItem>, favorites: Set<String>, onToggleFavorite: (MovieItem) -> Unit, onOpen: (MovieItem) -> Unit) {
     if (list.isEmpty()) {
         EmptyState(
             title = stringResource(R.string.movie_home_empty_title),
@@ -159,6 +177,7 @@ private fun HomeTab(list: List<MovieItem>, onOpen: (MovieItem) -> Unit) {
         return
     }
     val rows = listOf(
+        R.string.movie_home_favorites to list.filter { it.id in favorites },
         R.string.movie_home_watched_together to list.filter { it.status == WatchStatus.Watched },
         R.string.movie_home_watching to list.filter { it.status == WatchStatus.Watching },
         R.string.movie_home_watchlist to list.filter { it.status == WatchStatus.Watchlist },
@@ -172,7 +191,7 @@ private fun HomeTab(list: List<MovieItem>, onOpen: (MovieItem) -> Unit) {
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = TwinTheme.spacing.screenEdge),
                     horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
                 ) {
-                    items(movies, key = { it.id }) { PosterCard(it, { onOpen(it) }, Modifier.width(112.dp)) }
+                    items(movies, key = { it.id }) { PosterCard(it, { onOpen(it) }, Modifier.width(112.dp), favorite = it.id in favorites, onToggleFavorite = { onToggleFavorite(it) }) }
                 }
             }
         }
@@ -207,11 +226,16 @@ private fun LibraryTab(
     onOpen: (MovieItem) -> Unit,
     onSearchOnline: (String) -> Unit,
     onClearOnline: () -> Unit,
+    favorites: Set<String>,
+    role: String?,
+    onToggleFavorite: (MovieItem) -> Unit,
+    onAddMovie: () -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var filter by rememberSaveable { mutableStateOf(LibraryFilter.All) }
+    var owner by rememberSaveable { mutableStateOf(OwnerFilter.Everyone) }
     var onlineMode by rememberSaveable { mutableStateOf(false) }
-    val shown = list.applyFilter(filter, genre, if (onlineMode) "" else query)
+    val shown = list.applyFilter(filter, genre, if (onlineMode) "" else query, owner, role, favorites)
     val edge = TwinTheme.spacing.screenEdge
 
     LazyVerticalGrid(
@@ -236,6 +260,8 @@ private fun LibraryTab(
                     )
                     if (onlineMode) {
                         GlassButton(stringResource(R.string.movie_search_online), { onSearchOnline(query) }, style = GlassButtonStyle.Secondary, leadingIcon = Icons.Rounded.Search)
+                    } else {
+                        TwinFilterChip(stringResource(R.string.movie_add_open), false, onAddMovie)
                     }
                 }
             }
@@ -251,6 +277,11 @@ private fun LibraryTab(
                     }
                 }
             }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
+                    OwnerFilter.entries.forEach { o -> TwinFilterChip(stringResource(o.label()), owner == o, { owner = o }) }
+                }
+            }
             if (genre != null) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     TwinFilterChip("$genre ✕", true, onClearGenre)
@@ -261,7 +292,7 @@ private fun LibraryTab(
                     EmptyState(stringResource(R.string.movie_library_empty_title), message = stringResource(R.string.movie_library_empty_message), icon = Icons.Rounded.Movie)
                 }
             }
-            items(shown, key = { it.id }) { PosterCard(it, { onOpen(it) }) }
+            items(shown, key = { it.id }) { PosterCard(it, { onOpen(it) }, favorite = it.id in favorites, onToggleFavorite = { onToggleFavorite(it) }) }
         }
     }
 }
@@ -282,9 +313,17 @@ private fun androidx.compose.foundation.lazy.grid.LazyGridScope.onlineItems(onli
     }
 }
 
+private fun OwnerFilter.label(): Int = when (this) {
+    OwnerFilter.Everyone -> R.string.movie_owner_all
+    OwnerFilter.Mine -> R.string.movie_owner_chip_mine
+    OwnerFilter.Partner -> R.string.movie_owner_chip_partner
+    OwnerFilter.Together -> R.string.movie_owner_chip_together
+}
+
 private fun LibraryFilter.label(): Int = when (this) {
     LibraryFilter.All -> R.string.movie_filter_all
     LibraryFilter.Recent -> R.string.movie_filter_recent
+    LibraryFilter.Favorites -> R.string.movie_filter_favorites
     LibraryFilter.Watchlist -> R.string.movie_filter_watchlist
     LibraryFilter.Watching -> R.string.movie_filter_watching
     LibraryFilter.Watched -> R.string.movie_filter_watched
@@ -326,9 +365,14 @@ private fun GenresTab(list: List<MovieItem>, onPick: (String) -> Unit) {
 @Composable
 private fun WatchTab(
     cloud: UiState<CloudLibrary>,
+    upload: UploadState,
     onLoadCloud: () -> Unit,
     onPickLocal: (String, String, Int) -> Unit,
     onPickShared: (SharedMovie) -> Unit,
+    onUpload: (LocalVideo) -> Unit,
+    onCancelUpload: () -> Unit,
+    onDismissUpload: () -> Unit,
+    onDeleteShared: (SharedMovie) -> Unit,
 ) {
     var cloudMode by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(cloudMode) { if (cloudMode) onLoadCloud() }
@@ -340,7 +384,11 @@ private fun WatchTab(
             TwinFilterChip(stringResource(R.string.movie_mode_direct), !cloudMode, { cloudMode = false })
             TwinFilterChip(stringResource(R.string.movie_mode_cloud), cloudMode, { cloudMode = true })
         }
-        if (cloudMode) CloudPane(cloud, onLoadCloud, onPickShared) else DirectPane(onPickLocal)
+        if (cloudMode) {
+            CloudPane(cloud, upload, onLoadCloud, onPickShared, onUpload, onCancelUpload, onDismissUpload, onDeleteShared)
+        } else {
+            DirectPane(onPickLocal)
+        }
     }
 }
 
@@ -365,41 +413,16 @@ private fun DirectPane(onPick: (String, String, Int) -> Unit) {
     }
 }
 
-@Composable
-private fun CloudPane(cloud: UiState<CloudLibrary>, onRetry: () -> Unit, onPick: (SharedMovie) -> Unit) {
-    when (cloud) {
-        UiState.Loading -> LoadingSkeleton()
-        UiState.Empty -> EmptyState(stringResource(R.string.movie_cloud_empty_title), message = stringResource(R.string.movie_cloud_empty_message), icon = Icons.Rounded.Movie)
-        is UiState.Error -> ErrorState(message = cloud.error.asText(), onRetry = onRetry)
-        is UiState.Content -> {
-            val lib = cloud.data
-            val pct = if (lib.limitBytes > 0) (lib.usedBytes * 100 / lib.limitBytes).toInt().coerceIn(0, 100) else 0
-            GlassCard(Modifier.fillMaxWidth()) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(stringResource(R.string.movie_cloud_usage), color = TwinTheme.colors.inkMuted, style = MaterialTheme.typography.bodySmall)
-                    Text("$pct%", color = TwinTheme.colors.ink, style = MaterialTheme.typography.bodySmall)
-                }
-                Box(Modifier.padding(top = TwinTheme.spacing.s).fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(TwinTheme.colors.glass)) {
-                    Box(Modifier.fillMaxWidth(pct / 100f).fillMaxHeight().background(TwinTheme.colors.primaryBrush))
-                }
-            }
-            lib.movies.forEach { movie ->
-                GlassCard(Modifier.fillMaxWidth(), onClick = { onPick(movie) }) {
-                    Text(movie.title, color = TwinTheme.colors.ink, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    Text(
-                        "${formatRuntime(movie.durationSec)} · ${formatBytes(movie.sizeBytes)}",
-                        color = TwinTheme.colors.inkMuted, style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-            }
-        }
-    }
-}
-
 // ── Shared poster tile ──
 
 @Composable
-fun PosterCard(movie: MovieItem, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun PosterCard(
+    movie: MovieItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    favorite: Boolean = false,
+    onToggleFavorite: (() -> Unit)? = null,
+) {
     Column(modifier.clickable(onClick = onClick), verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.xs)) {
         Box(
             Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(TwinTheme.shapes.small).background(TwinTheme.colors.card),
@@ -409,6 +432,13 @@ fun PosterCard(movie: MovieItem, onClick: () -> Unit, modifier: Modifier = Modif
                 Icon(Icons.Rounded.Movie, null, Modifier.size(32.dp), tint = TwinTheme.colors.inkFaint)
             } else {
                 AsyncImage(movie.posterUrl, movie.title, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            }
+            // The ⭐ is kept on this phone only (like the web page), so it shows only for saved movies.
+            if (onToggleFavorite != null && movie.id.isNotEmpty()) {
+                Text(
+                    if (favorite) "★" else "☆", color = TwinTheme.colors.accent, style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.align(Alignment.TopEnd).clickable(onClick = onToggleFavorite).padding(TwinTheme.spacing.s),
+                )
             }
         }
         Text(movie.title, color = TwinTheme.colors.ink, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)

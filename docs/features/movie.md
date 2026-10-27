@@ -40,11 +40,27 @@ Errors: server text such as "A movie session is already in progress." is shown a
 ## How both phones stay together (R-66)
 No websocket exists. The app **polls the room every 1.5 s** and chat every 2 s, only while the screen is visible. Both phones measure the server clock offset (best of 3 samples), so the countdown ends at the same moment. In the player: jump if 2 s or more apart, speed ±3 % if 0.5–2 s apart (same rules as web). The server keeps status `countdown` while watching, so the app decides "watching" from the shared clock, not from status.
 
+## Added in v2 (the remaining web features)
+| Feature | How it works in the app |
+|---|---|
+| Cloud upload | Watch → Cloud Storage → **Upload Movie**. `POST /uploads` → sign part links (`/parts`, 3 at a time) → `PUT` each 16 MB piece straight to storage → `POST /complete`. Each piece retries 5 times with a fresh link. **Cancel upload** calls `/abort`. |
+| Cloud delete | 🗑 on each row, same confirm text as web. `DELETE /api/movie-library/:c/:movieId`. Unfinished uploads show "Incomplete upload" and can be deleted. |
+| Subtitles | Player ⋮ → Subtitles: pick a `.srt` or `.vtt` from the phone (each phone loads its own, nothing uploaded). Media3 reads both directly. |
+| Screen Fit | Fit / Fill / Zoom. |
+| Picture in Picture | Android PiP window (manifest change). |
+| Sleep Timer | Off → 15 → 30 → 45 → 60 min; pauses for both. |
+| Keep Screen On | Switch, saved on the phone, default on; applies while playing. |
+| Movie Info | Title, length, source, size (cloud), subtitles. |
+| Reactions | ❤️ 😂 🥺 😱 😘 float up. **Needs `backend-changes/movie`** for the partner to see them. |
+| Add Movie form | Library → Add Movie: name, year, genre, rating, status, owner. Saved to the shared list (`POST /api/movie-fav`, owner stored in `added_by`). |
+| ⭐ Favorites + owner chips | Favorites kept on the phone (web keeps them in the browser). Owner chips: Everyone / Mine / Partner's / Together. "Your Favorites" row on Home. |
+| Server messages | Texts like "A movie session is already in progress." are now shown as sent. |
+
 ## Not ported (with reason)
-- **Cloud upload** (multipart to R2): large, needs resumable background work. Own session. Cloud movies uploaded from the web can already be watched.
-- **Subtitles, reactions, sleep timer, mini voice/video call bar**: reactions/calls use the web "parent window" channel, not the API; calls are Phase 2.3.
-- **Manual "Add" form and ⭐ Favorites filter/owner chips**: web stores favourite stars in browser storage, not in the API. Search online covers adding.
-- **Resume position after closing the app**: the room keeps the position; the same file must be picked again (web behaves the same: "Select the same movie again to resume").
+- **In-movie voice/video calls**: need the Calls feature (Phase 2.3), not built yet. R-82/R-83 forbid reaching into it. Add the call buttons in the Calls session.
+- **Poster upload, personal review, favourite scene in Add Movie, Edit Movie**: the server list has no field for them (`PATCH` only changes status and rating).
+- **Upload while the app is closed**: runs while the app is alive; a background service is a later change. Screen stays on during upload.
+- **Reactions web ↔ app**: the web page uses Supabase Realtime; app-to-app only.
 
 ## Things to know
 - `rating` in `movie_favorites` holds the TMDB score when a movie is added; a star tap overwrites it with 1–5 (same column the web uses).

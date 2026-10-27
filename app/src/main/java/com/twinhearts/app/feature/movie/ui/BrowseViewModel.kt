@@ -6,10 +6,13 @@ import com.twinhearts.app.R
 import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.core.common.UiState
 import com.twinhearts.app.feature.movie.data.MovieRepository
+import com.twinhearts.app.feature.movie.data.local.MovieLocalStore
 import com.twinhearts.app.feature.movie.domain.model.MovieIdentity
 import com.twinhearts.app.feature.movie.domain.model.MovieItem
+import com.twinhearts.app.feature.movie.domain.model.MovieOwner
 import com.twinhearts.app.feature.movie.domain.model.WatchStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -35,6 +38,7 @@ sealed interface OnlineSearch {
 @HiltViewModel
 class BrowseViewModel @Inject constructor(
     private val repo: MovieRepository,
+    private val store: MovieLocalStore,
 ) : ViewModel() {
 
     private val _movies = MutableStateFlow<UiState<List<MovieItem>>>(UiState.Loading)
@@ -46,7 +50,18 @@ class BrowseViewModel @Inject constructor(
     private val _messages = MutableSharedFlow<Int>(extraBufferCapacity = 4)
     val messages: SharedFlow<Int> = _messages.asSharedFlow()
 
+    private val _favorites = MutableStateFlow<Set<String>>(emptySet())
+
+    /** The ⭐ movies of this phone (the web keeps them in the browser, not on the server). */
+    val favorites: StateFlow<Set<String>> = _favorites.asStateFlow()
+
+    private val _role = MutableStateFlow<String?>(null)
+
+    /** "user1" or "user2": needed to tell "mine" from "partner's" in the owner chips. */
+    val role: StateFlow<String?> = _role.asStateFlow()
+
     private var who: MovieIdentity? = null
+    private var favoritesJob: Job? = null
 
     init { load() }
 
@@ -58,6 +73,10 @@ class BrowseViewModel @Inject constructor(
             if (me == null) {
                 _movies.value = UiState.Empty
                 return@launch
+            }
+            _role.value = me.role
+            if (favoritesJob == null) {
+                favoritesJob = viewModelScope.launch { store.favoriteIds(me.coupleId).collect { _favorites.value = it } }
             }
             _movies.value = when (val r = repo.favorites(me)) {
                 is AppResult.Success -> if (r.data.isEmpty()) UiState.Empty else UiState.Content(r.data)
@@ -89,6 +108,37 @@ class BrowseViewModel @Inject constructor(
                 is AppResult.Success -> {
                     _messages.tryEmit(R.string.movie_toast_added)
                     reloadQuietly(me)
+                }
+                is AppResult.Failure -> _messages.tryEmit(R.string.movie_toast_add_failed)
+            }
+        }
+    }
+
+    fun toggleFavorite(movie: MovieItem) {
+        val me = who ?: return
+        if (movie.id.isBlank()) return
+        viewModelScope.launch { store.toggleFavorite(me.coupleId, movie.id) }
+    }
+
+    /** The "Add Movie" form of the web page. It saves into the same shared list as "Search online". */
+    fun addManual(title: String, year: String, genre: String?, status: WatchStatus, stars: Int, owner: MovieOwner, onDone: () -> Unit) {
+        val me = who ?: return
+        val partner = if (me.role == "user1") "user2" else "user1"
+        val movie = MovieItem(
+            id = "", tmdbId = null, title = title.trim(), year = year.trim().ifEmpty { null }, genre = genre,
+            posterUrl = null, backdropUrl = null, overview = null, rating = stars.takeIf { it > 0 }?.toDouble(), status = status,
+            addedBy = when (owner) {
+                MovieOwner.Mine -> me.role
+                MovieOwner.Partner -> partner
+                MovieOwner.Together -> "both"
+            },
+        )
+        viewModelScope.launch {
+            when (repo.addFavorite(me, movie)) {
+                is AppResult.Success -> {
+                    _messages.tryEmit(R.string.movie_toast_added)
+                    reloadQuietly(me)
+                    onDone()
                 }
                 is AppResult.Failure -> _messages.tryEmit(R.string.movie_toast_add_failed)
             }
