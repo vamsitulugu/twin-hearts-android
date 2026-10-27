@@ -4,6 +4,7 @@ import com.twinhearts.app.feature.chat.data.mapper.toDomain
 import com.twinhearts.app.feature.chat.data.remote.ChatMessageDto
 import com.twinhearts.app.feature.chat.domain.model.DeliveryState
 import com.twinhearts.app.feature.chat.domain.model.MessageKind
+import java.time.Instant
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -56,5 +57,24 @@ class ChatMapperTest {
     @Test
     fun brokenTime_dropsTheRow() {
         assertEquals(0, listOf(dto("""{"id":3,"sender_role":"user1","text":"x","created_at":"??"}""")).toDomain("user1").size)
+    }
+
+    @Test
+    func editedRow_mapsEditedAt() {
+        val m = dto(
+            """{"id":9,"sender_role":"user1","text":"Hi","edited":true,"edited_at":"2026-10-26T09:30:00Z","created_at":"2026-10-26T09:00:00Z"}""",
+        ).toDomain("user1")!!
+        assertTrue(m.edited)
+        assertEquals(Instant.parse("2026-10-26T09:30:00Z"), m.editedAt)
+    }
+
+    @Test
+    func viewOnceRow_mapsPendingAndViewedAt() {
+        val m = dto(
+            """{"id":10,"sender_role":"user2","type":"image","media_url":"https://x/photo.jpg","view_once":true,"view_once_pending":true,"viewed_at":"2026-10-26T09:35:00Z","created_at":"2026-10-26T09:00:00Z"}""",
+        ).toDomain("user1")!!
+        assertTrue(m.viewOnce)
+        assertTrue(m.viewOncePending)
+        assertEquals(Instant.parse("2026-10-26T09:35:00Z"), m.viewedAt)
     }
 }

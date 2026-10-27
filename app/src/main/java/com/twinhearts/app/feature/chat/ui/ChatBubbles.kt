@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccessTime
 import androidx.compose.material.icons.rounded.Done
 import androidx.compose.material.icons.rounded.DoneAll
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.PauseCircle
 import androidx.compose.material.icons.rounded.PlayCircle
@@ -110,6 +111,9 @@ internal fun MessageList(
     onStar: (ChatMessage) -> Unit,
     onRetry: (ChatMessage) -> Unit,
     onVoiceFailed: () -> Unit,
+    onEdit: (ChatMessage) -> Unit,
+    onDelete: (ChatMessage) -> Unit,
+    onReact: (ChatMessage) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val byId = remember(allMessages) { allMessages.filter { it.id != ChatMessage.LOCAL_ID }.associateBy { it.id } }
@@ -139,6 +143,9 @@ internal fun MessageList(
                     onStar = { onStar(item.message) },
                     onRetry = { onRetry(item.message) },
                     onVoiceFailed = onVoiceFailed,
+                    onEdit = { onEdit(item.message) },
+                    onDelete = { onDelete(item.message) },
+                    onReact = { onReact(item.message) },
                 )
             }
         }
@@ -179,6 +186,9 @@ private fun MessageBubble(
     onStar: () -> Unit,
     onRetry: () -> Unit,
     onVoiceFailed: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onReact: () -> Unit,
 ) {
     val colors = TwinTheme.colors
     var menu by remember { mutableStateOf(false) }
@@ -207,6 +217,9 @@ private fun MessageBubble(
                     ReplyQuote(quoted = quoted, partnerName = partnerName)
                 }
                 BubbleBody(message, voice, onVoiceFailed)
+                if (message.reactions.isNotEmpty()) {
+                    ReactionsRow(message.reactions)
+                }
                 MetaRow(message)
                 if (failed) {
                     Text(
@@ -221,10 +234,26 @@ private fun MessageBubble(
                 if (!message.text.isNullOrBlank()) {
                     DropdownMenuItem(text = { Text(stringResource(R.string.chat_menu_copy)) }, onClick = { menu = false; onCopy() })
                 }
+                if (message.mine && !message.deleted) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_menu_edit)) },
+                        icon = { Icon(Icons.Rounded.Edit, null, modifier = Modifier.size(18.dp)) },
+                        onClick = { menu = false; onEdit() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_menu_delete)) },
+                        icon = { Icon(Icons.Rounded.Delete, null, tint = colors.error, modifier = Modifier.size(18.dp)) },
+                        onClick = { menu = false; onDelete() },
+                    )
+                }
                 if (message.id != ChatMessage.LOCAL_ID) {
                     DropdownMenuItem(
                         text = { Text(stringResource(if (message.starred) R.string.chat_menu_unstar else R.string.chat_menu_star)) },
                         onClick = { menu = false; onStar() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_menu_react)) },
+                        onClick = { menu = false; onReact() },
                     )
                 }
             }
@@ -322,6 +351,33 @@ private fun VoiceRow(message: ChatMessage, voice: VoicePlayerState, onFailed: ()
                 .background(if (playing) colors.pinkSoft else colors.inkFaint),
         )
         Text(formatDuration(message.durationSec), style = MaterialTheme.typography.labelMedium, color = colors.inkMuted)
+    }
+}
+
+/** Reaction emojis shown under a message bubble. */
+@Composable
+private fun ReactionsRow(reactions: List<String>) {
+    val colors = TwinTheme.colors
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = TwinTheme.spacing.xs),
+        horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        reactions.forEach { emoji ->
+            Box(
+                modifier = Modifier
+                    .clip(TwinTheme.shapes.pill)
+                    .background(colors.glass)
+                    .border(1.dp, colors.lineSoft, TwinTheme.shapes.pill)
+                    .padding(horizontal = TwinTheme.spacing.s, vertical = TwinTheme.spacing.xs),
+            ) {
+                Text(
+                    text = emoji,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.ink,
+                )
+            }
+        }
     }
 }
 

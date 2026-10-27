@@ -6,6 +6,7 @@ import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Multipart
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Part
 import retrofit2.http.Path
@@ -69,4 +70,32 @@ interface ChatApi {
         @Part("coupleId") coupleId: RequestBody,
         @Part("senderRole") senderRole: RequestBody,
     ): UploadResponse
+
+    /** PATCH /api/chat/:id — edit a message I sent. */
+    @PATCH("api/chat/{id}")
+    suspend fun editMessage(
+        @Path("id") id: Long,
+        @Body body: EditMessageBody,
+    ): ChatMessageDto
+
+    /** DELETE /api/chat/:id — delete for me or for everyone. */
+    @DELETE("api/chat/{id}")
+    suspend fun deleteMessage(
+        @Path("id") id: Long,
+        @Body body: DeleteMessageBody,
+    ): OkResponse
+
+    /** POST /api/chat/:id/react — toggle an emoji reaction. */
+    @POST("api/chat/{id}/react")
+    suspend fun toggleReaction(
+        @Path("id") id: Long,
+        @Body body: ReactBody,
+    ): ChatMessageDto
+
+    /** POST /api/chat/:id/view — open (and burn) view-once media. */
+    @POST("api/chat/{id}/view")
+    suspend fun openViewOnce(
+        @Path("id") id: Long,
+        @Body body: ViewOnceBody,
+    ): ViewOnceResponse
 }

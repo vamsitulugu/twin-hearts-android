@@ -63,10 +63,13 @@ fun ChatMessageDto.toDomain(myRole: String): ChatMessage? {
         createdAt = created,
         delivery = delivery,
         edited = edited,
+        editedAt = parseServerTime(editedAt),
         deleted = deleted,
         starred = starredBy.orEmpty().contains(myRole),
         reactions = reactionEmojis(reactions),
         viewOncePending = viewOncePending,
+        viewedAt = parseServerTime(viewedAt),
+        viewOnce = viewOnce,
     )
 }
 

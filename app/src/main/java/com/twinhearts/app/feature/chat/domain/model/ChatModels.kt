@@ -29,13 +29,21 @@ data class ChatMessage(
     val replyToId: Long? = null,
     val createdAt: Instant,
     val delivery: DeliveryState = DeliveryState.Sent,
+    /** True when I have edited this message. */
     val edited: Boolean = false,
+    /** When I last edited it; null if never edited. */
+    val editedAt: Instant? = null,
+    /** Deleted for me (removed from my view) or for everyone. */
     val deleted: Boolean = false,
     /** Starred by ME. Stars are private to each person. */
     val starred: Boolean = false,
     val reactions: List<String> = emptyList(),
     /** A view-once photo that was not opened yet: the server hides its link. */
     val viewOncePending: Boolean = false,
+    /** When the recipient first opened view-once media (burned after that). */
+    val viewedAt: Instant? = null,
+    /** True when this is a view-once media message (regardless of pending state). */
+    val viewOnce: Boolean = false,
 ) {
     companion object {
         const val LOCAL_ID = -1L

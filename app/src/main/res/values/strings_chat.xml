@@ -42,13 +42,27 @@
     <string name="chat_preview_sticker">Sticker</string>
     <string name="chat_preview_other">Message</string>
     <string name="chat_view_once">🔒 View-once photo</string>
+    <string name="chat_view_once_expired">This media has expired</string>
 
     <string name="chat_menu_reply">Reply</string>
     <string name="chat_menu_copy">Copy</string>
     <string name="chat_menu_star">Star</string>
     <string name="chat_menu_unstar">Unstar</string>
+    <string name="chat_menu_edit">Edit</string>
+    <string name="chat_menu_delete">Delete</string>
+    <string name="chat_menu_delete_for_me">Delete for me</string>
+    <string name="chat_menu_delete_for_everyone">Delete for everyone</string>
+    <string name="chat_menu_react">React</string>
     <string name="chat_info_copied">Copied</string>
     <string name="chat_info_scheduled">Message scheduled ⏰</string>
+    <string name="chat_info_deleted_me">Deleted for me</string>
+    <string name="chat_info_deleted_everyone">Deleted for everyone</string>
+    <string name="chat_dialog_edit_title">Edit message</string>
+    <string name="chat_dialog_edit_hint">Message</string>
+    <string name="chat_dialog_edit_button">Save</string>
+    <string name="chat_dialog_delete_title">Delete message</string>
+    <string name="chat_dialog_delete_message">Delete this message for:</string>
+    <string name="chat_reaction_add">Add reaction</string>
     <string name="chat_replying_to">Replying to %1$s</string>
     <string name="chat_cancel_reply">Cancel reply</string>
 

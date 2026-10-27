@@ -57,9 +57,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
+import coil.compose.AsyncImage
+import com.twinhearts.app.core.design.GlassButton
+import com.twinhearts.app.core.design.TwinTextField
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -82,6 +88,7 @@ import com.twinhearts.app.feature.chat.domain.model.ChatIdentity
 import com.twinhearts.app.feature.chat.domain.model.ChatMessage
 import com.twinhearts.app.feature.chat.domain.model.PartnerPresence
 import com.twinhearts.app.feature.chat.domain.model.PresenceState
+import com.twinhearts.app.feature.chat.data.ViewOnceResult
 import kotlinx.coroutines.delay
 import java.io.File
 import java.time.Instant
@@ -111,6 +118,14 @@ fun ChatScreen(
     var showSearch by rememberSaveable { mutableStateOf(false) }
     var showStarred by rememberSaveable { mutableStateOf(false) }
     var showScheduled by rememberSaveable { mutableStateOf(false) }
+    var showViewOnce by rememberSaveable { mutableStateOf(false) }
+    var showEditDialog by rememberSaveable { mutableStateOf(false) }
+    var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
+    var showReactDialog by rememberSaveable { mutableStateOf(false) }
+    var editMessageId by remember { mutableStateOf<ChatMessage?>(null) }
+    var editText by rememberSaveable { mutableStateOf("") }
+    var deleteMessageId by remember { mutableStateOf<ChatMessage?>(null) }
+    var reactMessageId by remember { mutableStateOf<ChatMessage?>(null) }
     var recordingSeconds by remember { mutableStateOf<Int?>(null) }
     var cameraUri by remember { mutableStateOf<Uri?>(null) }
 
@@ -216,6 +231,13 @@ fun ChatScreen(
         onOpenSearch = { showSearch = true },
         onOpenStarred = { showStarred = true },
         onOpenScheduled = { viewModel.refreshScheduled(); showScheduled = true },
+        onEdit = { message -> editMessageId = message; editText = message.text.orEmpty(); showEditDialog = true },
+        onDelete = { message -> deleteMessageId = message; showDeleteDialog = true },
+        onReact = { message -> reactMessageId = message; showReactDialog = true },
+        onViewOnce = { message ->
+            viewModel.openViewOnce(message)
+            showViewOnce = true
+        },
     )
 
     if (showSearch) {
@@ -242,6 +264,264 @@ fun ChatScreen(
             onCancel = viewModel::cancelScheduled,
             onClose = { showScheduled = false },
         )
+    }
+    editMessageId?.let { message ->
+        EditDialog(
+            message = message,
+            onSave = { newText ->
+                viewModel.editMessage(message, newText)
+                showEditDialog = false
+                editMessageId = null
+            },
+            onClose = { showEditDialog = false; editMessageId = null },
+        )
+    }
+    deleteMessageId?.let { message ->
+        DeleteDialog(
+            message = message,
+            onDelete = { mode ->
+                viewModel.deleteMessage(message, mode)
+                showDeleteDialog = false
+                deleteMessageId = null
+            },
+            onClose = { showDeleteDialog = false; deleteMessageId = null },
+        )
+    }
+    reactMessageId?.let { message ->
+        ReactionDialog(
+            message = message,
+            onReact = { emoji ->
+                viewModel.toggleReaction(message, emoji)
+                showReactDialog = false
+                reactMessageId = null
+            },
+            onClose = { showReactDialog = false; reactMessageId = null },
+        )
+    }
+    state.viewOnceResult?.let { result ->
+        ViewOnceDialog(
+            result = result,
+            onClose = { showViewOnce = false; viewModel.showBanner(null) },
+        )
+    }
+}
+
+/** Edit a message I sent: shows the current text and saves on confirm. */
+@Composable
+private fun EditDialog(
+    message: ChatMessage,
+    onSave: (String) -> Unit,
+    onClose: () -> Unit,
+) {
+    val colors = TwinTheme.colors
+    var text by rememberSaveable { mutableStateOf(message.text.orEmpty()) }
+    Dialog(
+        onDismissRequest = onClose,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        TwinBackground {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(TwinTheme.spacing.screenEdge)
+                    .statusBarsPadding()
+                    .navigationBarsPadding(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
+            ) {
+                Text(
+                    stringResource(R.string.chat_dialog_edit_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = colors.ink,
+                )
+                TwinTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = stringResource(R.string.chat_dialog_edit_hint),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    GlassButton(
+                        text = stringResource(R.string.core_cancel),
+                        onClick = onClose,
+                        style = GlassButtonStyle.Ghost,
+                        modifier = Modifier.width(100.dp),
+                    )
+                    GlassButton(
+                        text = stringResource(R.string.chat_dialog_edit_button),
+                        onClick = { onSave(text); onClose() },
+                        style = GlassButtonStyle.Primary,
+                        enabled = text.isNotBlank(),
+                        modifier = Modifier.width(100.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Delete a message: choose "for me" or "for everyone". */
+@Composable
+private fun DeleteDialog(
+    message: ChatMessage,
+    onDelete: (String) -> Unit,
+    onClose: () -> Unit,
+) {
+    val colors = TwinTheme.colors
+    Dialog(
+        onDismissRequest = onClose,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        TwinBackground {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(TwinTheme.spacing.screenEdge)
+                    .statusBarsPadding()
+                    .navigationBarsPadding(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
+            ) {
+                Text(
+                    stringResource(R.string.chat_dialog_delete_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = colors.ink,
+                )
+                Text(
+                    stringResource(R.string.chat_dialog_delete_message),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.inkMuted,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
+                ) {
+                    GlassButton(
+                        text = stringResource(R.string.chat_menu_delete_for_me),
+                        onClick = { onDelete("me"); onClose() },
+                        style = GlassButtonStyle.Secondary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    GlassButton(
+                        text = stringResource(R.string.chat_menu_delete_for_everyone),
+                        onClick = { onDelete("everyone"); onClose() },
+                        style = GlassButtonStyle.Primary,
+                        enabled = message.mine,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Add or remove an emoji reaction on a message. */
+@Composable
+private fun ReactionDialog(
+    message: ChatMessage,
+    onReact: (String) -> Unit,
+    onClose: () -> Unit,
+) {
+    val colors = TwinTheme.colors
+    val emojis = listOf("❤️", "😍", "😂", "😭", "😡", "👍", "👎", "🎉")
+    Dialog(
+        onDismissRequest = onClose,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        TwinBackground {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(TwinTheme.spacing.screenEdge)
+                    .statusBarsPadding()
+                    .navigationBarsPadding(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
+            ) {
+                Text(
+                    stringResource(R.string.chat_reaction_add),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = colors.ink,
+                )
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().height(200.dp),
+                    verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
+                ) {
+                    items(emojis, key = { it }) { emoji ->
+                        val already = message.reactions.contains(emoji)
+                        GlassButton(
+                            text = "$emoji  ${if (already) stringResource(R.string.chat_menu_unstar) else stringResource(R.string.chat_menu_star)}",
+                            onClick = { onReact(emoji); onClose() },
+                            style = if (already) GlassButtonStyle.Primary else GlassButtonStyle.Secondary,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Shows the view-once media URL after it has been opened (and burned). */
+@Composable
+private fun ViewOnceDialog(
+    result: ViewOnceResult,
+    onClose: () -> Unit,
+) {
+    val colors = TwinTheme.colors
+    Dialog(
+        onDismissRequest = onClose,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        TwinBackground {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(TwinTheme.spacing.screenEdge)
+                    .statusBarsPadding()
+                    .navigationBarsPadding(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
+            ) {
+                Text(
+                    stringResource(if (result.alreadyOpen) R.string.chat_view_once_opened else R.string.chat_view_once_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = colors.ink,
+                )
+                result.mediaUrl?.let { url ->
+                    AsyncImage(
+                        model = url,
+                        contentDescription = stringResource(R.string.chat_preview_photo),
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(200.dp)
+                            .clip(TwinTheme.shapes.small),
+                    )
+                    Text(
+                        url,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.inkMuted,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                } ?: run {
+                    Text(
+                        stringResource(R.string.chat_view_once_expired),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.inkMuted,
+                    )
+                }
+                GlassButton(
+                    text = stringResource(R.string.core_close),
+                    onClick = onClose,
+                    style = GlassButtonStyle.Primary,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
     }
 }
 
@@ -277,6 +557,10 @@ internal fun ChatContent(
     onOpenSearch: () -> Unit,
     onOpenStarred: () -> Unit,
     onOpenScheduled: () -> Unit,
+    onEdit: (ChatMessage) -> Unit,
+    onDelete: (ChatMessage) -> Unit,
+    onReact: (ChatMessage) -> Unit,
+    onViewOnce: (ChatMessage) -> Unit,
 ) {
     val partner = state.identity?.partnerName.orEmpty()
     val items = remember(state.messages) { buildChatItems(state.messages, LocalDate.now()) }
@@ -311,6 +595,9 @@ internal fun ChatContent(
                         onStar = onStar,
                         onRetry = onRetry,
                         onVoiceFailed = onVoiceFailed,
+                        onEdit = onEdit,
+                        onDelete = onDelete,
+                        onReact = onReact,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }

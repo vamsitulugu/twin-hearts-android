@@ -11,6 +11,7 @@ import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.core.common.asText
 import com.twinhearts.app.feature.chat.data.ChatRepository
+import com.twinhearts.app.feature.chat.data.ViewOnceResult
 import com.twinhearts.app.feature.chat.domain.MAX_SCHEDULE_MINUTES
 import com.twinhearts.app.feature.chat.domain.MIN_SCHEDULE_MINUTES
 import com.twinhearts.app.feature.chat.domain.mergeMessages
@@ -65,6 +66,8 @@ data class ChatUiState(
     val search: SearchState = SearchState(),
     val scheduled: List<ScheduledMessage> = emptyList(),
     val scheduling: Boolean = false,
+    /** The result of opening view-once media, shown in a dialog. */
+    val viewOnceResult: ViewOnceResult? = null,
 ) {
     val starred: List<ChatMessage> get() = messages.filter { it.starred && !it.deleted }.sortedByDescending { it.createdAt }
 }
@@ -259,6 +262,88 @@ class ChatViewModel @Inject constructor(
                     replaceMessage(message)
                     _state.update { it.copy(banner = ChatBanner.Failure(result.error)) }
                 }
+            }
+        }
+    }
+
+    /** Edit a message I sent. Shows "edited" on success. */
+    fun editMessage(message: ChatMessage, newText: String) {
+        val who = _state.value.identity ?: return
+        if (message.id == ChatMessage.LOCAL_ID || !message.mine) return
+        val clean = newText.trim()
+        if (clean.isEmpty()) return
+        replaceMessage(message.copy(text = clean, edited = true, editedAt = Instant.now()))
+        viewModelScope.launch {
+            when (val result = repository.editMessage(who, message.id, clean)) {
+                is AppResult.Success -> replaceMessage(result.data)
+                is AppResult.Failure -> {
+                    replaceMessage(message.copy(edited = false, editedAt = null))
+                    _state.update { it.copy(banner = ChatBanner.Failure(result.error)) }
+                }
+            }
+        }
+    }
+
+    /** Delete a message: "me" hides it for me; "everyone" removes it for both. */
+    fun deleteMessage(message: ChatMessage, mode: String) {
+        val who = _state.value.identity ?: return
+        if (message.id == ChatMessage.LOCAL_ID) return
+        val wasMine = message.mine
+        if (mode == "everyone" && !wasMine) {
+            _state.update { it.copy(banner = ChatBanner.Failure(AppError.Unknown)) }
+            return
+        }
+        val deletedCopy = message.copy(deleted = true, text = null, mediaUrl = null)
+        replaceMessage(deletedCopy)
+        viewModelScope.launch {
+            when (val result = repository.deleteMessage(who, message.id, mode)) {
+                is AppResult.Success -> {
+                    // Remove the message from the list if deleted for everyone
+                    if (mode == "everyone") {
+                        _state.update { s -> s.copy(messages = s.messages.filterNot { it.id == message.id }) }
+                    }
+                    _state.update { it.copy(banner = ChatBanner.Info(if (mode == "everyone") R.string.chat_info_deleted_everyone else R.string.chat_info_deleted_me)) }
+                }
+                is AppResult.Failure -> {
+                    replaceMessage(message)
+                    _state.update { it.copy(banner = ChatBanner.Failure(result.error)) }
+                }
+            }
+        }
+    }
+
+    /** Toggle an emoji reaction on a message. */
+    fun toggleReaction(message: ChatMessage, emoji: String) {
+        val who = _state.value.identity ?: return
+        if (message.id == ChatMessage.LOCAL_ID) return
+        val already = message.reactions.contains(emoji)
+        val updated = if (already) message.reactions.filter { it != emoji } else (message.reactions + emoji)
+        replaceMessage(message.copy(reactions = updated))
+        viewModelScope.launch {
+            when (val result = repository.toggleReaction(who, message.id, emoji)) {
+                is AppResult.Success -> replaceMessage(result.data)
+                is AppResult.Failure -> replaceMessage(message)
+            }
+        }
+    }
+
+    /** Open view-once media. Shows the URL so the viewer can see it once. */
+    fun openViewOnce(message: ChatMessage) {
+        val who = _state.value.identity ?: return
+        if (!message.viewOncePending) return
+        viewModelScope.launch {
+            when (val result = repository.openViewOnce(who, message.id)) {
+                is AppResult.Success -> {
+                    _state.update { s ->
+                        s.copy(
+                            messages = s.messages.map { m ->
+                                if (m.id == message.id) m.copy(viewOncePending = false, viewedAt = Instant.now()) else m
+                            },
+                            viewOnceResult = result,
+                        )
+                    }
+                }
+                is AppResult.Failure -> _state.update { it.copy(banner = ChatBanner.Failure(result.error)) }
             }
         }
     }

@@ -9,11 +9,16 @@ import com.twinhearts.app.feature.chat.data.mapper.forRole
 import com.twinhearts.app.feature.chat.data.mapper.parseServerTime
 import com.twinhearts.app.feature.chat.data.mapper.toDomain
 import com.twinhearts.app.feature.chat.data.remote.ChatApi
+import com.twinhearts.app.feature.chat.data.remote.DeleteMessageBody
+import com.twinhearts.app.feature.chat.data.remote.EditMessageBody
 import com.twinhearts.app.feature.chat.data.remote.PresenceBody
+import com.twinhearts.app.feature.chat.data.remote.ReactBody
 import com.twinhearts.app.feature.chat.data.remote.RoleBody
 import com.twinhearts.app.feature.chat.data.remote.ScheduleBody
 import com.twinhearts.app.feature.chat.data.remote.SendMessageBody
 import com.twinhearts.app.feature.chat.data.remote.StarBody
+import com.twinhearts.app.feature.chat.data.remote.ViewOnceBody
+import com.twinhearts.app.feature.chat.data.remote.ViewOnceResponse
 import com.twinhearts.app.feature.chat.domain.model.ChatIdentity
 import com.twinhearts.app.feature.chat.domain.model.ChatMessage
 import com.twinhearts.app.feature.chat.domain.model.PartnerPresence
@@ -53,6 +58,18 @@ interface ChatRepository {
 
     /** Marks everything my partner sent as read (blue ticks on their side). */
     suspend fun markRead(who: ChatIdentity): AppResult<Unit>
+
+    /** Edit a message I sent. Server returns the updated message. */
+    suspend fun editMessage(who: ChatIdentity, messageId: Long, text: String): AppResult<ChatMessage>
+
+    /** Delete a message: "me" removes it for me; "everyone" removes it for both. */
+    suspend fun deleteMessage(who: ChatIdentity, messageId: Long, mode: String): AppResult<Unit>
+
+    /** Toggle an emoji reaction on a message. Server returns the updated message. */
+    suspend fun toggleReaction(who: ChatIdentity, messageId: Long, emoji: String): AppResult<ChatMessage>
+
+    /** Open view-once media. Returns the media URL (burned after first view by the recipient). */
+    suspend fun openViewOnce(who: ChatIdentity, messageId: Long): AppResult<ViewOnceResult>
 
     suspend fun toggleStar(who: ChatIdentity, messageId: Long): AppResult<ChatMessage>
     suspend fun search(who: ChatIdentity, query: String, filter: SearchFilter): AppResult<List<ChatMessage>>
@@ -145,6 +162,30 @@ class ChatRepositoryImpl @Inject constructor(
             is AppResult.Failure -> r
         }
 
+    override suspend fun editMessage(who: ChatIdentity, messageId: Long, text: String): AppResult<ChatMessage> =
+        when (val r = safeApiCall { api.editMessage(messageId, EditMessageBody(who.coupleId, who.myRole, text.trim())) }) {
+            is AppResult.Success -> r.data.toDomain(who.myRole)?.let { AppResult.Success(it) } ?: AppResult.Failure(AppError.Unknown)
+            is AppResult.Failure -> r
+        }
+
+    override suspend fun deleteMessage(who: ChatIdentity, messageId: Long, mode: String): AppResult<Unit> =
+        when (val r = safeApiCall { api.deleteMessage(messageId, DeleteMessageBody(who.coupleId, who.myRole, mode)) }) {
+            is AppResult.Success -> AppResult.Success(Unit)
+            is AppResult.Failure -> r
+        }
+
+    override suspend fun toggleReaction(who: ChatIdentity, messageId: Long, emoji: String): AppResult<ChatMessage> =
+        when (val r = safeApiCall { api.toggleReaction(messageId, ReactBody(who.coupleId, who.myRole, emoji)) }) {
+            is AppResult.Success -> r.data.toDomain(who.myRole)?.let { AppResult.Success(it) } ?: AppResult.Failure(AppError.Unknown)
+            is AppResult.Failure -> r
+        }
+
+    override suspend fun openViewOnce(who: ChatIdentity, messageId: Long): AppResult<ViewOnceResult> =
+        when (val r = safeApiCall { api.openViewOnce(messageId, ViewOnceBody(who.coupleId, who.myRole)) }) {
+            is AppResult.Success -> AppResult.Success(ViewOnceResult(r.data.mediaUrl, r.data.mediaMeta, r.data.alreadyOpen))
+            is AppResult.Failure -> r
+        }
+
     override suspend fun search(who: ChatIdentity, query: String, filter: SearchFilter): AppResult<List<ChatMessage>> =
         when (val r = safeApiCall { api.search(who.coupleId, query, filter.apiValue) }) {
             is AppResult.Success -> AppResult.Success(r.data.toDomain(who.myRole))
@@ -191,3 +232,10 @@ class ChatRepositoryImpl @Inject constructor(
         const val RECENT_LIMIT = 200
     }
 }
+
+/** Result of opening view-once media: the media URL (or null if already burned). */
+data class ViewOnceResult(
+    val mediaUrl: String?,
+    val mediaMeta: kotlinx.serialization.json.JsonElement?,
+    val alreadyOpen: Boolean,
+)

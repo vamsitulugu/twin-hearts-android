@@ -13,6 +13,8 @@
     <string name="core_logo">Twin Hearts logo</string>
     <string name="core_show_password">Show password</string>
     <string name="core_hide_password">Hide password</string>
+    <string name="core_cancel">Cancel</string>
+    <string name="core_close">Close</string>
 
     <string name="core_nav_home">Home</string>
     <string name="core_nav_chat">Chat</string>

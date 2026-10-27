@@ -283,7 +283,7 @@ Status: ⬜ not started · 🟨 in progress · ✅ done (user confirmed it build
 | 2.1 | Home (greeting, search, quick chips, Stay Connected Hug/Touch/Miss You, Coming up, Mood, hub sections, quote) | 1.3 | 🟨 |
 | 2.2 | Chat (messages, reply, voice note, camera, search, star, scheduled messages) | 1.3 | 🟨 |
 | 2.3 | Calls (voice/video buttons in chat) | 2.2 | ⬜ |
-| 2.4 | Twin AI (You / Both) | 1.3 | ⬜ |
+| 2.4 | Twin AI (You / Both) | 1.3 | 🟨 |
 | 2.5 | Settings (all sub-pages) + Notifications (FCM) | 1.3 | ⬜ |
 | 2.6 | Our Profile | 1.3 | ⬜ |
 
@@ -305,6 +305,7 @@ Performance pass (Baseline Profile, jank check), signing, release APK, crash rep
 ### Handoff log (each session appends one line)
 | Date | Session task | Zip name | Notes / open issues |
 |---|---|---|---|
+| 2026-10-27 | Phase 2.4 — Twin AI (YOU + BOTH) | th-p2-twinai-v1.zip | Not compiled here; build in Android Studio. See SHARED_CHANGES.md (2 small edits + manifest). |
 | 2026-10-25 | Phase 0 — Foundation (0.1–0.5) | th-p0-foundation-v1.zip | Delivered, not compiled in sandbox. Waiting for user build confirmation. Package = com.twinhearts.app. Session = ids in DataStore (no tokens). |
 | 2026-10-25 | Phase 0 fix | th-p0-foundation-v2.zip | Missing `dp` import in GlassCard.kt. User confirmed Phase 0 runs on phone (design gallery OK) → 0.x ✅. |
 | 2026-10-25 | Phase 1 — 1.1 Get Started, 1.2 Sign In/Sign Up/Forgot Password | th-p1-entry-v1.zip | Not compiled in sandbox. Plug-in via FeatureGraphs.kt (included). Privacy URL to verify. User confirmed 1.1 + 1.2 working (✅). |

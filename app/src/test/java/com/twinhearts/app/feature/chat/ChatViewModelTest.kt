@@ -28,10 +28,20 @@ class ChatViewModelTest {
     private val repository = mockk<ChatRepository>(relaxed = true)
     private val who = ChatIdentity("couple", "user1", "Vamsi", "Likitha")
 
-    private fun message(id: Long, clientId: String, mine: Boolean = false, delivery: DeliveryState = DeliveryState.Sent, starred: Boolean = false) =
+    private fun message(
+        id: Long,
+        clientId: String,
+        mine: Boolean = false,
+        delivery: DeliveryState = DeliveryState.Sent,
+        starred: Boolean = false,
+        text: String? = null,
+        edited: Boolean = false,
+        reactions: List<String> = emptyList(),
+    ) =
         ChatMessage(
-            id = id, clientId = clientId, mine = mine, kind = MessageKind.Text, text = "t$id", mediaUrl = null,
+            id = id, clientId = clientId, mine = mine, kind = MessageKind.Text, text = text ?: "t$id", mediaUrl = null,
             createdAt = Instant.parse("2026-10-26T09:00:00Z").plusSeconds(id), delivery = delivery, starred = starred,
+            edited = edited, reactions = reactions,
         )
 
     private fun viewModel(initial: List<ChatMessage> = emptyList()): ChatViewModel {
@@ -120,5 +130,53 @@ class ChatViewModelTest {
         vm.toggleStar(vm.state.value.messages.first())
         assertEquals(false, vm.state.value.messages.first().starred)
         assertNotNull(vm.state.value.banner)
+    }
+
+    @Test
+    fun edit_replacesText_andMarksEdited() {
+        val vm = viewModel(listOf(message(3, "a", mine = true)))
+        coEvery { repository.editMessage(who, 3L, "Hello again") } answers {
+            AppResult.Success(message(3, "a", mine = true, text = "Hello again", edited = true))
+        }
+        vm.editMessage(vm.state.value.messages.first(), "Hello again")
+        val edited = vm.state.value.messages.first()
+        assertEquals("Hello again", edited.text)
+        assertTrue(edited.edited)
+    }
+
+    @Test
+    fun edit_failure_putsTextBack() {
+        val vm = viewModel(listOf(message(3, "a", mine = true, text = "Original")))
+        coEvery { repository.editMessage(who, 3L, "Changed") } returns AppResult.Failure(AppError.Network)
+        vm.editMessage(vm.state.value.messages.first(), "Changed")
+        assertEquals("Original", vm.state.value.messages.first().text)
+        assertNotNull(vm.state.value.banner)
+    }
+
+    @Test
+    fun delete_forEveryone_removesMessage() {
+        val vm = viewModel(listOf(message(3, "a", mine = true)))
+        coEvery { repository.deleteMessage(who, 3L, "everyone") } returns AppResult.Success(Unit)
+        vm.deleteMessage(vm.state.value.messages.first(), "everyone")
+        assertTrue(vm.state.value.messages.isEmpty())
+    }
+
+    @Test
+    fun delete_forMe_marksDeleted() {
+        val vm = viewModel(listOf(message(3, "a", mine = true)))
+        coEvery { repository.deleteMessage(who, 3L, "me") } returns AppResult.Success(Unit)
+        vm.deleteMessage(vm.state.value.messages.first(), "me")
+        assertEquals(1, vm.state.value.messages.size)
+        assertTrue(vm.state.value.messages.first().deleted)
+    }
+
+    @Test
+    fun toggleReaction_addsAndRemovesEmoji() {
+        val vm = viewModel(listOf(message(3, "a")))
+        coEvery { repository.toggleReaction(who, 3L, "❤️") } answers {
+            AppResult.Success(message(3, "a", reactions = listOf("❤️")))
+        }
+        vm.toggleReaction(vm.state.value.messages.first(), "❤️")
+        assertTrue(vm.state.value.messages.first().reactions.contains("❤️"))
     }
 }

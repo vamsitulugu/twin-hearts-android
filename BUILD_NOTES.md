@@ -1,21 +1,26 @@
-# BUILD_NOTES — Phase 2.2 Chat
+# BUILD_NOTES — Twin AI (2.4)
 
-**Not compiled here.** Build in Android Studio and send me the first red error if there is one.
+**Not compiled here** (no Android SDK in my sandbox). Build it in Android Studio.
 
-## Apply (Windows)
-1. Unzip `th-p2-chat.zip` over your project folder.
-2. Do the edits in `SHARED_CHANGES.md` (FeatureGraphs.kt 2 lines, Manifest permission + provider).
-3. **Sync Project with Gradle Files**, then ▶ Run.
+## Apply
+1. Unzip over the project root `C:\Users\vamsi\...\twin-hearts-android` (paths are project-relative). It adds the `feature/twinai` folder, tests, one strings file, docs, and overwrites `SHARED_CHANGES.md`, `BUILD_NOTES.md`, `README.md`.
+2. Make the 3 small edits in `SHARED_CHANGES.md` (manifest `<queries>`, `FeatureGraphs.kt`, `TwinApp.kt`).
+3. Android Studio: **File > Sync Project with Gradle Files**, then **Run**.
+4. Unit tests: `gradlew.bat testDebugUnitTest --tests "com.twinhearts.app.feature.twinai.*"`
 
-## Test by hand (two phones or phone + web)
-1. Open Chat: old messages load, newest at the bottom, day pills, ticks on your messages.
-2. Send a text on the phone: ⏱ then ✓. Open the web chat: it arrives; reply there: the phone gets it within ~3 s.
-3. Long-press a message: Reply (quote shows), Copy, Star. ★ button lists starred ones.
-4. Gallery icon: pick a photo; camera icon: take one. Both appear in the chat on web too.
-5. Mic: allow microphone, speak 3 s, send. Tap ▶ in the bubble to play. On the web it plays too.
-6. Search (🔍): type a word; try Media / Links / Docs.
-7. ⋮ → Scheduled messages: schedule "hi" in 15 min; it is listed; cancel it.
-8. Turn Wi-Fi/data off and send: the bubble shows "Failed · tap to retry"; turn it on and tap it.
-9. Font size Large: header and composer still fit.
+## What to open
+Sign in, then tap the **centre Twin orb**.
 
-Unit tests: `gradlew.bat testDebugUnitTest`.
+## Manual tests
+1. **Welcome:** you see "Hey <your name>," and "I'm Twin AI.", the robot, and 5 chips (Plan a date, We argued, Write something sweet, Deep talk, Surprise idea).
+2. **Ask:** tap "Plan a date". Your bubble appears, then "Thinking...", then Twin's answer grows word by word. Chips disappear. Copy / Regenerate / Listen show under the answer.
+3. **Errors:** turn on airplane mode, ask something. You get an error bubble with Retry. Turn it off, tap Retry.
+4. **Mic:** tap the mic, say a sentence. It is sent to Twin.
+5. **BOTH:** if the tab shows, tap BOTH > Start Together, write your side, Submit privately. Open the web app as your partner, submit there; the result appears here within about 3 seconds.
+6. **Back:** inside a discussion, Back returns to the list; on the list, Back goes Home.
+
+## If something fails, send me
+The exact Android Studio error text (or a screenshot) and the file name. I will fix it and send only changed files.
+
+## Known gaps (see docs/features/twinai.md)
+Search and menu buttons show "built in a later step". Chat history is kept only while the app is open (same as the web page). The first question after a long idle can take ~1 minute (free Render server waking up).

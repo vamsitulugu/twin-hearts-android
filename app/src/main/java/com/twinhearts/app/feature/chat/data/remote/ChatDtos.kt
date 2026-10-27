@@ -26,12 +26,15 @@ data class ChatMessageDto(
     val read: Boolean = false,
     @SerialName("created_at") val createdAt: String = "",
     val edited: Boolean = false,
+    @SerialName("edited_at") val editedAt: String? = null,
     val deleted: Boolean = false,
     @SerialName("deleted_for") val deletedFor: String? = null,
     /** `{ "emoji": ["user1"] }` */
     val reactions: JsonElement? = null,
     @SerialName("starred_by") val starredBy: List<String>? = null,
     @SerialName("view_once_pending") val viewOncePending: Boolean = false,
+    @SerialName("viewed_at") val viewedAt: String? = null,
+    @SerialName("view_once") val viewOnce: Boolean = false,
 )
 
 @Serializable
@@ -88,4 +91,43 @@ data class ScheduledDto(
 data class UploadResponse(
     val url: String,
     val path: String? = null,
+)
+
+/** PATCH /api/chat/:id — edit a message I sent. */
+@Serializable
+data class EditMessageBody(
+    val coupleId: String,
+    val senderRole: String,
+    val text: String,
+)
+
+/** DELETE /api/chat/:id — delete for me or for everyone. */
+@Serializable
+data class DeleteMessageBody(
+    val coupleId: String,
+    val senderRole: String,
+    val mode: String, // "me" or "everyone"
+)
+
+/** POST /api/chat/:id/react — toggle an emoji reaction. */
+@Serializable
+data class ReactBody(
+    val coupleId: String,
+    val role: String,
+    val emoji: String,
+)
+
+/** POST /api/chat/:id/view — open (and burn) view-once media. */
+@Serializable
+data class ViewOnceBody(
+    val coupleId: String,
+    val role: String,
+)
+
+/** The server answers `{ mediaUrl, mediaMeta, alreadyOpen }`. */
+@Serializable
+data class ViewOnceResponse(
+    val mediaUrl: String?,
+    val mediaMeta: JsonElement? = null,
+    val alreadyOpen: Boolean = false,
 )
