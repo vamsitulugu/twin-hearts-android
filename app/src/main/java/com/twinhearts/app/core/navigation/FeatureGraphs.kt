@@ -8,19 +8,13 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import com.twinhearts.app.R
 import com.twinhearts.app.feature.auth.authGraph
-import com.twinhearts.app.feature.calendar.calendarGraph
 import com.twinhearts.app.feature.chat.chatGraph
-import com.twinhearts.app.feature.collection.collectionGraph
 import com.twinhearts.app.feature.getstarted.getStartedGraph
 import com.twinhearts.app.feature.home.homeGraph
-import com.twinhearts.app.feature.livemap.liveMapGraph
-import com.twinhearts.app.feature.money.moneyGraph
-import com.twinhearts.app.feature.study.studyGraph
+import com.twinhearts.app.feature.meetplanner.ui.meetPlannerGraph
 import com.twinhearts.app.feature.movie.movieGraph
-import com.twinhearts.app.feature.music.musicGraph
 import com.twinhearts.app.feature.pairing.pairingGraph
 import com.twinhearts.app.feature.twinai.twinAiGraph
-import com.twinhearts.app.feature.us.UsRoute.usGraph
 
 /**
  * THE one place where finished features are plugged in (R-43).
@@ -35,13 +29,7 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
     chatGraph(navController) // 2.2 Chat
     twinAiGraph(navController) // 2.3 Twin AI
     movieGraph(navController) // 5.2 Watch Together (movies)
-    musicGraph(navController) // 5.1 Music (library, player, lyrics, karaoke, recordings)
-    usGraph(navController) // 3.1 Us (Love Counter · Collection · Dream Goals)
-    liveMapGraph(navController) // 5.3 Live Map (Map · Track · Partner · Places)
-    calendarGraph(navController) // Calendar (events in the shared state)
-    moneyGraph(navController) // Money (transactions + monthly goal in the shared state)
-    studyGraph(navController) // Study (subjects + timetable in the shared state)
-    collectionGraph(navController) // Collection (Voice Messages · Library · Photo Collection)
+    meetPlannerGraph(navController) // 4.x Meet Planner
 }
 
 /**
@@ -51,6 +39,7 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
  */
 internal fun NavGraphBuilder.pendingGraphs(navController: NavHostController) {
     val openGallery = { navController.navigate(Routes.DesignGallery) }
+    pending<Routes.LiveMap>(R.string.core_nav_map, openGallery)
     pending<Routes.Settings>(R.string.core_nav_settings, openGallery)
     pending<Routes.Profile>(R.string.app_name, openGallery)
 }

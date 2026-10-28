@@ -24,29 +24,11 @@ object Routes {
     // Phase 2: opened from Home / Settings
     @Serializable data object Profile
 
-    // Phase 5: Music (library, player, lyrics, karaoke, recordings), opened from the Home "Music" chip
-    @Serializable data object Music
-
     // Phase 5: Watch Together (movies), opened from the Home "Movie" chip
     @Serializable data object Movie
 
-    // Phase 3: Us tab container (Love Counter · Collection · Dream Goals)
-    @Serializable data object Us
-
-    // Collection page (voice messages, library, photo collection), opened from Home
-    @Serializable data object Collection
-
-    // Calendar page, opened from Home ("Calendar ›" and the Plans list)
-    @Serializable data object Calendar
-
-    // Money page, opened from Home (Plans list)
-    @Serializable data object Money
-
-    // Study page, opened from Home (Explore Together list)
-    @Serializable data object Study
-
-    // Phase 2.3: voice / video call screen ([incoming] true = already ringing)
-    @Serializable data class Call(val video: Boolean, val incoming: Boolean = false)
+    // Meet Planner, opened from the Home "Meet Planner" chip
+    @Serializable data object MeetPlanner
 
     // Debug builds only (the screen itself lives in src/debug)
     @Serializable data object DesignGallery
