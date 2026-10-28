@@ -30,6 +30,9 @@ object Routes {
     // Phase 3: Us tab container (Love Counter · Collection · Dream Goals)
     @Serializable data object Us
 
+    // Calendar page, opened from Home ("Calendar ›" and the Plans list)
+    @Serializable data object Calendar
+
     // Phase 2.3: voice / video call screen ([incoming] true = already ringing)
     @Serializable data class Call(val video: Boolean, val incoming: Boolean = false)
 

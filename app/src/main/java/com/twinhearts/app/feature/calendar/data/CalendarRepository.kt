@@ -1,0 +1,144 @@
+package com.twinhearts.app.feature.calendar.data
+
+import com.twinhearts.app.core.common.AppError
+import com.twinhearts.app.core.common.AppResult
+import com.twinhearts.app.core.data.Session
+import com.twinhearts.app.core.data.SessionStore
+import com.twinhearts.app.core.network.safeApiCall
+import com.twinhearts.app.feature.calendar.data.remote.CalendarApi
+import com.twinhearts.app.feature.calendar.data.remote.CalendarSaveBody
+import com.twinhearts.app.feature.calendar.domain.model.CalendarEvent
+import com.twinhearts.app.feature.calendar.domain.model.EventAlarm
+import com.twinhearts.app.feature.calendar.domain.model.EventCategory
+import com.twinhearts.app.feature.calendar.domain.model.NewEvent
+import kotlinx.coroutines.flow.first
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.put
+import java.time.LocalDate
+import javax.inject.Inject
+
+interface CalendarRepository {
+    suspend fun events(): AppResult<List<CalendarEvent>>
+
+    /** Adds an event (and its reminder when an alarm is set) and returns the whole new list. */
+    suspend fun addEvent(event: NewEvent): AppResult<List<CalendarEvent>>
+
+    suspend fun deleteEvent(id: String): AppResult<List<CalendarEvent>>
+}
+
+class CalendarRepositoryImpl @Inject constructor(
+    private val api: CalendarApi,
+    private val sessionStore: SessionStore,
+) : CalendarRepository {
+
+    private val notSignedIn = AppResult.Failure(AppError.Unauthorized())
+
+    override suspend fun events(): AppResult<List<CalendarEvent>> {
+        val session = sessionStore.session.first() ?: return notSignedIn
+        return when (val state = readState(session)) {
+            is AppResult.Success -> AppResult.Success(state.data.rawEvents().toEvents())
+            is AppResult.Failure -> state
+        }
+    }
+
+    override suspend fun addEvent(event: NewEvent): AppResult<List<CalendarEvent>> {
+        val session = sessionStore.session.first() ?: return notSignedIn
+        val state = when (val read = readState(session)) {
+            is AppResult.Success -> read.data
+            is AppResult.Failure -> return read
+        }
+        val now = System.currentTimeMillis()
+        val nextEvents = JsonArray(state.rawEvents().toList() + eventJson(now, event))
+
+        // Same as the web: an alarm needs a time, and it also files a reminder.
+        val addReminder = event.alarm != EventAlarm.None && event.time.isNotBlank()
+        val patch = buildJsonObject {
+            put("events", nextEvents)
+            if (addReminder) {
+                val reminders = (state["reminders"] as? JsonArray)?.toList().orEmpty()
+                put("reminders", JsonArray(reminders + reminderJson(now + 1, event)))
+            }
+        }
+        return when (val saved = save(session, patch)) {
+            is AppResult.Success -> AppResult.Success(nextEvents.toEvents())
+            is AppResult.Failure -> saved
+        }
+    }
+
+    override suspend fun deleteEvent(id: String): AppResult<List<CalendarEvent>> {
+        val session = sessionStore.session.first() ?: return notSignedIn
+        val state = when (val read = readState(session)) {
+            is AppResult.Success -> read.data
+            is AppResult.Failure -> return read
+        }
+        // Work on the raw items so fields this app does not know about are kept.
+        val kept = JsonArray(state.rawEvents().filterNot { (it as? JsonObject)?.get("id").text() == id })
+        val patch = buildJsonObject { put("events", kept) }
+        return when (val saved = save(session, patch)) {
+            is AppResult.Success -> AppResult.Success(kept.toEvents())
+            is AppResult.Failure -> saved
+        }
+    }
+
+    private suspend fun readState(session: Session): AppResult<JsonObject> =
+        when (val result = safeApiCall { api.getState(session.coupleId) }) {
+            is AppResult.Success -> AppResult.Success(result.data.state as? JsonObject ?: JsonObject(emptyMap()))
+            is AppResult.Failure -> result
+        }
+
+    private suspend fun save(session: Session, patch: JsonObject): AppResult<Unit> {
+        val body = CalendarSaveBody(session.coupleId, patch, session.role, session.myName)
+        return when (val result = safeApiCall { api.saveState(body) }) {
+            is AppResult.Success -> AppResult.Success(Unit)
+            is AppResult.Failure -> result
+        }
+    }
+
+    private fun JsonObject.rawEvents(): JsonArray = this["events"] as? JsonArray ?: JsonArray(emptyList())
+
+    /** Skips anything without a title and a readable date, so one bad item never hides the rest. */
+    private fun JsonArray.toEvents(): List<CalendarEvent> = mapNotNull { item ->
+        val obj = item as? JsonObject ?: return@mapNotNull null
+        val title = obj["title"].text().takeIf { it.isNotBlank() } ?: return@mapNotNull null
+        val date = runCatching { LocalDate.parse(obj["date"].text()) }.getOrNull() ?: return@mapNotNull null
+        CalendarEvent(
+            id = obj["id"].text().ifBlank { "$title|${obj["date"].text()}" },
+            title = title,
+            date = date,
+            time = obj["time"].text(),
+            note = obj["note"].text(),
+            category = EventCategory.fromKey(obj["cat"].text()),
+            alarm = EventAlarm.fromKey(obj["alarm"].text()),
+        )
+    }
+
+    /** Field names match the web `addEvent()`: id, title, date, time, note, cat, alarm. */
+    private fun eventJson(id: Long, event: NewEvent): JsonObject = buildJsonObject {
+        put("id", id)
+        put("title", event.title)
+        put("date", event.date.toString())
+        put("time", event.time)
+        put("note", event.note)
+        put("cat", event.category.key)
+        put("alarm", event.alarm.key)
+    }
+
+    /** Matches the reminder the web files for an event with an alarm. */
+    private fun reminderJson(id: Long, event: NewEvent): JsonObject = buildJsonObject {
+        put("id", id)
+        put("title", "📅 ${event.title}")
+        put("date", event.date.toString())
+        put("time", event.time)
+        put("forWhom", event.alarm.key)
+        put("note", event.note)
+        put("fired", false)
+        put("type", "event")
+    }
+
+    private fun JsonElement?.text(): String = (this as? JsonPrimitive)?.contentOrNull.orEmpty()
+}

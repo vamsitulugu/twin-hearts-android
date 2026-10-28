@@ -8,6 +8,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import com.twinhearts.app.R
 import com.twinhearts.app.feature.auth.authGraph
+import com.twinhearts.app.feature.calendar.calendarGraph
 import com.twinhearts.app.feature.chat.chatGraph
 import com.twinhearts.app.feature.getstarted.getStartedGraph
 import com.twinhearts.app.feature.home.homeGraph
@@ -32,6 +33,7 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
     movieGraph(navController) // 5.2 Watch Together (movies)
     usGraph(navController) // 3.1 Us (Love Counter · Collection · Dream Goals)
     liveMapGraph(navController) // 5.3 Live Map (Map · Track · Partner · Places)
+    calendarGraph(navController) // Calendar (events in the shared state)
 }
 
 /**

@@ -21,7 +21,6 @@ import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.SignalWifiOff
-import androidx.compose.material.icons.rounded.ThreeDRotation
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material.icons.rounded.WbSunny
@@ -103,7 +102,7 @@ fun MorePage(
             }
         }
         GlassCard(Modifier.fillMaxWidth(), contentPadding = TwinTheme.spacing.m) {
-            LmToggleRow(Icons.Rounded.ThreeDRotation, stringResource(R.string.livemap_3d), s.threeD, vm::setThreeD)
+            LmToggleRow(Icons.Rounded.Layers, stringResource(R.string.livemap_3d), s.threeD, vm::setThreeD)
             LmToggleRow(Icons.Rounded.Person, stringResource(R.string.livemap_follow_partner), s.followPartner, vm::setFollowPartner)
             LmToggleRow(Icons.Rounded.Timeline, stringResource(R.string.livemap_show_route_line), s.showRouteLine, vm::setShowRouteLine)
             LmToggleRow(Icons.Rounded.Place, stringResource(R.string.livemap_show_place_labels), s.showPlaceLabels, vm::setShowPlaceLabels)

@@ -18,7 +18,7 @@ import androidx.compose.material.icons.rounded.MyLocation
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.Videocam
-import androidx.compose.material.icons.rounded.ThreeDRotation
+import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
@@ -159,7 +159,7 @@ fun MapPage(
                 verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
             ) {
                 LmMapFab(Icons.Rounded.MyLocation, stringResource(R.string.livemap_locate_me), vm::locateMe)
-                LmMapFab(Icons.Rounded.ThreeDRotation, stringResource(R.string.livemap_3d), { vm.setThreeD(!state.settings.threeD) }, active = state.settings.threeD)
+                LmMapFab(Icons.Rounded.Layers, stringResource(R.string.livemap_3d), { vm.setThreeD(!state.settings.threeD) }, active = state.settings.threeD)
             }
             val w = state.weather
             if (state.settings.showWeather && w != null) {

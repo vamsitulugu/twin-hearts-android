@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="calendar_title">Calendar</string>
+    <string name="calendar_add_event">Add Event</string>
+    <string name="calendar_today">Today</string>
+    <string name="calendar_prev_month">Previous month</string>
+    <string name="calendar_next_month">Next month</string>
+    <string name="calendar_has_events">has events</string>
+    <string name="calendar_upcoming">Upcoming Events</string>
+    <string name="calendar_upcoming_empty_title">No upcoming events</string>
+    <string name="calendar_upcoming_empty_hint">Add a date so you both know what\'s coming up.</string>
+    <string name="calendar_day_events">Events on %1$s</string>
+    <string name="calendar_day_empty">No events on this day</string>
+    <string name="calendar_ok">OK</string>
+
+    <string name="calendar_form_title">New Event</string>
+    <string name="calendar_form_name">Title</string>
+    <string name="calendar_form_name_hint">e.g. Dinner at our favourite place</string>
+    <string name="calendar_form_date">Date</string>
+    <string name="calendar_form_time">Time (optional)</string>
+    <string name="calendar_form_time_none">No time</string>
+    <string name="calendar_form_clear_time">Clear</string>
+    <string name="calendar_form_note">Note (optional)</string>
+    <string name="calendar_form_category">Category</string>
+    <string name="calendar_form_alarm">🔔 Set alarm?</string>
+    <string name="calendar_form_alarm_needs_time">Pick a time to get the reminder.</string>
+    <string name="calendar_form_save">Add Event</string>
+
+    <string name="calendar_cat_anniversary">Anniversary</string>
+    <string name="calendar_cat_date">Date Night</string>
+    <string name="calendar_cat_birthday">Birthday</string>
+    <string name="calendar_cat_trip">Trip</string>
+    <string name="calendar_cat_special">Special</string>
+    <string name="calendar_cat_study">Study</string>
+    <string name="calendar_cat_other">Other</string>
+
+    <string name="calendar_alarm_none">No alarm</string>
+    <string name="calendar_alarm_self">For me only</string>
+    <string name="calendar_alarm_both">For both of us</string>
+
+    <string name="calendar_added">Event added! 📅</string>
+    <string name="calendar_deleted">Event deleted</string>
+    <string name="calendar_delete_title">Delete event?</string>
+    <string name="calendar_delete_message">\"%1$s\" will be permanently deleted.</string>
+    <string name="calendar_delete_confirm">Delete</string>
+    <string name="calendar_delete_cd">Delete %1$s</string>
+</resources>
