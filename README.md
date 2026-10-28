@@ -366,3 +366,5 @@ Attached: README.md, core.zip, libs.versions.toml, screenshots for this feature.
 Read README.md. The last delivery (th-<...>.zip) failed to build.
 Error: <paste text>. Fix it and send only the changed files as th-<...>-v2.zip.
 ```
+
+| Meet Planner | v1 delivered (not compiled) | `th-p4-meetplanner-v1.zip`; see docs/features/meetplanner.md |

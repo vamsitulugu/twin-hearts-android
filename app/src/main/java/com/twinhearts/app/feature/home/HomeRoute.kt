@@ -23,6 +23,7 @@ fun NavGraphBuilder.homeGraph(navController: NavHostController) {
                 when (shortcut) {
                     HomeShortcut.OurProfile -> navController.navigate(Routes.Profile)
                     HomeShortcut.Movie -> navController.navigate(Routes.Movie)
+                    HomeShortcut.MeetPlanner -> navController.navigate(Routes.MeetPlanner)
                     else -> Toast.makeText(context, R.string.core_pending_message, Toast.LENGTH_SHORT).show()
                 }
             },

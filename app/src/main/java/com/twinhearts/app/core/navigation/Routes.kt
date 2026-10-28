@@ -27,6 +27,9 @@ object Routes {
     // Phase 5: Watch Together (movies), opened from the Home "Movie" chip
     @Serializable data object Movie
 
+    // Meet Planner, opened from the Home "Meet Planner" chip
+    @Serializable data object MeetPlanner
+
     // Debug builds only (the screen itself lives in src/debug)
     @Serializable data object DesignGallery
 }
