@@ -19,7 +19,8 @@ data class Transaction(
     val description: String,
     val amount: Double,
     val category: String,
-    val date: LocalDate,
+    /** Null when the saved date cannot be read; such items are listed but not counted in any month. */
+    val date: LocalDate?,
     val by: String,
 )
 
@@ -63,6 +64,9 @@ data class WeekTotal(val label: String, val amount: Double)
 sealed interface Insight {
     data object StartLogging : Insight
     data class SpentSoFar(val amount: Double) : Insight
+
+    /** A past (or future) month with nothing to compare against. */
+    data class SpentInMonth(val amount: Double) : Insight
     data class Up(val percent: Int) : Insight
     data class Down(val percent: Int) : Insight
     data class Steady(val lastMonth: Double) : Insight

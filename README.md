@@ -315,6 +315,7 @@ Performance pass (Baseline Profile, jank check), signing, release APK, crash rep
 | 2026-10-27 | Phase 2.2 Chat v2 — full rebuild (media, polls, reactions, pin, edit/delete, forward, wallpaper, disappearing, export, auto-lock, effects) | th-p2-chat-v2.zip | Not compiled in sandbox. Typing indicator not ported (needs backend). |
 | 2026-10-26 | Phase 2.1 Home v2 — Coming up, Mood card, Mood Calendar | th-p2-home-v2.zip | Not compiled in sandbox. Search/chips/grid wait for their pages. |
 | 2026-10-27 | Phase 5 — Watch Together (movies) | th-p5-movie-v1.zip | Not compiled here. Needs Media3 catalog lines + Routes.Movie (applied in zip). Cloud upload, subtitles, reactions, sleep timer, in-movie calls not ported (see docs/features/movie.md). |
+| 2026-10-29 | Phase 4 — Calendar, Money, Study + polish pack (phone reminders, petals, offline copy, live refresh, multi-select, month picker, goal autosave) | th-p4-calendar-money-study-polish.zip | Not compiled in sandbox (no Android SDK); pure logic compiled and 33 unit tests run with kotlinc. See docs/features/{calendar,money,study,reminders}.md and SHARED_CHANGES_calendar_money_study.md. |
 
 ---
 
@@ -368,3 +369,7 @@ Error: <paste text>. Fix it and send only the changed files as th-<...>-v2.zip.
 ```
 
 | Meet Planner | v1 delivered (not compiled) | `th-p4-meetplanner-v1.zip`; see docs/features/meetplanner.md |
+| Calendar | v2 delivered (not compiled) | `th-p4-calendar-money-study-polish.zip`; see docs/features/calendar.md |
+| Money | v2 delivered (not compiled) | same zip; see docs/features/money.md |
+| Study | v2 delivered (not compiled) | same zip; see docs/features/study.md |
+| Phone reminders (core) | v1 delivered (not compiled) | same zip; see docs/features/reminders.md |

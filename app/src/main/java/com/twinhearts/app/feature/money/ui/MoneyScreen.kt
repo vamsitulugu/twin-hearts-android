@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AccountBalanceWallet
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -24,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,7 +33,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.text.style.TextAlign
+import kotlinx.coroutines.delay
+import java.time.format.TextStyle
+import java.util.Locale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -40,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.twinhearts.app.R
+import com.twinhearts.app.core.common.AutoRefresh
 import com.twinhearts.app.core.common.asText
 import com.twinhearts.app.core.design.EmptyState
 import com.twinhearts.app.core.design.ErrorState
@@ -47,6 +56,7 @@ import com.twinhearts.app.core.design.GlassButton
 import com.twinhearts.app.core.design.GlassButtonStyle
 import com.twinhearts.app.core.design.GlassCard
 import com.twinhearts.app.core.design.LoadingSkeleton
+import com.twinhearts.app.core.design.OfflineBanner
 import com.twinhearts.app.core.design.SerifFamily
 import com.twinhearts.app.core.design.TwinTextField
 import com.twinhearts.app.core.design.TwinTheme
@@ -103,6 +113,7 @@ fun MoneyScreen(
         viewModel.messageShown()
     }
 
+    AutoRefresh(onRefresh = viewModel::refresh)
     val data = state.data
     Column(modifier = Modifier.fillMaxSize()) {
         TwinTopBar(
@@ -110,6 +121,7 @@ fun MoneyScreen(
             onBackClick = onBack,
             onSyncClick = viewModel::load,
         )
+        if (state.offline) OfflineBanner()
         when {
             data == null && state.loading -> {
                 Column(modifier = Modifier.padding(TwinTheme.spacing.screenEdge)) { LoadingSkeleton(lines = 4) }
@@ -170,12 +182,15 @@ private fun MoneyContent(
 ) {
     val colors = TwinTheme.colors
     val today = remember { LocalDate.now() }
-    val month = YearMonth.from(today)
+    val thisMonth = YearMonth.from(today)
+    // The month being looked at; the hero, tiles, donut and tip follow it. Saved as text so it survives rotation.
+    var monthText by rememberSaveable { mutableStateOf(thisMonth.toString()) }
+    val month = remember(monthText) { runCatching { YearMonth.parse(monthText) }.getOrDefault(thisMonth) }
     val all = data.transactions
-    val summary = remember(all) { monthSummary(all, month) }
-    val categories = remember(all) { spendingByCategory(all, month) }
+    val summary = remember(all, month) { monthSummary(all, month) }
+    val categories = remember(all, month) { spendingByCategory(all, month) }
     val weeks = remember(all) { weeklySpending(all, today) }
-    val insight = remember(all) { spendingInsight(all, today) }
+    val insight = remember(all, month) { spendingInsight(all, today, month) }
     val (mine, theirs) = remember(all, data.myRole) { splitByOwner(all, data.myRole) }
 
     Column(
@@ -186,7 +201,15 @@ private fun MoneyContent(
             .padding(bottom = TwinTheme.spacing.xl),
         verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
     ) {
-        // Hero: saved ring + this month's net
+        MonthPicker(
+            month = month,
+            isCurrent = month == thisMonth,
+            onPrevious = { monthText = month.minusMonths(1).toString() },
+            onNext = { monthText = month.plusMonths(1).toString() },
+            onReset = { monthText = thisMonth.toString() },
+        )
+
+        // Hero: saved ring + the chosen month's net
         GlassCard {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -263,7 +286,8 @@ private fun MoneyContent(
                     onAction = onAdd,
                 )
             } else {
-                all.sortedByDescending { it.date }.take(MAIN_LIST_LIMIT).forEach { tx ->
+                // Same order as the web: the list is kept newest-first as it is saved.
+                all.take(MAIN_LIST_LIMIT).forEach { tx ->
                     TransactionRow(tx, onDelete = { onDelete(tx) })
                 }
             }
@@ -277,7 +301,6 @@ private fun MoneyContent(
                 goal = data.myGoal,
                 mine = mine,
                 today = today,
-                saving = saving,
                 onSaveGoal = onSaveGoal,
             )
         }
@@ -309,6 +332,7 @@ private fun InsightCard(insight: Insight) {
     val (icon, text) = when (insight) {
         Insight.StartLogging -> "💡" to stringResource(R.string.money_insight_start)
         is Insight.SpentSoFar -> "💡" to stringResource(R.string.money_insight_so_far, formatRupees(insight.amount))
+        is Insight.SpentInMonth -> "💡" to stringResource(R.string.money_insight_in_month, formatRupees(insight.amount))
         is Insight.Up -> "📈" to stringResource(R.string.money_insight_up, insight.percent)
         is Insight.Down -> "📉" to stringResource(R.string.money_insight_down, insight.percent)
         is Insight.Steady -> "⚖️" to stringResource(R.string.money_insight_steady, formatRupees(insight.lastMonth))
@@ -368,7 +392,8 @@ private fun TransactionRow(tx: Transaction, onDelete: () -> Unit) {
             Text(
                 text = listOf(
                     tx.category.ifBlank { "Other" },
-                    tx.date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)),
+                    tx.date?.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
+                        ?: stringResource(R.string.money_no_date),
                 ).joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.inkMuted,
@@ -409,7 +434,7 @@ private fun PersonCard(title: String, items: List<Transaction>, extra: @Composab
         if (items.isEmpty()) {
             MutedText(stringResource(R.string.money_empty_title))
         } else {
-            items.sortedByDescending { it.date }.take(PERSON_LIST_LIMIT).forEach { tx ->
+            items.take(PERSON_LIST_LIMIT).forEach { tx ->
                 val income = tx.type == TxType.Income
                 Row(
                     modifier = Modifier
@@ -445,12 +470,18 @@ private fun GoalSection(
     goal: Double,
     mine: List<Transaction>,
     today: LocalDate,
-    saving: Boolean,
     onSaveGoal: (Double) -> Unit,
 ) {
     val colors = TwinTheme.colors
-    var goalText by rememberSaveable(goal) { mutableStateOf(if (goal > 0) goal.toLong().toString() else "") }
+    // Not keyed on [goal]: when a save comes back it must not reset the text I am still typing.
+    var goalText by rememberSaveable { mutableStateOf(if (goal > 0) goal.toLong().toString() else "") }
     val newGoal = goalText.toDoubleOrNull() ?: 0.0
+    val latestGoal by rememberUpdatedState(goal)
+    // Saves itself ~0.8 s after I stop typing (no Save button, like the web).
+    LaunchedEffect(goalText) {
+        delay(GOAL_SAVE_DELAY_MS)
+        if (newGoal != latestGoal) onSaveGoal(newGoal)
+    }
     val progress = goalProgress(mine, goal, today)
     val barColor = when {
         progress.percent >= FULL_PERCENT -> colors.error
@@ -497,16 +528,49 @@ private fun GoalSection(
                     .background(barColor),
             )
         }
-        GlassButton(
-            text = stringResource(R.string.money_goal_save),
-            onClick = { onSaveGoal(newGoal) },
-            style = GlassButtonStyle.Secondary,
-            enabled = !saving && newGoal != goal,
-            modifier = Modifier.fillMaxWidth(),
-        )
     }
 }
 
+private const val GOAL_SAVE_DELAY_MS = 800L
 private const val FULL_PERCENT = 100
 private const val WARN_PERCENT = 80
 private const val GOAL_DIGITS = 9
+
+/** ‹ October 2026 › with a "This month" shortcut when another month is showing. */
+@Composable
+private fun MonthPicker(
+    month: YearMonth,
+    isCurrent: Boolean,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onReset: () -> Unit,
+) {
+    val colors = TwinTheme.colors
+    val title = "${month.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${month.year}"
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = onPrevious) {
+            Icon(
+                Icons.Rounded.ChevronRight,
+                contentDescription = stringResource(R.string.money_prev_month),
+                tint = colors.ink,
+                modifier = Modifier.rotate(180f),
+            )
+        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontFamily = SerifFamily,
+            color = colors.ink,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .weight(1f)
+                .clickable(enabled = !isCurrent, onClick = onReset),
+        )
+        IconButton(onClick = onNext) {
+            Icon(Icons.Rounded.ChevronRight, contentDescription = stringResource(R.string.money_next_month), tint = colors.ink)
+        }
+    }
+    if (!isCurrent) {
+        TextButton(onClick = onReset) { Text(stringResource(R.string.money_this_month)) }
+    }
+}

@@ -33,6 +33,10 @@ data class StudyUiState(
     val data: StudyData? = null,
     val saving: Boolean = false,
     val message: StudyMessage? = null,
+    /** True while the page shows the saved copy because there is no connection. */
+    val offline: Boolean = false,
+    /** Goes up by one each time a slot is ticked done; the screen plays the petals on every change. */
+    val petals: Int = 0,
 )
 
 /** Loads the couple's study data and changes my subjects and timetable. */
@@ -50,15 +54,42 @@ class StudyViewModel @Inject constructor(
     private var pending = 0
 
     init {
-        load()
+        viewModelScope.launch {
+            // Paint the saved copy straight away, then fetch the fresh data.
+            repository.cachedData()?.let { saved ->
+                _state.update { if (it.data == null) it.copy(loading = false, data = saved) else it }
+            }
+            fetch(silent = false)
+        }
     }
 
+    /** The refresh button and the Retry button. */
     fun load() {
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
-            when (val result = repository.load()) {
-                is AppResult.Success -> _state.update { it.copy(loading = false, data = result.data) }
-                is AppResult.Failure -> _state.update { it.copy(loading = false, error = result.error) }
+            fetch(silent = false)
+        }
+    }
+
+    /** Called every ~30 s while the page is open: picks up the partner's changes without a spinner. */
+    fun refresh() {
+        if (pending > 0) return
+        viewModelScope.launch { fetch(silent = true) }
+    }
+
+    private suspend fun fetch(silent: Boolean) {
+        val result = repository.load()
+        // A change that started while this was loading has newer data; do not overwrite it.
+        if (pending > 0 && result is AppResult.Success) return
+        when (result) {
+            is AppResult.Success -> _state.update { it.copy(loading = false, error = null, offline = false, data = result.data) }
+            is AppResult.Failure -> _state.update {
+                when {
+                    it.data != null && result.error == AppError.Network -> it.copy(loading = false, offline = true)
+                    silent -> it
+                    it.data != null -> it.copy(loading = false, message = StudyMessage.Failed(result.error))
+                    else -> it.copy(loading = false, error = result.error)
+                }
             }
         }
     }
@@ -71,11 +102,15 @@ class StudyViewModel @Inject constructor(
 
     fun addSlot(slot: NewSlot) = change(StudyMessage.SlotAdded) { repository.addSlot(slot) }
 
-    fun toggleSlot(id: String) = change(null) { repository.toggleSlot(id) }
+    fun toggleSlot(id: String) = change(null, celebrateSlot = id) { repository.toggleSlot(id) }
 
     fun deleteSlot(id: String) = change(StudyMessage.Deleted) { repository.deleteSlot(id) }
 
-    private fun change(success: StudyMessage?, call: suspend () -> AppResult<StudyData>) {
+    private fun change(
+        success: StudyMessage?,
+        celebrateSlot: String? = null,
+        call: suspend () -> AppResult<StudyData>,
+    ) {
         pending++
         _state.update { it.copy(saving = true) }
         viewModelScope.launch {
@@ -87,6 +122,11 @@ class StudyViewModel @Inject constructor(
                         data = result.data,
                         saving = pending > 0,
                         message = success ?: current.message,
+                        petals = if (celebrateSlot != null && justDone(current.data, result.data, celebrateSlot)) {
+                            current.petals + 1
+                        } else {
+                            current.petals
+                        },
                     )
                     is AppResult.Failure -> current.copy(
                         saving = pending > 0,
@@ -95,6 +135,13 @@ class StudyViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /** True when the slot was not done before and is done now (un-ticking gets no petals). */
+    private fun justDone(before: StudyData?, after: StudyData, id: String): Boolean {
+        val was = before?.me?.slots?.firstOrNull { it.id == id }?.done ?: return false
+        val now = after.me.slots.firstOrNull { it.id == id }?.done ?: return false
+        return !was && now
     }
 
     fun messageShown() = _state.update { it.copy(message = null) }

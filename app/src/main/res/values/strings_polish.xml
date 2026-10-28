@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reminders_channel">Reminders</string>
+    <string name="reminders_default_title">Reminder</string>
+    <string name="reminders_default_body">It\'s time ❤️</string>
+    <string name="polish_offline_banner">You\'re offline — showing what was saved on this phone.</string>
+    <string name="polish_petals_cd">Celebration</string>
+</resources>

@@ -31,7 +31,7 @@ fun slotHours(slot: StudySlot): Double {
 /** Scheduled hours for each weekday, in [weekOrderSundayFirst] order. */
 fun hoursByDay(slots: List<StudySlot>): List<Pair<DayOfWeek, Double>> =
     weekOrderSundayFirst.map { day ->
-        day to slots.filter { it.day.dayOfWeek == day }.sumOf(::slotHours)
+        day to slots.filter { it.day?.dayOfWeek == day }.sumOf(::slotHours)
     }
 
 fun studyHero(subjects: List<Subject>, slots: List<StudySlot>): StudyHero {
@@ -59,7 +59,13 @@ fun studyInsight(slots: List<StudySlot>): StudyInsight {
 
 /** Slots of one day, earliest first. */
 fun slotsOfDay(slots: List<StudySlot>, day: DayOfWeek): List<StudySlot> =
-    slots.filter { it.day.dayOfWeek == day }.sortedBy { it.start }
+    slots.filter { it.day?.dayOfWeek == day }.sortedBy { it.start }
+
+/** Slots saved with a day this app does not know, grouped by the label they were saved with. */
+fun slotsWithOtherDay(slots: List<StudySlot>): Map<String, List<StudySlot>> =
+    slots.filter { it.day == null }
+        .groupBy { it.dayLabel.ifBlank { "?" } }
+        .mapValues { (_, items) -> items.sortedBy { it.start } }
 
 fun parseTime(time: String): LocalTime? = runCatching { LocalTime.parse(time) }.getOrNull()
 

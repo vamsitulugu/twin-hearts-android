@@ -55,4 +55,10 @@
     <string name="money_delete_message">\"%1$s\" (%2$s) will be permanently deleted.</string>
     <string name="money_delete_confirm">Delete</string>
     <string name="money_delete_cd">Delete %1$s</string>
+
+    <string name="money_no_date">No date</string>
+    <string name="money_insight_in_month">You spent %1$s in this month.</string>
+    <string name="money_prev_month">Previous month</string>
+    <string name="money_next_month">Next month</string>
+    <string name="money_this_month">Back to this month</string>
 </resources>

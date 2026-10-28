@@ -45,6 +45,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.twinhearts.app.R
 import com.twinhearts.app.core.common.AppError
+import com.twinhearts.app.core.common.AutoRefresh
 import com.twinhearts.app.core.common.asText
 import com.twinhearts.app.core.design.EmptyState
 import com.twinhearts.app.core.design.ErrorState
@@ -53,6 +54,9 @@ import com.twinhearts.app.core.design.GlassButtonStyle
 import com.twinhearts.app.core.design.GlassCard
 import com.twinhearts.app.core.design.GlassIconButton
 import com.twinhearts.app.core.design.LoadingSkeleton
+import com.twinhearts.app.core.design.OfflineBanner
+import com.twinhearts.app.core.design.PetalBurst
+import com.twinhearts.app.core.reminders.rememberNotificationPermissionRequest
 import com.twinhearts.app.core.design.SerifFamily
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.core.design.TwinTopBar
@@ -64,6 +68,8 @@ import com.twinhearts.app.feature.study.domain.model.StudyPerson
 import com.twinhearts.app.feature.study.domain.model.StudySlot
 import com.twinhearts.app.feature.study.domain.model.Subject
 import com.twinhearts.app.feature.study.domain.slotsOfDay
+import com.twinhearts.app.feature.study.domain.slotsWithOtherDay
+import com.twinhearts.app.feature.study.domain.model.SlotAlarm
 import com.twinhearts.app.feature.study.domain.studyHero
 import com.twinhearts.app.feature.study.domain.studyInsight
 import java.time.DayOfWeek
@@ -98,6 +104,8 @@ fun StudyScreen(
     var showSubjectForm by rememberSaveable { mutableStateOf(false) }
     var showSlotForm by rememberSaveable { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<DeleteTarget?>(null) }
+    val askNotifications = rememberNotificationPermissionRequest()
+    AutoRefresh(onRefresh = viewModel::refresh)
 
     // One-off messages: toast once, then clear. A successful add also closes its form.
     val message = state.message
@@ -117,12 +125,14 @@ fun StudyScreen(
     }
 
     val data = state.data
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize()) {
         TwinTopBar(
             title = stringResource(R.string.study_title),
             onBackClick = onBack,
             onSyncClick = viewModel::load,
         )
+        if (state.offline) OfflineBanner()
         when {
             data == null && state.loading -> {
                 Column(modifier = Modifier.padding(TwinTheme.spacing.screenEdge)) { LoadingSkeleton(lines = 4) }
@@ -142,6 +152,8 @@ fun StudyScreen(
             )
         }
     }
+    PetalBurst(trigger = state.petals)
+    }
 
     if (showSubjectForm) {
         AddSubjectSheet(
@@ -153,7 +165,10 @@ fun StudyScreen(
     if (showSlotForm) {
         AddSlotSheet(
             saving = state.saving,
-            onSave = viewModel::addSlot,
+            onSave = { slot ->
+                if (slot.alarm != SlotAlarm.None) askNotifications()
+                viewModel.addSlot(slot)
+            },
             onDismiss = { showSlotForm = false },
         )
     }
@@ -494,50 +509,69 @@ private fun Timetable(
             color = colors.inkMuted,
             modifier = Modifier.padding(top = TwinTheme.spacing.m, bottom = TwinTheme.spacing.xs),
         )
-        daySlots.forEach { slot ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = TwinTheme.spacing.xs)
-                    .clip(TwinTheme.shapes.small)
-                    .background(if (slot.done) colors.neutralGlass.copy(alpha = 0.35f) else colors.glass)
-                    .padding(horizontal = TwinTheme.spacing.m, vertical = TwinTheme.spacing.s),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
-            ) {
-                Column {
-                    Text(
-                        text = formatSlotTime(slot.start),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = colors.accent,
-                    )
-                    Text(
-                        text = "– " + formatSlotTime(slot.end),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = colors.inkMuted,
-                    )
-                }
-                Text(
-                    text = slot.subject,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (slot.done) colors.inkMuted else colors.ink,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
+        daySlots.forEach { slot -> SlotRow(slot, editable, onToggle, onDelete) }
+    }
+    // Slots saved with a day name this app does not know are still shown, under that name.
+    slotsWithOtherDay(slots).forEach { (label, daySlots) ->
+        Text(
+            text = label.uppercase(Locale.getDefault()),
+            style = MaterialTheme.typography.labelSmall,
+            color = colors.inkMuted,
+            modifier = Modifier.padding(top = TwinTheme.spacing.m, bottom = TwinTheme.spacing.xs),
+        )
+        daySlots.forEach { slot -> SlotRow(slot, editable, onToggle, onDelete) }
+    }
+}
+
+@Composable
+private fun SlotRow(
+    slot: StudySlot,
+    editable: Boolean,
+    onToggle: (String) -> Unit,
+    onDelete: (StudySlot) -> Unit,
+) {
+    val colors = TwinTheme.colors
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = TwinTheme.spacing.xs)
+            .clip(TwinTheme.shapes.small)
+            .background(if (slot.done) colors.neutralGlass.copy(alpha = 0.35f) else colors.glass)
+            .padding(horizontal = TwinTheme.spacing.m, vertical = TwinTheme.spacing.s),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
+    ) {
+        Column {
+            Text(
+                text = formatSlotTime(slot.start),
+                style = MaterialTheme.typography.labelMedium,
+                color = colors.accent,
+            )
+            Text(
+                text = "– " + formatSlotTime(slot.end),
+                style = MaterialTheme.typography.labelSmall,
+                color = colors.inkMuted,
+            )
+        }
+        Text(
+            text = slot.subject,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (slot.done) colors.inkMuted else colors.ink,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        if (editable) {
+            SlotCheck(done = slot.done, subject = slot.subject, onToggle = { onToggle(slot.id) })
+            IconButton(onClick = { onDelete(slot) }) {
+                Icon(
+                    Icons.Rounded.Delete,
+                    contentDescription = stringResource(R.string.study_delete_cd, slot.subject),
+                    tint = colors.inkMuted,
                 )
-                if (editable) {
-                    SlotCheck(done = slot.done, subject = slot.subject, onToggle = { onToggle(slot.id) })
-                    IconButton(onClick = { onDelete(slot) }) {
-                        Icon(
-                            Icons.Rounded.Delete,
-                            contentDescription = stringResource(R.string.study_delete_cd, slot.subject),
-                            tint = colors.inkMuted,
-                        )
-                    }
-                } else if (slot.done) {
-                    Icon(Icons.Rounded.Check, contentDescription = stringResource(R.string.study_slot_done_cd), tint = colors.success)
-                }
             }
+        } else if (slot.done) {
+            Icon(Icons.Rounded.Check, contentDescription = stringResource(R.string.study_slot_done_cd), tint = colors.success)
         }
     }
 }

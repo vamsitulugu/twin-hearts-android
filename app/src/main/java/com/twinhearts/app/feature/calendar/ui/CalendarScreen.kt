@@ -1,6 +1,9 @@
 package com.twinhearts.app.feature.calendar.ui
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,6 +21,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material3.AlertDialog
@@ -48,16 +53,20 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.twinhearts.app.R
+import com.twinhearts.app.core.common.AutoRefresh
 import com.twinhearts.app.core.common.asText
 import com.twinhearts.app.core.design.ErrorState
 import com.twinhearts.app.core.design.GlassButton
 import com.twinhearts.app.core.design.GlassButtonStyle
 import com.twinhearts.app.core.design.GlassCard
 import com.twinhearts.app.core.design.LoadingSkeleton
+import com.twinhearts.app.core.design.OfflineBanner
+import com.twinhearts.app.core.design.PetalBurst
 import com.twinhearts.app.core.design.EmptyState
 import com.twinhearts.app.core.design.SerifFamily
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.core.design.TwinTopBar
+import com.twinhearts.app.core.reminders.rememberNotificationPermissionRequest
 import com.twinhearts.app.feature.calendar.domain.eventsOn
 import com.twinhearts.app.feature.calendar.domain.formatEventTime
 import com.twinhearts.app.feature.calendar.domain.model.CalendarEvent
@@ -91,6 +100,12 @@ fun CalendarScreen(
     val context = LocalContext.current
     var showAdd by rememberSaveable { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<CalendarEvent?>(null) }
+    var confirmBulk by remember { mutableStateOf(false) }
+    val askNotifications = rememberNotificationPermissionRequest()
+    val selecting = state.selection.isNotEmpty()
+
+    AutoRefresh(onRefresh = viewModel::refresh)
+    BackHandler(enabled = selecting) { viewModel.clearSelection() }
 
     // One-off messages: toast once, then clear. A successful add also closes the form.
     val message = state.message
@@ -109,12 +124,22 @@ fun CalendarScreen(
 
     val today = remember { LocalDate.now() }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize()) {
-        TwinTopBar(
-            title = stringResource(R.string.calendar_title),
-            onBackClick = onBack,
-            onSyncClick = viewModel::load,
-        )
+        if (selecting) {
+            SelectionBar(
+                count = state.selection.size,
+                onCancel = viewModel::clearSelection,
+                onDelete = { confirmBulk = true },
+            )
+        } else {
+            TwinTopBar(
+                title = stringResource(R.string.calendar_title),
+                onBackClick = onBack,
+                onSyncClick = viewModel::load,
+            )
+        }
+        if (state.offline) OfflineBanner()
         when {
             state.loading && state.events.isEmpty() -> {
                 Column(modifier = Modifier.padding(TwinTheme.spacing.screenEdge)) { LoadingSkeleton(lines = 4) }
@@ -132,17 +157,47 @@ fun CalendarScreen(
                     onSelectDay = viewModel::selectDay,
                     onAdd = { showAdd = true },
                     onDelete = { deleteTarget = it },
+                    onToggleSelect = viewModel::toggleSelect,
                 )
             }
         }
+    }
+    PetalBurst(trigger = state.petals)
     }
 
     if (showAdd) {
         AddEventSheet(
             initialDate = state.selected ?: today,
             saving = state.saving,
-            onSave = viewModel::addEvent,
+            onSave = { event ->
+                if (event.alarm != EventAlarm.None) askNotifications()
+                viewModel.addEvent(event)
+            },
             onDismiss = { showAdd = false },
+        )
+    }
+    if (confirmBulk) {
+        AlertDialog(
+            onDismissRequest = { confirmBulk = false },
+            containerColor = TwinTheme.colors.card,
+            title = { Text(stringResource(R.string.calendar_delete_title), color = TwinTheme.colors.ink) },
+            text = {
+                Text(
+                    context.resources.getQuantityString(R.plurals.calendar_delete_many, state.selection.size, state.selection.size),
+                    color = TwinTheme.colors.inkMuted,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteSelected()
+                        confirmBulk = false
+                    },
+                ) { Text(stringResource(R.string.calendar_delete_confirm), color = TwinTheme.colors.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmBulk = false }) { Text(stringResource(R.string.core_cancel)) }
+            },
         )
     }
     deleteTarget?.let { event ->
@@ -178,7 +233,9 @@ private fun CalendarContent(
     onSelectDay: (LocalDate) -> Unit,
     onAdd: () -> Unit,
     onDelete: (CalendarEvent) -> Unit,
+    onToggleSelect: (String) -> Unit,
 ) {
+    val selection = state.selection
     val datesWithEvents = remember(state.events) { state.events.map { it.date }.toSet() }
     val selected = state.selected
     Column(
@@ -237,7 +294,7 @@ private fun CalendarContent(
                     )
                 } else {
                     dayEvents.forEach { event ->
-                        EventRow(event, showDate = false, onDelete = { onDelete(event) })
+                        EventRow(event, showDate = false, selection = selection, onToggleSelect = onToggleSelect, onDelete = { onDelete(event) })
                     }
                 }
             }
@@ -260,7 +317,7 @@ private fun CalendarContent(
                 )
             } else {
                 next.forEach { event ->
-                    EventRow(event, showDate = true, onDelete = { onDelete(event) })
+                    EventRow(event, showDate = true, selection = selection, onToggleSelect = onToggleSelect, onDelete = { onDelete(event) })
                 }
             }
         }
@@ -402,9 +459,18 @@ private fun DayCell(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun EventRow(event: CalendarEvent, showDate: Boolean, onDelete: () -> Unit) {
+private fun EventRow(
+    event: CalendarEvent,
+    showDate: Boolean,
+    selection: Set<String>,
+    onToggleSelect: (String) -> Unit,
+    onDelete: () -> Unit,
+) {
     val colors = TwinTheme.colors
+    val selecting = selection.isNotEmpty()
+    val picked = event.id in selection
     val parts = buildList {
         if (showDate) add(event.date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)))
         if (event.time.isNotBlank()) add(formatEventTime(event.time))
@@ -413,10 +479,23 @@ private fun EventRow(event: CalendarEvent, showDate: Boolean, onDelete: () -> Un
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = TwinTheme.spacing.m),
+            .padding(top = TwinTheme.spacing.m)
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+            .background(if (picked) colors.neutralGlass else androidx.compose.ui.graphics.Color.Transparent)
+            .combinedClickable(
+                onClick = { if (selecting) onToggleSelect(event.id) },
+                onLongClick = { onToggleSelect(event.id) },
+            ),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
     ) {
+        if (selecting) {
+            Icon(
+                Icons.Rounded.Check,
+                contentDescription = null,
+                tint = if (picked) colors.accent else colors.lineSoft,
+            )
+        }
         Text(event.category.emoji, style = MaterialTheme.typography.titleLarge)
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -443,11 +522,42 @@ private fun EventRow(event: CalendarEvent, showDate: Boolean, onDelete: () -> Un
                 )
             }
         }
+        if (!selecting) {
+            IconButton(onClick = onDelete) {
+                Icon(
+                    Icons.Rounded.Delete,
+                    contentDescription = stringResource(R.string.calendar_delete_cd, event.title),
+                    tint = colors.inkMuted,
+                )
+            }
+        }
+    }
+}
+
+/** Replaces the top bar while events are selected: close, how many, delete. */
+@Composable
+private fun SelectionBar(count: Int, onCancel: () -> Unit, onDelete: () -> Unit) {
+    val colors = TwinTheme.colors
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = TwinTheme.spacing.s, vertical = TwinTheme.spacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = onCancel) {
+            Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.core_cancel), tint = colors.ink)
+        }
+        Text(
+            text = stringResource(R.string.calendar_selected_count, count),
+            style = MaterialTheme.typography.titleMedium,
+            color = colors.ink,
+            modifier = Modifier.weight(1f),
+        )
         IconButton(onClick = onDelete) {
             Icon(
                 Icons.Rounded.Delete,
-                contentDescription = stringResource(R.string.calendar_delete_cd, event.title),
-                tint = colors.inkMuted,
+                contentDescription = stringResource(R.string.calendar_delete_selected_cd),
+                tint = colors.error,
             )
         }
     }

@@ -4,6 +4,7 @@ import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.core.data.Session
 import com.twinhearts.app.core.data.SessionStore
+import com.twinhearts.app.core.data.StateCache
 import com.twinhearts.app.core.network.safeApiCall
 import com.twinhearts.app.feature.money.data.remote.MoneyApi
 import com.twinhearts.app.feature.money.data.remote.MoneySaveBody
@@ -12,6 +13,7 @@ import com.twinhearts.app.feature.money.domain.model.NewTransaction
 import com.twinhearts.app.feature.money.domain.model.Transaction
 import com.twinhearts.app.feature.money.domain.model.TxType
 import kotlinx.coroutines.flow.first
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -23,6 +25,9 @@ import java.time.LocalDate
 import javax.inject.Inject
 
 interface MoneyRepository {
+    /** The last copy saved on this phone, or null. Used to paint at once and to work offline. */
+    suspend fun cachedData(): MoneyData?
+
     suspend fun load(): AppResult<MoneyData>
 
     /** Adds a transaction at the top of the list (like the web) and returns the new page data. */
@@ -37,14 +42,24 @@ interface MoneyRepository {
 class MoneyRepositoryImpl @Inject constructor(
     private val api: MoneyApi,
     private val sessionStore: SessionStore,
+    private val cache: StateCache,
 ) : MoneyRepository {
 
     private val notSignedIn = AppResult.Failure(AppError.Unauthorized())
 
+    override suspend fun cachedData(): MoneyData? {
+        val session = sessionStore.session.first() ?: return null
+        val json = cache.read(cacheKey(session)) ?: return null
+        return (runCatching { Json.parseToJsonElement(json) }.getOrNull() as? JsonObject)?.toMoneyData(session)
+    }
+
     override suspend fun load(): AppResult<MoneyData> {
         val session = sessionStore.session.first() ?: return notSignedIn
         return when (val state = readState(session)) {
-            is AppResult.Success -> AppResult.Success(state.data.toMoneyData(session))
+            is AppResult.Success -> {
+                remember(session, state.data)
+                AppResult.Success(state.data.toMoneyData(session))
+            }
             is AppResult.Failure -> state
         }
     }
@@ -101,9 +116,21 @@ class MoneyRepositoryImpl @Inject constructor(
         val patch = buildJsonObject { put(key, value) }
         val body = MoneySaveBody(session.coupleId, patch, session.role, session.myName)
         return when (val result = safeApiCall { api.saveState(body) }) {
-            is AppResult.Success -> AppResult.Success(JsonObject(state + (key to value)).toMoneyData(session))
+            is AppResult.Success -> {
+                val next = JsonObject(state + (key to value))
+                remember(session, next)
+                AppResult.Success(next.toMoneyData(session))
+            }
             is AppResult.Failure -> result
         }
+    }
+
+    private fun cacheKey(session: Session) = "money:${session.coupleId}"
+
+    /** Saves only this page's two keys (never the whole state, which can hold large photos). */
+    private suspend fun remember(session: Session, state: JsonObject) {
+        val slice = JsonObject(state.filterKeys { it == "transactions" || it == "finGoals" })
+        cache.write(cacheKey(session), slice.toString())
     }
 
     private suspend fun readState(session: Session): AppResult<JsonObject> =
@@ -126,12 +153,12 @@ class MoneyRepositoryImpl @Inject constructor(
         )
     }
 
-    /** Skips items without a readable amount and date, so one bad item never hides the rest. */
+    /** Skips items without a readable amount, so one bad item never hides the rest. */
     private fun JsonArray.toTransactions(): List<Transaction> = mapNotNull { item ->
         val obj = item as? JsonObject ?: return@mapNotNull null
         val amount = obj["amt"].text().toDoubleOrNull()?.takeIf { it.isFinite() } ?: return@mapNotNull null
+        // An unreadable date no longer hides the item: it is listed as "No date" and left out of month maths.
         val date = runCatching { LocalDate.parse(obj["date"].text().take(ISO_DATE_LENGTH)) }.getOrNull()
-            ?: return@mapNotNull null
         val description = obj["desc"].text().ifBlank { obj["description"].text() }
         Transaction(
             id = obj["id"].text().ifBlank { "$description|$date|$amount" },

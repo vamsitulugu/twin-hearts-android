@@ -2,6 +2,7 @@ package com.twinhearts.app.feature.money.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -148,8 +151,10 @@ private val DONUT_STROKE = 18.dp
 fun WeeklyTrend(weeks: List<WeekTotal>, modifier: Modifier = Modifier) {
     val colors = TwinTheme.colors
     val max = weeks.maxOf { it.amount }.coerceAtLeast(1.0)
+    // Tap a bar to read its exact amount; tap it again to hide it.
+    var picked by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf<String?>(null) }
     Row(
-        modifier = modifier.fillMaxWidth().height(TREND_HEIGHT + 24.dp),
+        modifier = modifier.fillMaxWidth().height(TREND_HEIGHT + 40.dp),
         horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
         verticalAlignment = Alignment.Bottom,
     ) {
@@ -157,10 +162,23 @@ fun WeeklyTrend(weeks: List<WeekTotal>, modifier: Modifier = Modifier) {
             val barHeight = (TREND_HEIGHT * (week.amount / max).toFloat()).coerceAtLeast(MIN_BAR)
             val description = stringResource(R.string.money_trend_week_cd, week.label, formatRupees(week.amount))
             Column(
-                modifier = Modifier.weight(1f).semantics { contentDescription = description },
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { picked = if (picked == week.label) null else week.label }
+                    .semantics { contentDescription = description },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Bottom,
             ) {
+                if (picked == week.label) {
+                    Text(
+                        text = formatRupees(week.amount),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.ink,
+                        maxLines = 1,
+                        softWrap = false,
+                        textAlign = TextAlign.Center,
+                    )
+                }
                 Box(
                     Modifier
                         .fillMaxWidth(BAR_WIDTH)

@@ -33,6 +33,12 @@ data class CalendarUiState(
     val selected: LocalDate? = LocalDate.now(),
     val saving: Boolean = false,
     val message: CalendarMessage? = null,
+    /** True while the list on screen is the saved copy because there is no connection. */
+    val offline: Boolean = false,
+    /** Ids picked with a long press; non-empty means the page is in "select to delete" mode. */
+    val selection: Set<String> = emptySet(),
+    /** Goes up by one each time an event is added; the screen plays the petals on every change. */
+    val petals: Int = 0,
 )
 
 /** Loads the couple's events, keeps the month/day being looked at, and adds or deletes events. */
@@ -45,15 +51,50 @@ class CalendarViewModel @Inject constructor(
     val state: StateFlow<CalendarUiState> = _state.asStateFlow()
 
     init {
-        load()
+        viewModelScope.launch {
+            // Paint the saved copy straight away, then fetch the fresh list.
+            repository.cachedEvents()?.let { saved ->
+                _state.update { if (it.events.isEmpty()) it.copy(loading = false, events = saved) else it }
+            }
+            fetch(silent = false)
+        }
     }
 
+    /** The refresh button and the Retry button. */
     fun load() {
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
-            when (val result = repository.events()) {
-                is AppResult.Success -> _state.update { it.copy(loading = false, events = result.data) }
-                is AppResult.Failure -> _state.update { it.copy(loading = false, error = result.error) }
+            fetch(silent = false)
+        }
+    }
+
+    /** Called every ~30 s while the page is open: picks up the partner's changes without a spinner. */
+    fun refresh() {
+        if (_state.value.saving) return
+        viewModelScope.launch { fetch(silent = true) }
+    }
+
+    private suspend fun fetch(silent: Boolean) {
+        val result = repository.events()
+        // A save that started while this was loading has newer data; do not overwrite it.
+        if (_state.value.saving && result is AppResult.Success) return
+        when (result) {
+            is AppResult.Success -> _state.update {
+                it.copy(
+                    loading = false,
+                    error = null,
+                    offline = false,
+                    events = result.data,
+                    selection = it.selection.intersect(result.data.map { e -> e.id }.toSet()),
+                )
+            }
+            is AppResult.Failure -> _state.update {
+                when {
+                    it.events.isNotEmpty() && result.error == AppError.Network -> it.copy(loading = false, offline = true)
+                    silent -> it
+                    it.events.isNotEmpty() -> it.copy(loading = false, message = CalendarMessage.Failed(result.error))
+                    else -> it.copy(loading = false, error = result.error)
+                }
             }
         }
     }
@@ -83,6 +124,7 @@ class CalendarViewModel @Inject constructor(
                         events = result.data,
                         month = YearMonth.from(event.date),
                         selected = event.date,
+                        petals = it.petals + 1,
                         message = CalendarMessage.Added,
                     )
                 }
@@ -100,6 +142,29 @@ class CalendarViewModel @Inject constructor(
             when (val result = repository.deleteEvent(id)) {
                 is AppResult.Success -> _state.update {
                     it.copy(saving = false, events = result.data, message = CalendarMessage.Deleted)
+                }
+                is AppResult.Failure -> _state.update {
+                    it.copy(saving = false, message = CalendarMessage.Failed(result.error))
+                }
+            }
+        }
+    }
+
+    /** Long press on a row starts selecting; while selecting, a tap adds or removes the row. */
+    fun toggleSelect(id: String) = _state.update {
+        it.copy(selection = if (id in it.selection) it.selection - id else it.selection + id)
+    }
+
+    fun clearSelection() = _state.update { it.copy(selection = emptySet()) }
+
+    fun deleteSelected() {
+        val ids = _state.value.selection
+        if (ids.isEmpty() || _state.value.saving) return
+        viewModelScope.launch {
+            _state.update { it.copy(saving = true) }
+            when (val result = repository.deleteEvents(ids)) {
+                is AppResult.Success -> _state.update {
+                    it.copy(saving = false, events = result.data, selection = emptySet(), message = CalendarMessage.Deleted)
                 }
                 is AppResult.Failure -> _state.update {
                     it.copy(saving = false, message = CalendarMessage.Failed(result.error))

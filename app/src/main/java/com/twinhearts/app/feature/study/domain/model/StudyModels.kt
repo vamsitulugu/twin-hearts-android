@@ -46,7 +46,10 @@ data class Subject(
 /** One timetable slot. [start] / [end] are "HH:mm" or empty (the web stores them the same way). */
 data class StudySlot(
     val id: String,
-    val day: StudyDay,
+    /** Null when the saved day is not one of the seven names; the slot is then shown under [dayLabel]. */
+    val day: StudyDay?,
+    /** The day exactly as saved (e.g. "Mon" or "Weekend"), shown when [day] is unknown. */
+    val dayLabel: String,
     val start: String,
     val end: String,
     val subject: String,

@@ -4,6 +4,8 @@ import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.core.data.Session
 import com.twinhearts.app.core.data.SessionStore
+import com.twinhearts.app.core.data.StateCache
+import com.twinhearts.app.core.reminders.RemindersSync
 import com.twinhearts.app.core.network.safeApiCall
 import com.twinhearts.app.feature.study.data.remote.StudyApi
 import com.twinhearts.app.feature.study.data.remote.StudySaveBody
@@ -16,6 +18,7 @@ import com.twinhearts.app.feature.study.domain.model.StudyPerson
 import com.twinhearts.app.feature.study.domain.model.StudySlot
 import com.twinhearts.app.feature.study.domain.model.Subject
 import kotlinx.coroutines.flow.first
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -28,6 +31,9 @@ import java.time.LocalDate
 import javax.inject.Inject
 
 interface StudyRepository {
+    /** The last copy saved on this phone, or null. Used to paint at once and to work offline. */
+    suspend fun cachedData(): StudyData?
+
     suspend fun load(): AppResult<StudyData>
     suspend fun addSubject(subject: NewSubject): AppResult<StudyData>
 
@@ -63,14 +69,26 @@ private fun keysFor(role: String) =
 class StudyRepositoryImpl @Inject constructor(
     private val api: StudyApi,
     private val sessionStore: SessionStore,
+    private val cache: StateCache,
+    private val reminders: RemindersSync,
 ) : StudyRepository {
 
     private val notSignedIn = AppResult.Failure(AppError.Unauthorized())
 
+    override suspend fun cachedData(): StudyData? {
+        val session = sessionStore.session.first() ?: return null
+        val json = cache.read(cacheKey(session)) ?: return null
+        return (runCatching { Json.parseToJsonElement(json) }.getOrNull() as? JsonObject)?.toStudyData(session)
+    }
+
     override suspend fun load(): AppResult<StudyData> {
         val session = sessionStore.session.first() ?: return notSignedIn
         return when (val state = readState(session)) {
-            is AppResult.Success -> AppResult.Success(state.data.toStudyData(session))
+            is AppResult.Success -> {
+                remember(session, state.data)
+                reminders.sync(state.data["reminders"], session.role)
+                AppResult.Success(state.data.toStudyData(session))
+            }
             is AppResult.Failure -> state
         }
     }
@@ -167,14 +185,29 @@ class StudyRepositoryImpl @Inject constructor(
             put(key, next)
             if (reminder != null) {
                 val reminders = (state["reminders"] as? JsonArray)?.toList().orEmpty()
-                put("reminders", JsonArray(reminders + reminder))
+                // "by" tells the phones whose "For me only" reminder this is; the web ignores it.
+                val mine = JsonObject(reminder + ("by" to JsonPrimitive(session.role)))
+                put("reminders", JsonArray(reminders + mine))
             }
         }
         val body = StudySaveBody(session.coupleId, patch, session.role, session.myName)
         return when (val result = safeApiCall { api.saveState(body) }) {
-            is AppResult.Success -> AppResult.Success(JsonObject(state + patch).toStudyData(session))
+            is AppResult.Success -> {
+                val next = JsonObject(state + patch)
+                remember(session, next)
+                reminders.sync(next["reminders"], session.role)
+                AppResult.Success(next.toStudyData(session))
+            }
             is AppResult.Failure -> result
         }
+    }
+
+    private fun cacheKey(session: Session) = "study:${session.coupleId}"
+
+    /** Saves only this page's four lists (never the whole state, which can hold large photos). */
+    private suspend fun remember(session: Session, state: JsonObject) {
+        val keep = setOf("mySubjects", "myTimetable", "ptSubjects", "ptTimetable")
+        cache.write(cacheKey(session), JsonObject(state.filterKeys { it in keep }).toString())
     }
 
     private suspend fun readState(session: Session): AppResult<JsonObject> =
@@ -209,15 +242,16 @@ class StudyRepositoryImpl @Inject constructor(
             )
         }
 
-    /** The web only shows slots whose day is one of the seven names, so others are skipped. */
+    /** A slot with an unknown day is kept (shown under its saved label) instead of silently disappearing. */
     private fun JsonObject.slotsAt(key: String): List<StudySlot> =
         (this[key] as? JsonArray).orEmpty().mapNotNull { item ->
             val obj = item as? JsonObject ?: return@mapNotNull null
-            val day = StudyDay.fromKey(obj["day"].text()) ?: return@mapNotNull null
+            val dayText = obj["day"].text()
             val subject = obj["subject"].text()
             StudySlot(
-                id = obj["id"].text().ifBlank { "$day|${obj["start"].text()}|$subject" },
-                day = day,
+                id = obj["id"].text().ifBlank { "$dayText|${obj["start"].text()}|$subject" },
+                day = StudyDay.fromKey(dayText),
+                dayLabel = dayText,
                 start = obj["start"].text(),
                 end = obj["end"].text(),
                 subject = subject,

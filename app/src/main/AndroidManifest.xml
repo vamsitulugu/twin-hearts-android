@@ -10,6 +10,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Reminders: put phone alarms back after a restart. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Music: keeps a song playing with the screen off (lock-screen player). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
@@ -43,6 +45,15 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/chat_file_paths" />
         </provider>
+
+        <!-- Reminders (Calendar and Study alarms): ring at the set time, and survive a restart. -->
+        <receiver android:name=".core.reminders.ReminderReceiver" android:exported="false" />
+        <receiver android:name=".core.reminders.ReminderBootReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Live Map: keeps sharing the location while the app is closed. Shows a notification with a Stop button. -->
         <service

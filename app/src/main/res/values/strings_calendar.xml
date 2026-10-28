@@ -44,4 +44,11 @@
     <string name="calendar_delete_message">\"%1$s\" will be permanently deleted.</string>
     <string name="calendar_delete_confirm">Delete</string>
     <string name="calendar_delete_cd">Delete %1$s</string>
+
+    <string name="calendar_selected_count">%1$d selected</string>
+    <string name="calendar_delete_selected_cd">Delete selected events</string>
+    <plurals name="calendar_delete_many">
+        <item quantity="one">%1$d event will be permanently deleted.</item>
+        <item quantity="other">%1$d events will be permanently deleted.</item>
+    </plurals>
 </resources>
