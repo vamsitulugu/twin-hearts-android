@@ -81,6 +81,7 @@ import com.twinhearts.app.feature.movie.domain.formatClock
 import com.twinhearts.app.feature.movie.domain.formatRuntime
 import com.twinhearts.app.feature.movie.domain.model.ChatMessage
 import com.twinhearts.app.feature.movie.domain.model.MovieReaction
+import com.twinhearts.app.feature.movie.ui.MovieCallHooks
 import com.twinhearts.app.feature.movie.domain.model.WatchRoom
 import kotlinx.coroutines.delay
 import kotlin.math.abs
@@ -106,6 +107,7 @@ fun PlayerScreen(
     onKeepScreenOn: (Boolean) -> Unit,
     isCloud: Boolean,
     cloudSizeText: String?,
+    callHooks: MovieCallHooks?,
 ) {
     val context = LocalContext.current
     val colors = TwinTheme.colors
@@ -285,6 +287,7 @@ fun PlayerScreen(
             },
         )
         ReactionsLayer(reactions)
+        callHooks?.bubble?.invoke(this)
         floating?.let {
             Text(
                 it.text, color = colors.ink, style = MaterialTheme.typography.bodyLarge,
@@ -350,6 +353,12 @@ fun PlayerScreen(
                         modifier = Modifier.weight(1f).padding(horizontal = TwinTheme.spacing.s),
                     )
                     Text(formatClock(durationSec), color = colors.inkMuted, style = MaterialTheme.typography.labelMedium)
+                }
+                if (callHooks != null) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
+                        SmallAction(R.string.movie_voice, Modifier.weight(1f)) { callHooks.start(false) }
+                        SmallAction(R.string.movie_video, Modifier.weight(1f)) { callHooks.start(true) }
+                    }
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
                     SmallAction(R.string.movie_sync, Modifier.weight(1f)) {

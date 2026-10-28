@@ -51,3 +51,8 @@ After that, remove `Routes.Us` from `pendingGraphs` (it currently shows as `pend
 
 ## Tracker update (README.md §12)
 Mark **3.1 Us** as 🟨 in progress in the Phase 3 tracker, and add a handoff row.
+
+## v3 additions
+- `feature/calls/ui/CallBubble.kt` (new file in the Calls feature): `rememberCallStarter()` and `CallBubble()` used by `MovieGraph.kt` only.
+- `strings_movie.xml`: more `movie_*` strings and a `movie_genre_count` plural.
+- No Gradle, manifest or backend change beyond v2.

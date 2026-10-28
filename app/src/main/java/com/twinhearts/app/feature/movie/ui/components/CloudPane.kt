@@ -49,7 +49,6 @@ import com.twinhearts.app.core.design.GlassButton
 import com.twinhearts.app.core.design.GlassButtonStyle
 import com.twinhearts.app.core.design.GlassCard
 import com.twinhearts.app.core.design.LoadingSkeleton
-import com.twinhearts.app.core.design.SectionHeader
 import com.twinhearts.app.core.design.SerifFamily
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.feature.movie.data.upload.UploadProblem
@@ -93,7 +92,10 @@ fun CloudPane(
         }
         if (!running) UploadButton(onUpload = { onDismissUpload(); onUpload(it) })
 
-        SectionHeader(stringResource(R.string.movie_cloud_your_movies))
+        Text(
+            stringResource(R.string.movie_cloud_your_movies).uppercase(), color = colors.inkMuted,
+            style = MaterialTheme.typography.labelSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+        )
         when (cloud) {
             UiState.Loading -> LoadingSkeleton()
             UiState.Empty -> EmptyState(

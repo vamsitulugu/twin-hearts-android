@@ -57,7 +57,6 @@ No websocket exists. The app **polls the room every 1.5 s** and chat every 2 s, 
 | Server messages | Texts like "A movie session is already in progress." are now shown as sent. |
 
 ## Not ported (with reason)
-- **In-movie voice/video calls**: need the Calls feature (Phase 2.3), not built yet. R-82/R-83 forbid reaching into it. Add the call buttons in the Calls session.
 - **Poster upload, personal review, favourite scene in Add Movie, Edit Movie**: the server list has no field for them (`PATCH` only changes status and rating).
 - **Upload while the app is closed**: runs while the app is alive; a background service is a later change. Screen stays on during upload.
 - **Reactions web ↔ app**: the web page uses Supabase Realtime; app-to-app only.
@@ -65,3 +64,7 @@ No websocket exists. The app **polls the room every 1.5 s** and chat every 2 s, 
 ## Things to know
 - `rating` in `movie_favorites` holds the TMDB score when a movie is added; a star tap overwrites it with 1–5 (same column the web uses).
 - Not compiled in the Claude sandbox. Build in Android Studio.
+
+## Added in v3
+- **UI matched to the web page:** tabs with icons, Home hero card (eyebrow, chips, Watch Together / View Details, ⋮), "See all" on rows, colourful genre cards (poster or the web gradient, emoji, "N Movies"), Library search + Add + Search Online buttons, five stat tiles (Total, Watched, Watchlist, Favorites, ⭐Avg), Direct Device / Cloud Storage buttons with icons, "Pick a movie from your phone" card, "YOUR MOVIES" label.
+- **In-movie calls:** Voice and Video buttons in the player. The partner's video (or a voice pill with timer, mute, hang up) shows as a draggable window over the movie, using the app-wide call engine. The graph file (`MovieGraph.kt`) plugs it in through `MovieCallHooks`, so the movie code does not import Calls.

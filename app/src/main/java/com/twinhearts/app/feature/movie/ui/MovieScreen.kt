@@ -56,6 +56,7 @@ import kotlinx.coroutines.flow.merge
 @Composable
 fun MovieScreen(
     onBack: () -> Unit,
+    callHooks: MovieCallHooks? = null,
     watchVm: WatchViewModel = hiltViewModel(),
     browseVm: BrowseViewModel = hiltViewModel(),
 ) {
@@ -95,6 +96,7 @@ fun MovieScreen(
                     onReaction = watchVm::sendReaction,
                     keepScreenOn = state.keepScreenOn,
                     onKeepScreenOn = watchVm::setKeepScreenOn,
+                    callHooks = callHooks,
                     isCloud = room.sharedMovieId != null,
                     cloudSizeText = (state.cloud as? UiState.Content)?.data?.movies
                         ?.firstOrNull { it.id == room.sharedMovieId }?.sizeBytes?.let(::formatBytes),

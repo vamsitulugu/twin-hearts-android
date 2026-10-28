@@ -64,3 +64,21 @@ private fun MovieItem.rawGenres(): String = (genre ?: "").replace("Science Ficti
 fun List<MovieItem>.countByStatus(status: WatchStatus): Int = count { it.status == status }
 
 private const val RECENT_COUNT = 10
+
+/** Emoji and two colours of a genre card, copied from the web page (movie-collection.js GENRES). */
+data class GenreStyle(val emoji: String, val startArgb: Long, val endArgb: Long)
+
+fun genreStyle(name: String?): GenreStyle = when (name) {
+    "Romance" -> GenreStyle("💕", 0xFFC21A8B, 0xFF7C0A57)
+    "Action" -> GenreStyle("💥", 0xFFFF8A3D, 0xFF6B1D0B)
+    "Comedy" -> GenreStyle("😂", 0xFFFFD14A, 0xFF7A4A06)
+    "Drama" -> GenreStyle("🎭", 0xFFC21A8B, 0xFF7C0A57)
+    "Thriller" -> GenreStyle("😰", 0xFF826A78, 0xFF331B28)
+    "Horror" -> GenreStyle("👻", 0xFF9AA0A6, 0xFF2A0A0A)
+    "Sci-Fi" -> GenreStyle("🚀", 0xFFC21A8B, 0xFF5C0A37)
+    "Fantasy" -> GenreStyle("🧙", 0xFF5EE0B0, 0xFF0E4A3A)
+    "Animation" -> GenreStyle("🎨", 0xFFC21A8B, 0xFF511336)
+    "Documentary" -> GenreStyle("📽️", 0xFFC9B27C, 0xFF4A3A16)
+    "Bollywood" -> GenreStyle("🎪", 0xFFC21A8B, 0xFF7C0A57)
+    else -> GenreStyle("🎬", 0xFF7C0A57, 0xFF3A0425)
+}

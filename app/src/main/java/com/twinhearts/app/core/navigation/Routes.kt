@@ -33,6 +33,9 @@ object Routes {
     // Phase 3: Us tab container (Love Counter · Collection · Dream Goals)
     @Serializable data object Us
 
+    // Collection page (voice messages, library, photo collection), opened from Home
+    @Serializable data object Collection
+
     // Calendar page, opened from Home ("Calendar ›" and the Plans list)
     @Serializable data object Calendar
 

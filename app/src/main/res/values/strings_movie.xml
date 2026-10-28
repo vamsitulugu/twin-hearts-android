@@ -42,9 +42,9 @@
     <string name="movie_status_watching">🍿 Watching</string>
     <string name="movie_status_watched">✅ Watched</string>
 
-    <string name="movie_mode_direct">Direct Device Video</string>
+    <string name="movie_mode_direct">Direct Device</string>
     <string name="movie_mode_cloud">Cloud Storage</string>
-    <string name="movie_direct_hint">Both of you pick the same movie file from your own phone.</string>
+    <string name="movie_direct_hint">Nothing gets uploaded — your movie stays completely on your device.</string>
     <string name="movie_choose">Choose Movie From Device</string>
     <string name="movie_cloud_usage">Storage Used</string>
     <string name="movie_cloud_empty_title">No shared movies yet</string>
@@ -194,4 +194,25 @@
     <string name="movie_owner_partner">💜 Partner\'s list</string>
     <string name="movie_owner_together">💕 Watched together</string>
     <string name="movie_add_save">Save Movie</string>
+
+    <!-- Match the web page look -->
+    <string name="movie_see_all">See all</string>
+    <string name="movie_stat_favorites">Favorites</string>
+    <string name="movie_stat_avg">Avg</string>
+    <string name="movie_add_short">Add</string>
+    <string name="movie_search_online_btn">Search Online</string>
+    <string name="movie_watch_together">Watch Together</string>
+    <string name="movie_view_details">View Details</string>
+    <string name="movie_direct_title">Pick a movie from your phone</string>
+    <string name="movie_hero_loved">♥ You loved this</string>
+    <string name="movie_hero_watching">🍿 Currently Watching</string>
+    <string name="movie_hero_watched">✅ Watched Together</string>
+    <string name="movie_hero_default">🎬 Watch Together</string>
+    <string name="movie_hero_default_genre">Movie</string>
+    <string name="movie_voice">Voice</string>
+    <string name="movie_video">Video</string>
+    <plurals name="movie_genre_count">
+        <item quantity="one">%d Movie</item>
+        <item quantity="other">%d Movies</item>
+    </plurals>
 </resources>

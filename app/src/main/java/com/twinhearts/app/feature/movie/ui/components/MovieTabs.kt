@@ -5,6 +5,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,6 +28,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Movie
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -57,11 +60,8 @@ import com.twinhearts.app.core.common.asText
 import com.twinhearts.app.core.design.EmptyState
 import com.twinhearts.app.core.design.ErrorState
 import com.twinhearts.app.core.design.GlassButton
-import com.twinhearts.app.core.design.GlassButtonStyle
-import com.twinhearts.app.core.design.GlassCard
 import com.twinhearts.app.core.design.LoadingSkeleton
 import com.twinhearts.app.core.design.SectionHeader
-import com.twinhearts.app.core.design.SegmentedTabs
 import com.twinhearts.app.core.design.SerifFamily
 import com.twinhearts.app.core.design.StatTile
 import com.twinhearts.app.core.design.TwinFilterChip
@@ -109,10 +109,11 @@ fun MovieTabsContent(
     var selected by remember { mutableStateOf<MovieItem?>(null) }
     var adding by rememberSaveable { mutableStateOf(false) }
     var genre by rememberSaveable { mutableStateOf<String?>(null) }
+    var libraryFilter by rememberSaveable { mutableStateOf(LibraryFilter.All) }
     val edge = TwinTheme.spacing.screenEdge
 
     Column(Modifier.fillMaxSize()) {
-        SegmentedTabs(
+        MovieTabBar(
             options = listOf(
                 stringResource(R.string.movie_tab_home), stringResource(R.string.movie_tab_library),
                 stringResource(R.string.movie_tab_genres), stringResource(R.string.movie_tab_watch),
@@ -129,9 +130,10 @@ fun MovieTabsContent(
             else -> {
                 val list = if (m is UiState.Content) m.data else emptyList()
                 when (tab) {
-                    0 -> HomeTab(list, favorites, browseVm::toggleFavorite) { selected = it }
+                    0 -> HomeTab(list, favorites, browseVm::toggleFavorite, onWatch = { onTab(3) }, onSeeAll = { libraryFilter = it; onTab(1) }) { selected = it }
                     1 -> LibraryTab(
                         list = list, online = online, genre = genre, onClearGenre = { genre = null },
+                        filter = libraryFilter, onFilter = { libraryFilter = it },
                         onOpen = { selected = it }, onSearchOnline = browseVm::searchOnline,
                         onClearOnline = browseVm::clearSearch,
                         favorites = favorites, role = role, onToggleFavorite = browseVm::toggleFavorite,
@@ -167,7 +169,14 @@ fun MovieTabsContent(
 // ── Home ──
 
 @Composable
-private fun HomeTab(list: List<MovieItem>, favorites: Set<String>, onToggleFavorite: (MovieItem) -> Unit, onOpen: (MovieItem) -> Unit) {
+private fun HomeTab(
+    list: List<MovieItem>,
+    favorites: Set<String>,
+    onToggleFavorite: (MovieItem) -> Unit,
+    onWatch: () -> Unit,
+    onSeeAll: (LibraryFilter) -> Unit,
+    onOpen: (MovieItem) -> Unit,
+) {
     if (list.isEmpty()) {
         EmptyState(
             title = stringResource(R.string.movie_home_empty_title),
@@ -177,16 +186,19 @@ private fun HomeTab(list: List<MovieItem>, favorites: Set<String>, onToggleFavor
         return
     }
     val rows = listOf(
-        R.string.movie_home_favorites to list.filter { it.id in favorites },
-        R.string.movie_home_watched_together to list.filter { it.status == WatchStatus.Watched },
-        R.string.movie_home_watching to list.filter { it.status == WatchStatus.Watching },
-        R.string.movie_home_watchlist to list.filter { it.status == WatchStatus.Watchlist },
+        Triple(R.string.movie_home_favorites, list.filter { it.id in favorites }, LibraryFilter.Favorites),
+        Triple(R.string.movie_home_watched_together, list.filter { it.status == WatchStatus.Watched }, LibraryFilter.Watched),
+        Triple(R.string.movie_home_watching, list.filter { it.status == WatchStatus.Watching }, LibraryFilter.Watching),
+        Triple(R.string.movie_home_watchlist, list.filter { it.status == WatchStatus.Watchlist }, LibraryFilter.Watchlist),
     ).filter { it.second.isNotEmpty() }
     LazyColumn(verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.l), modifier = Modifier.fillMaxSize()) {
-        item { Banner(list.first(), onOpen) }
-        items(rows, key = { it.first }) { (title, movies) ->
+        item { list.first().let { top -> HeroBanner(top, top.id in favorites, onWatch, { onOpen(top) }) } }
+        items(rows, key = { it.first }) { (title, movies, seeAll) ->
             Column {
-                SectionHeader(stringResource(title), Modifier.padding(horizontal = TwinTheme.spacing.screenEdge))
+                SectionHeader(
+                    stringResource(title), Modifier.padding(horizontal = TwinTheme.spacing.screenEdge),
+                    actionLabel = stringResource(R.string.movie_see_all), onAction = { onSeeAll(seeAll) },
+                )
                 LazyRow(
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = TwinTheme.spacing.screenEdge),
                     horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
@@ -198,23 +210,6 @@ private fun HomeTab(list: List<MovieItem>, favorites: Set<String>, onToggleFavor
     }
 }
 
-@Composable
-private fun Banner(movie: MovieItem, onOpen: (MovieItem) -> Unit) {
-    val shape = TwinTheme.shapes.card
-    Box(
-        Modifier.padding(horizontal = TwinTheme.spacing.screenEdge).fillMaxWidth().aspectRatio(16f / 9f)
-            .clip(shape).background(TwinTheme.colors.card).clickable { onOpen(movie) },
-    ) {
-        AsyncImage(movie.backdropUrl ?: movie.posterUrl, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-        Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(androidx.compose.ui.graphics.Color.Transparent, TwinTheme.colors.scrim))))
-        Text(
-            movie.title, Modifier.align(Alignment.BottomStart).padding(TwinTheme.spacing.l),
-            style = MaterialTheme.typography.titleLarge, fontFamily = SerifFamily, color = TwinTheme.colors.ink,
-            maxLines = 2, overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
 // ── Library ──
 
 @Composable
@@ -223,6 +218,8 @@ private fun LibraryTab(
     online: OnlineSearch,
     genre: String?,
     onClearGenre: () -> Unit,
+    filter: LibraryFilter,
+    onFilter: (LibraryFilter) -> Unit,
     onOpen: (MovieItem) -> Unit,
     onSearchOnline: (String) -> Unit,
     onClearOnline: () -> Unit,
@@ -232,7 +229,6 @@ private fun LibraryTab(
     onAddMovie: () -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
-    var filter by rememberSaveable { mutableStateOf(LibraryFilter.All) }
     var owner by rememberSaveable { mutableStateOf(OwnerFilter.Everyone) }
     var onlineMode by rememberSaveable { mutableStateOf(false) }
     val shown = list.applyFilter(filter, genre, if (onlineMode) "" else query, owner, role, favorites)
@@ -246,34 +242,33 @@ private fun LibraryTab(
         modifier = Modifier.fillMaxSize(),
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
-            Column(verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s), verticalAlignment = Alignment.CenterVertically) {
                 TwinTextField(
                     value = query, onValueChange = { query = it },
                     label = stringResource(if (onlineMode) R.string.movie_online_hint else R.string.movie_search_hint),
                     imeAction = androidx.compose.ui.text.input.ImeAction.Search,
                     onImeAction = { if (onlineMode) onSearchOnline(query) },
+                    modifier = Modifier.weight(1f),
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
-                    TwinFilterChip(
-                        label = stringResource(R.string.movie_search_online), selected = onlineMode,
-                        onClick = { onlineMode = !onlineMode; if (!onlineMode) onClearOnline() },
-                    )
-                    if (onlineMode) {
-                        GlassButton(stringResource(R.string.movie_search_online), { onSearchOnline(query) }, style = GlassButtonStyle.Secondary, leadingIcon = Icons.Rounded.Search)
-                    } else {
-                        TwinFilterChip(stringResource(R.string.movie_add_open), false, onAddMovie)
-                    }
-                }
+                GlassButton(stringResource(R.string.movie_add_short), onAddMovie, leadingIcon = Icons.Rounded.Add)
+                GlassButton(
+                    stringResource(R.string.movie_search_online_btn),
+                    { if (onlineMode) onSearchOnline(query) else onlineMode = true },
+                    leadingIcon = Icons.Rounded.Public,
+                )
             }
         }
         if (onlineMode) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                TwinFilterChip(stringResource(R.string.movie_tab_library) + " ✕", true, { onlineMode = false; onClearOnline() })
+            }
             onlineItems(online, onOpen)
         } else {
-            item(span = { GridItemSpan(maxLineSpan) }) { Stats(list) }
+            item(span = { GridItemSpan(maxLineSpan) }) { Stats(list, favorites) }
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
                     LibraryFilter.entries.forEach { f ->
-                        TwinFilterChip(stringResource(f.label()), filter == f, { filter = f })
+                        TwinFilterChip(stringResource(f.label()), filter == f, { onFilter(f) })
                     }
                 }
             }
@@ -330,11 +325,15 @@ private fun LibraryFilter.label(): Int = when (this) {
 }
 
 @Composable
-private fun Stats(list: List<MovieItem>) {
-    Row(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
+private fun Stats(list: List<MovieItem>, favorites: Set<String>) {
+    // Same as the web page: the average counts every movie (unrated ones as 0); "—" when the list is empty.
+    val avg = if (list.isEmpty()) "—" else "%.1f".format(java.util.Locale.US, list.sumOf { it.rating ?: 0.0 } / list.size)
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         StatTile(list.size.toString(), stringResource(R.string.movie_stat_total), Modifier.weight(1f))
         StatTile(list.countByStatus(WatchStatus.Watched).toString(), stringResource(R.string.movie_stat_watched), Modifier.weight(1f))
         StatTile(list.countByStatus(WatchStatus.Watchlist).toString(), stringResource(R.string.movie_stat_watchlist), Modifier.weight(1f))
+        StatTile(list.count { it.id in favorites }.toString(), stringResource(R.string.movie_stat_favorites), Modifier.weight(1f))
+        StatTile("⭐$avg", stringResource(R.string.movie_stat_avg), Modifier.weight(1f))
     }
 }
 
@@ -351,11 +350,8 @@ private fun GenresTab(list: List<MovieItem>, onPick: (String) -> Unit) {
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) { SectionHeader(stringResource(R.string.movie_genres_title)) }
         items(movieGenres, key = { it }) { name ->
-            val count = list.applyFilter(LibraryFilter.All, name, "").size
-            GlassCard(onClick = { onPick(name) }, modifier = Modifier.fillMaxWidth()) {
-                Text(name, color = TwinTheme.colors.ink, style = MaterialTheme.typography.titleMedium, fontFamily = SerifFamily)
-                Text(count.toString(), color = TwinTheme.colors.inkMuted, style = MaterialTheme.typography.bodySmall)
-            }
+            val inGenre = list.applyFilter(LibraryFilter.All, name, "")
+            GenreCard(name, inGenre.size, inGenre.firstOrNull { it.posterUrl != null }?.posterUrl, { onPick(name) }, Modifier.fillMaxWidth())
         }
     }
 }
@@ -380,10 +376,7 @@ private fun WatchTab(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(TwinTheme.spacing.screenEdge),
         verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.l),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
-            TwinFilterChip(stringResource(R.string.movie_mode_direct), !cloudMode, { cloudMode = false })
-            TwinFilterChip(stringResource(R.string.movie_mode_cloud), cloudMode, { cloudMode = true })
-        }
+        ModeToggle(cloudMode) { cloudMode = it }
         if (cloudMode) {
             CloudPane(cloud, upload, onLoadCloud, onPickShared, onUpload, onCancelUpload, onDismissUpload, onDeleteShared)
         } else {
@@ -404,12 +397,21 @@ private fun DirectPane(onPick: (String, String, Int) -> Unit) {
             else onPick(video.uri, video.title, video.durationSec)
         }
     }
-    GlassCard(Modifier.fillMaxWidth()) {
-        Text(stringResource(R.string.movie_direct_hint), color = TwinTheme.colors.inkMuted, style = MaterialTheme.typography.bodyMedium)
-        GlassButton(
-            stringResource(R.string.movie_choose), { launcher.launch(arrayOf("video/*")) },
-            Modifier.fillMaxWidth().padding(top = TwinTheme.spacing.l),
+    Column(Modifier.fillMaxWidth().padding(top = TwinTheme.spacing.xl), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            Modifier.size(64.dp).clip(TwinTheme.shapes.pill).background(TwinTheme.colors.glass)
+                .border(1.dp, TwinTheme.colors.lineSoft, TwinTheme.shapes.pill),
+            contentAlignment = Alignment.Center,
+        ) { Icon(Icons.Rounded.Movie, null, tint = TwinTheme.colors.accent) }
+        Text(
+            stringResource(R.string.movie_direct_title), color = TwinTheme.colors.ink, style = MaterialTheme.typography.titleLarge,
+            fontFamily = SerifFamily, modifier = Modifier.padding(top = TwinTheme.spacing.m),
         )
+        Text(
+            stringResource(R.string.movie_direct_hint), color = TwinTheme.colors.inkMuted, style = MaterialTheme.typography.bodyMedium,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(vertical = TwinTheme.spacing.s),
+        )
+        GlassButton(stringResource(R.string.movie_choose), { launcher.launch(arrayOf("video/*")) }, Modifier.padding(top = TwinTheme.spacing.s))
     }
 }
 
