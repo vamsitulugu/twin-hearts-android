@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="money_title">Money</string>
+    <string name="money_ok">OK</string>
+    <string name="money_me">My</string>
+    <string name="money_partner">Partner\'s</string>
+
+    <string name="money_net_title">This Month\'s Net</string>
+    <string name="money_in_out">%1$s in · %2$s out</string>
+    <string name="money_saved">Saved</string>
+    <string name="money_ring_cd">%1$d percent of income saved this month</string>
+    <string name="money_income">Income</string>
+    <string name="money_expense">Expense</string>
+    <string name="money_savings">Savings</string>
+    <string name="money_total">Total</string>
+
+    <string name="money_insight_start">Start logging transactions to see spending insights here.</string>
+    <string name="money_insight_so_far">You\'ve spent %1$s so far this month.</string>
+    <string name="money_insight_up">Spending is up %1$d%% vs last month. Keep an eye on it.</string>
+    <string name="money_insight_down">Nice — spending is down %1$d%% vs last month.</string>
+    <string name="money_insight_steady">Spending is steady, close to last month\'s %1$s.</string>
+
+    <string name="money_by_category">Spending by Category</string>
+    <string name="money_no_expenses">No expenses logged this month yet</string>
+    <string name="money_trend">8-Week Spending Trend</string>
+    <string name="money_trend_week_cd">%1$s: %2$s</string>
+
+    <string name="money_transactions">Transactions</string>
+    <string name="money_add">Add</string>
+    <string name="money_empty_title">No transactions yet</string>
+    <string name="money_empty_hint">Log your shared spending here to track income, expenses, and savings together.</string>
+    <string name="money_empty_action">Add First Expense</string>
+    <string name="money_person_spending">%1$s Spending</string>
+
+    <string name="money_goal_label">Monthly Goal (₹)</string>
+    <string name="money_goal_set">Set a goal</string>
+    <string name="money_goal_left">%1$s left · %2$dd</string>
+    <string name="money_goal_save">Save goal</string>
+    <string name="money_goal_saved">Goal saved</string>
+
+    <string name="money_form_title">💰 Add Transaction</string>
+    <string name="money_type_expense">💸 Expense</string>
+    <string name="money_type_income">💰 Income</string>
+    <string name="money_form_desc">Description</string>
+    <string name="money_form_desc_hint">e.g. Dinner date</string>
+    <string name="money_form_amount">Amount (₹)</string>
+    <string name="money_form_date">Date</string>
+    <string name="money_form_category">Category</string>
+    <string name="money_form_category_hint">e.g. Food, Date, Travel</string>
+    <string name="money_form_save">Add 💰</string>
+
+    <string name="money_added">Transaction added! 💰</string>
+    <string name="money_deleted">Transaction deleted</string>
+    <string name="money_delete_title">Delete transaction?</string>
+    <string name="money_delete_message">\"%1$s\" (%2$s) will be permanently deleted.</string>
+    <string name="money_delete_confirm">Delete</string>
+    <string name="money_delete_cd">Delete %1$s</string>
+</resources>

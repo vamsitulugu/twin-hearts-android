@@ -14,6 +14,8 @@ import com.twinhearts.app.feature.collection.collectionGraph
 import com.twinhearts.app.feature.getstarted.getStartedGraph
 import com.twinhearts.app.feature.home.homeGraph
 import com.twinhearts.app.feature.livemap.liveMapGraph
+import com.twinhearts.app.feature.money.moneyGraph
+import com.twinhearts.app.feature.study.studyGraph
 import com.twinhearts.app.feature.movie.movieGraph
 import com.twinhearts.app.feature.music.musicGraph
 import com.twinhearts.app.feature.pairing.pairingGraph
@@ -37,6 +39,8 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
     usGraph(navController) // 3.1 Us (Love Counter · Collection · Dream Goals)
     liveMapGraph(navController) // 5.3 Live Map (Map · Track · Partner · Places)
     calendarGraph(navController) // Calendar (events in the shared state)
+    moneyGraph(navController) // Money (transactions + monthly goal in the shared state)
+    studyGraph(navController) // Study (subjects + timetable in the shared state)
     collectionGraph(navController) // Collection (Voice Messages · Library · Photo Collection)
 }
 

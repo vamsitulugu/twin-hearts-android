@@ -39,6 +39,12 @@ object Routes {
     // Calendar page, opened from Home ("Calendar ›" and the Plans list)
     @Serializable data object Calendar
 
+    // Money page, opened from Home (Plans list)
+    @Serializable data object Money
+
+    // Study page, opened from Home (Explore Together list)
+    @Serializable data object Study
+
     // Phase 2.3: voice / video call screen ([incoming] true = already ringing)
     @Serializable data class Call(val video: Boolean, val incoming: Boolean = false)
 

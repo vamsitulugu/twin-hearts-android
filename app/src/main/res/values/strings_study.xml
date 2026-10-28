@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="study_title">Study</string>
+    <string name="study_ok">OK</string>
+    <string name="study_me">My</string>
+    <string name="study_partner">Partner\'s</string>
+
+    <string name="study_hero_title">Weekly Scheduled Study</string>
+    <string name="study_hero_sub">%1$d/%2$d chapters done across %3$d subjects</string>
+    <string name="study_complete">Complete</string>
+    <string name="study_ring_cd">%1$d percent of chapters complete</string>
+
+    <string name="study_insight_none">Add timetable slots to start tracking your study rhythm.</string>
+    <string name="study_insight_great">Great consistency — %1$d%% of this week\'s slots completed.</string>
+    <string name="study_insight_some">You\'ve completed %1$d of %2$d study slots this week.</string>
+    <string name="study_insight_behind">Only %1$d/%2$d slots done — try to catch up this week.</string>
+
+    <string name="study_weekly_hours">Weekly Study Hours</string>
+    <string name="study_week_bar_cd">%1$s: %2$s hours</string>
+
+    <string name="study_person_study">%1$s Study</string>
+    <string name="study_person_timetable">%1$s Timetable</string>
+    <string name="study_add_subject">Subject</string>
+    <string name="study_add_subject_long">Add Subject</string>
+    <string name="study_add_slot">Slot</string>
+    <string name="study_add_slot_long">Add Slot</string>
+    <string name="study_no_subjects_title">No subjects yet</string>
+    <string name="study_no_subjects_hint">Add a subject to start tracking chapters and progress.</string>
+    <string name="study_no_slots_title">No slots yet</string>
+    <string name="study_no_slots_hint">Block out study time so you both know when the other\'s focused.</string>
+    <string name="study_chapters_count">%1$d/%2$d ch</string>
+    <string name="study_percent_complete">%1$d%% complete</string>
+    <string name="study_chapter_minus_cd">One chapter less in %1$s</string>
+    <string name="study_chapter_plus_cd">One more chapter done in %1$s</string>
+    <string name="study_slot_toggle_cd">Mark %1$s slot as done</string>
+    <string name="study_slot_done_cd">Done</string>
+
+    <string name="study_partner_joins_study">Partner joins to see their study</string>
+    <string name="study_partner_joins_timetable">Partner joins to see timetable</string>
+    <string name="study_partner_no_subjects">Partner hasn\'t added subjects yet</string>
+    <string name="study_partner_no_slots">Partner hasn\'t added slots yet</string>
+
+    <string name="study_subject_form_title">📚 Add Subject</string>
+    <string name="study_subject_name">Subject Name</string>
+    <string name="study_subject_name_hint">e.g. Mathematics</string>
+    <string name="study_subject_total">Total Chapters</string>
+    <string name="study_subject_done">Done Chapters</string>
+    <string name="study_subject_emoji">Emoji</string>
+    <string name="study_subject_save">Add Subject 📚</string>
+
+    <string name="study_slot_form_title">🗓️ Add Timetable Slot</string>
+    <string name="study_slot_day">Day</string>
+    <string name="study_slot_start">Start Time</string>
+    <string name="study_slot_end">End Time</string>
+    <string name="study_slot_time_none">Not set</string>
+    <string name="study_slot_subject">Subject</string>
+    <string name="study_slot_subject_hint">e.g. Physics</string>
+    <string name="study_slot_alarm">🔔 Set alarm?</string>
+    <string name="study_slot_alarm_needs_start">Pick a start time to get the reminder.</string>
+    <string name="study_slot_save">Add Slot 📚</string>
+    <string name="study_alarm_none">No alarm</string>
+    <string name="study_alarm_self">For me only</string>
+    <string name="study_alarm_both">For both of us</string>
+
+    <string name="study_subject_added">Subject added! 📚</string>
+    <string name="study_slot_added">Slot added! 📚</string>
+    <string name="study_deleted">Deleted</string>
+    <string name="study_delete_title">Delete?</string>
+    <string name="study_delete_subject_message">\"%1$s\" and its progress will be permanently deleted.</string>
+    <string name="study_delete_slot_message">The \"%1$s\" study slot will be permanently deleted.</string>
+    <string name="study_delete_confirm">Delete</string>
+    <string name="study_delete_cd">Delete %1$s</string>
+</resources>
