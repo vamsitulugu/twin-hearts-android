@@ -316,6 +316,7 @@ Performance pass (Baseline Profile, jank check), signing, release APK, crash rep
 | 2026-10-26 | Phase 2.1 Home v2 — Coming up, Mood card, Mood Calendar | th-p2-home-v2.zip | Not compiled in sandbox. Search/chips/grid wait for their pages. |
 | 2026-10-27 | Phase 5 — Watch Together (movies) | th-p5-movie-v1.zip | Not compiled here. Needs Media3 catalog lines + Routes.Movie (applied in zip). Cloud upload, subtitles, reactions, sleep timer, in-movie calls not ported (see docs/features/movie.md). |
 | 2026-10-27 | Phase 3 — Us (Love Counter · Collection · Dream Goals) | th-p3-us-v1.zip | Not compiled in sandbox. Adds Us tab container with 3 screens reading shared state (/api/data/state). Routes.Us + usGraph in FeatureGraphs must be applied (see SHARED_CHANGES.md). Dream goal creation form + camera upload + FCM push deferred to later phases. |
+| 2026-10-28 | Phase 5.1 — Music (library, player + lock-screen, playlists, lyrics, karaoke, recordings) | th-p5-music-v1.zip | Not compiled in sandbox. Needs Media3 session catalog line + Routes.Music + manifest service (all applied in zip, see docs/features/music-shared-changes.md). Not ported: Sing Together (calls), offline, crossfade/EQ, smart mixes (see docs/features/music.md). |
 
 ---
 

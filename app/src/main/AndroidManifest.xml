@@ -10,6 +10,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Music: keeps a song playing with the screen off (lock-screen player). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <application
         android:name=".TwinHeartsApp"
@@ -47,6 +49,16 @@
             android:name=".feature.livemap.data.share.LiveShareService"
             android:exported="false"
             android:foregroundServiceType="location" />
+
+        <!-- Music: holds the shared player so a song keeps playing in the background, with lock-screen controls. -->
+        <service
+            android:name=".feature.music.player.MusicPlaybackService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>

@@ -3,4 +3,5 @@
 <paths>
     <cache-path name="chat_camera" path="chat_camera/" />
     <cache-path name="chat_export" path="chat_export/" />
+    <cache-path name="music_capture" path="music_capture/" />
 </paths>

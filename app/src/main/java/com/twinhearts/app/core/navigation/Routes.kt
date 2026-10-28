@@ -24,6 +24,9 @@ object Routes {
     // Phase 2: opened from Home / Settings
     @Serializable data object Profile
 
+    // Phase 5: Music (library, player, lyrics, karaoke, recordings), opened from the Home "Music" chip
+    @Serializable data object Music
+
     // Phase 5: Watch Together (movies), opened from the Home "Movie" chip
     @Serializable data object Movie
 

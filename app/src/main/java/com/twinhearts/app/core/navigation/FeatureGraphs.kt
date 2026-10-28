@@ -14,6 +14,7 @@ import com.twinhearts.app.feature.getstarted.getStartedGraph
 import com.twinhearts.app.feature.home.homeGraph
 import com.twinhearts.app.feature.livemap.liveMapGraph
 import com.twinhearts.app.feature.movie.movieGraph
+import com.twinhearts.app.feature.music.musicGraph
 import com.twinhearts.app.feature.pairing.pairingGraph
 import com.twinhearts.app.feature.twinai.twinAiGraph
 import com.twinhearts.app.feature.us.UsRoute.usGraph
@@ -31,6 +32,7 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
     chatGraph(navController) // 2.2 Chat
     twinAiGraph(navController) // 2.3 Twin AI
     movieGraph(navController) // 5.2 Watch Together (movies)
+    musicGraph(navController) // 5.1 Music (library, player, lyrics, karaoke, recordings)
     usGraph(navController) // 3.1 Us (Love Counter · Collection · Dream Goals)
     liveMapGraph(navController) // 5.3 Live Map (Map · Track · Partner · Places)
     calendarGraph(navController) // Calendar (events in the shared state)
