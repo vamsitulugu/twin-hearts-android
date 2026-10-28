@@ -9,10 +9,18 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.twinhearts.app.feature.music.data.MusicRepository
+import com.twinhearts.app.feature.music.data.MusicSettingsStore
+import com.twinhearts.app.feature.music.data.OfflineStore
+import com.twinhearts.app.feature.music.domain.dsp.SoundParams
+import com.twinhearts.app.feature.music.domain.model.MusicSettings
 import com.twinhearts.app.feature.music.domain.model.Song
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -39,10 +47,13 @@ import javax.inject.Singleton
  *
  * The [MusicPlaybackService] shares this same ExoPlayer, which is what shows the notification.
  */
+@OptIn(UnstableApi::class)
 @Singleton
 class MusicPlayerController @Inject constructor(
     @ApplicationContext private val context: Context,
     private val repository: MusicRepository,
+    private val settingsStore: MusicSettingsStore,
+    private val offline: OfflineStore,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -63,10 +74,24 @@ class MusicPlayerController @Inject constructor(
     private var sleepJob: Job? = null
     private var sessionConnected = false
 
+    /** Sound effects (bass, treble, reverb, echo, vocal reduction, normalise). Fed from the settings. */
+    private val soundProcessor = SoundProcessor()
+    private var crossfadeSec = 0
+    private var fadeInFromStart = false
+
+    init {
+        scope.launch { settingsStore.settings.collect { applySettings(it) } }
+    }
+
     private val listener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) {
             sync()
             if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION)) countListen()
+        }
+
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            // A soft start only when the song changed by itself, not when the person tapped a song.
+            fadeInFromStart = crossfadeSec > 0 && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -80,7 +105,7 @@ class MusicPlayerController @Inject constructor(
             .setUsage(C.USAGE_MEDIA)
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
             .build()
-        ExoPlayer.Builder(context)
+        ExoPlayer.Builder(context, effectsRenderers())
             .setAudioAttributes(attributes, true) // pause for phone calls, duck for navigation voice
             .setHandleAudioBecomingNoisy(true) // pause when headphones are unplugged
             .build()
@@ -209,7 +234,7 @@ class MusicPlayerController @Inject constructor(
             .build()
         return MediaItem.Builder()
             .setMediaId(song.id)
-            .setUri(song.audioUrl)
+            .setUri(offline.fileFor(song.id)?.let { Uri.fromFile(it) } ?: Uri.parse(song.audioUrl))
             .setMediaMetadata(meta)
             .build()
     }
@@ -249,7 +274,8 @@ class MusicPlayerController @Inject constructor(
                         durationMs = p.duration.takeIf { d -> d != C.TIME_UNSET } ?: it.durationMs,
                     )
                 }
-                delay(TICK_MS)
+                val fading = applyFade(p)
+                delay(if (fading) FADE_TICK_MS else TICK_MS)
             }
         }
     }
@@ -280,8 +306,63 @@ class MusicPlayerController @Inject constructor(
         MediaController.Builder(context, token).buildAsync()
     }
 
+    // ── sound effects, fade between songs ──
+
+    private fun effectsRenderers(): DefaultRenderersFactory = object : DefaultRenderersFactory(context) {
+        override fun buildAudioSink(
+            context: Context,
+            enableFloatOutput: Boolean,
+            enableAudioTrackPlaybackParams: Boolean,
+        ): AudioSink = DefaultAudioSink.Builder(context)
+            .setEnableFloatOutput(enableFloatOutput)
+            .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+            .setAudioProcessors(arrayOf(soundProcessor))
+            .build()
+    }
+
+    private fun applySettings(settings: MusicSettings) {
+        crossfadeSec = settings.crossfadeSec
+        if (crossfadeSec == 0) {
+            fadeInFromStart = false
+            if (player.volume != 1f) player.volume = 1f
+        }
+        soundProcessor.setParams(
+            SoundParams(
+                vocalReduce = settings.vocalReduce,
+                normalize = settings.normalize,
+                reverb = settings.fx.reverb,
+                echo = settings.fx.echo,
+                bassDb = settings.fx.bass,
+                trebleDb = settings.fx.treble,
+            ),
+        )
+    }
+
+    /**
+     * "Crossfade": the end of a song fades out and the next one fades in by the chosen number of
+     * seconds. Returns true while a fade is running so the ticker can check more often.
+     */
+    private fun applyFade(p: ExoPlayer): Boolean {
+        val fadeMs = crossfadeSec * 1000L
+        val duration = p.duration
+        if (fadeMs == 0L || p.repeatMode == Player.REPEAT_MODE_ONE || duration == C.TIME_UNSET || duration <= fadeMs * 2 + 2000L) {
+            if (p.volume != 1f) p.volume = 1f
+            return false
+        }
+        val position = p.currentPosition
+        var level = 1f
+        val remaining = duration - position
+        if (remaining < fadeMs) level = minOf(level, remaining / fadeMs.toFloat())
+        if (fadeInFromStart) {
+            if (position < fadeMs) level = minOf(level, position / fadeMs.toFloat()) else fadeInFromStart = false
+        }
+        p.volume = level.coerceIn(0f, 1f)
+        return level < 1f
+    }
+
     companion object {
         private const val TICK_MS = 300L
+        private const val FADE_TICK_MS = 100L
 
         /** Ids of the temporary songs made for a recording or an online preview. */
         const val RECORDING_PREFIX = "rec_"

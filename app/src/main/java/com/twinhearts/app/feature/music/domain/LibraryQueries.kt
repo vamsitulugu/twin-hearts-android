@@ -39,6 +39,7 @@ object LibraryQueries {
         filter: RecordingFilter,
         owner: RecordingOwner,
         myRole: String,
+        query: String = "",
     ): List<Recording> = all
         .filter { r ->
             when (filter) {
@@ -54,5 +55,6 @@ object LibraryQueries {
                 RecordingOwner.Partner -> r.userRole != myRole
             }
         }
+        .filter { r -> query.isBlank() || MusicFormat.normalise(r.title).contains(MusicFormat.normalise(query.trim())) }
         .sortedByDescending { it.createdAt }
 }

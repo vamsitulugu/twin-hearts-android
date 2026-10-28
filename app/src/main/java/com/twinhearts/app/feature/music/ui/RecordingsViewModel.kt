@@ -37,13 +37,15 @@ data class RecordingsUiState(
     val owner: RecordingOwner = RecordingOwner.Everyone,
     val saving: Boolean = false,
     val playingId: String? = null,
+    /** Search box on the Recordings tab (matches the title, accents and case ignored). */
+    val query: String = "",
 ) {
     /** The rows to draw after the two filters. */
     val visible: List<Recording>
         get() {
             val role = who?.myRole ?: return emptyList()
             val list = (all as? UiState.Content)?.data ?: return emptyList()
-            return LibraryQueries.filterRecordings(list, filter, owner, role)
+            return LibraryQueries.filterRecordings(list, filter, owner, role, query)
         }
 }
 
@@ -107,6 +109,26 @@ class RecordingsViewModel @Inject constructor(
     fun setFilter(filter: RecordingFilter) = _state.update { it.copy(filter = filter) }
 
     fun setOwner(owner: RecordingOwner) = _state.update { it.copy(owner = owner) }
+
+    fun setQuery(text: String) = _state.update { it.copy(query = text) }
+
+    /** Music settings → "Delete all my recordings". Only the caller's own are removed (same as the web). */
+    fun deleteAllMine() {
+        val identity = who ?: return
+        val mine = ((_state.value.all as? UiState.Content)?.data ?: emptyList()).filter { it.userRole == identity.myRole }
+        if (mine.isEmpty()) return
+        viewModelScope.launch {
+            var failed = false
+            for (recording in mine) {
+                when (repository.deleteRecording(identity, recording.id)) {
+                    is AppResult.Success -> Unit
+                    is AppResult.Failure -> failed = true
+                }
+            }
+            refresh()
+            send(if (failed) MusicEvent.Message(R.string.music_msg_recordings_partly_deleted) else MusicEvent.Message(R.string.music_msg_recordings_deleted))
+        }
+    }
 
     /** Plays an audio recording through the shared player (it replaces the music queue, as on the web). */
     fun playAudio(recording: Recording) {

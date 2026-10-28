@@ -7,6 +7,7 @@ import com.twinhearts.app.core.data.SessionStore
 import com.twinhearts.app.core.network.safeApiCall
 import com.twinhearts.app.feature.music.data.mapper.toDomain
 import com.twinhearts.app.feature.music.data.mapper.toDomainOrNull
+import com.twinhearts.app.feature.music.data.remote.AutoFetchBody
 import com.twinhearts.app.feature.music.data.remote.AddSongBody
 import com.twinhearts.app.feature.music.data.remote.CoupleBody
 import com.twinhearts.app.feature.music.data.remote.CreatePlaylistBody
@@ -62,6 +63,9 @@ interface MusicRepository {
 
     suspend fun lyrics(who: MusicIdentity, song: Song): AppResult<Lyrics>
     suspend fun saveLyrics(who: MusicIdentity, songId: String, text: String): AppResult<Unit>
+
+    /** Asks the server to find lyrics for a song that was just added. `true` when it found some. */
+    suspend fun findLyrics(who: MusicIdentity, song: Song): AppResult<Boolean>
 
     suspend fun readSongFile(uri: Uri): SongFileInfo
     fun fileSizeBytes(uri: Uri): Long
@@ -165,6 +169,20 @@ class MusicRepositoryImpl @Inject constructor(
             is AppResult.Failure -> r
         }
     }
+
+    override suspend fun findLyrics(who: MusicIdentity, song: Song): AppResult<Boolean> =
+        safeApiCall {
+            api.autoFetchLyrics(
+                AutoFetchBody(
+                    songId = song.id,
+                    coupleId = who.coupleId,
+                    title = song.title,
+                    artist = song.artist.takeIf { it.isNotBlank() && it != "Unknown Artist" },
+                    album = song.album.ifBlank { null },
+                    durationSec = song.durationSec,
+                ),
+            ).found
+        }
 
     override suspend fun saveLyrics(who: MusicIdentity, songId: String, text: String): AppResult<Unit> =
         unit {

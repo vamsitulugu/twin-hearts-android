@@ -171,3 +171,18 @@ data class RecordingPatchBody(
 
 @Serializable
 data class RecordingDeleteBody(val coupleId: String, val userId: String)
+
+/** routes/lyrics.js `POST /auto-fetch` body. */
+@Serializable
+data class AutoFetchBody(
+    val songId: String,
+    val coupleId: String,
+    val title: String,
+    val artist: String?,
+    val album: String?,
+    val durationSec: Int,
+)
+
+/** `found` is true when lyrics were cached or just saved on the song. */
+@Serializable
+data class AutoFetchDto(val found: Boolean = false)

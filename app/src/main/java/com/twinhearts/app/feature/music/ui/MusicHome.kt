@@ -34,6 +34,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.twinhearts.app.feature.music.domain.MixKind
+import com.twinhearts.app.feature.music.domain.SmartMixes
+import java.time.Instant
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -75,6 +79,7 @@ internal data class MusicHomeActions(
     val onSongMenu: (Song) -> Unit,
     val onOpenPlaylist: (Playlist) -> Unit,
     val onNewPlaylist: () -> Unit,
+    val onOpenMix: (MixKind) -> Unit,
 )
 
 @Composable
@@ -134,7 +139,16 @@ private fun androidx.compose.foundation.lazy.LazyListScope.content(
     val ready = LibraryQueries.singable(songs)
     val recent = LibraryQueries.forScope(LibraryScope.Recent, songs, role).take(RECENT_ON_HOME)
 
-    item(key = "hero") { Hero(partnerName = partnerName, hasSongs = true, onShuffle = { actions.onPlayAll(true) }) }
+    item(key = "hero") {
+        // The picks only change when the set of songs with artwork changes, so the hero stays put while you listen.
+        val poolKey = songs.filter { !it.isPreview && !it.coverUrl.isNullOrBlank() }.map { it.id }.sorted().joinToString(",")
+        val picks = remember(poolKey) { SmartMixes.heroPicks(songs) }
+        if (picks.isEmpty()) {
+            Hero(partnerName = partnerName, hasSongs = true, onShuffle = { actions.onPlayAll(true) })
+        } else {
+            HeroSlider(picks = picks, onPlay = { actions.onPlay(it, LibraryQueries.full(songs)) })
+        }
+    }
 
     item(key = "tiles") {
         Column(verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m), modifier = Modifier.padding(top = TwinTheme.spacing.l)) {
@@ -182,6 +196,12 @@ private fun androidx.compose.foundation.lazy.LazyListScope.content(
             QuickChip(Icons.Rounded.Search, stringResource(R.string.music_quick_search), onClick = actions.onSearch)
             QuickChip(Icons.Rounded.Language, stringResource(R.string.music_quick_search_online), highlighted = true, onClick = actions.onSearchOnline)
         }
+    }
+
+    val mixes = SmartMixes.build(songs, Instant.now())
+    if (mixes.isNotEmpty()) {
+        item(key = "mixes_title") { MusicSectionTitle(title = stringResource(R.string.music_made_for_us)) }
+        item(key = "mixes") { MadeForUsRow(mixes, partnerName, actions.onOpenMix) }
     }
 
     item(key = "playlists_title") {

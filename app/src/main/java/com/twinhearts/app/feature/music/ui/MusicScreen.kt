@@ -37,6 +37,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.rounded.Tune
+import com.twinhearts.app.feature.music.domain.Milestones
+import com.twinhearts.app.feature.music.domain.SmartMixes
+import java.time.Instant
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -178,6 +182,9 @@ fun MusicScreen(
         onRemoveFromPlaylist = playlistId?.let { pid ->
             { dialog = null; playlistById(pid)?.let { viewModel.removeFromPlaylist(it, song.id) } }
         },
+        downloaded = song.id in state.offlineIds,
+        downloading = song.id in state.downloading,
+        onToggleDownload = { dialog = null; viewModel.toggleDownload(song) },
     )
 
     val page = state.page
@@ -197,6 +204,8 @@ fun MusicScreen(
         MusicPage.KaraokeList -> stringResource(R.string.music_tile_karaoke)
         is MusicPage.Lyrics -> stringResource(R.string.music_action_lyrics)
         is MusicPage.Sing -> stringResource(R.string.music_action_sing)
+        MusicPage.Settings -> stringResource(R.string.music_settings_title)
+        is MusicPage.Mix -> mixName(page.kind, partner)
     }
 
     TwinBackground(Modifier.fillMaxSize()) {
@@ -229,6 +238,7 @@ fun MusicScreen(
                                         onSearchOnline = { menuOpen = false; viewModel.open(MusicPage.OnlineSearch) },
                                         onSort = { menuOpen = false; viewModel.setSort(it) },
                                         onSleep = { menuOpen = false; dialog = MusicDialog.Sleep },
+                                        onSettings = { menuOpen = false; viewModel.open(MusicPage.Settings) },
                                     )
                                 }
                             }
@@ -255,6 +265,7 @@ fun MusicScreen(
                                         onSongMenu = { dialog = MusicDialog.SongMenu(it.id) },
                                         onOpenPlaylist = { viewModel.open(MusicPage.PlaylistDetail(it.id)) },
                                         onNewPlaylist = { dialog = MusicDialog.NewPlaylist(null) },
+                                        onOpenMix = { viewModel.open(MusicPage.Mix(it)) },
                                     ),
                                     modifier = Modifier.fillMaxSize(),
                                 )
@@ -286,6 +297,7 @@ fun MusicScreen(
                                         onFavorite = recordingsViewModel::toggleFavorite,
                                         onRename = recordingsViewModel::rename,
                                         onDelete = recordingsViewModel::delete,
+                                        onQuery = recordingsViewModel::setQuery,
                                     ),
                                     modifier = Modifier.fillMaxSize(),
                                 )
@@ -362,6 +374,38 @@ fun MusicScreen(
                             onSongMenu = { dialog = MusicDialog.SongMenu(it.id) },
                             modifier = Modifier.fillMaxSize(),
                         )
+                        MusicPage.Settings -> MusicSettingsPage(
+                            settings = state.settings,
+                            offline = state.offline,
+                            milestones = Milestones.earned(songs, (rec.all as? UiState.Content)?.data.orEmpty(), role),
+                            actions = MusicSettingsActions(
+                                onCrossfade = viewModel::setCrossfade,
+                                onAutoLyrics = viewModel::setAutoLyrics,
+                                onNormalize = viewModel::setNormalize,
+                                onVocalReduce = viewModel::setVocalReduce,
+                                onPreset = viewModel::setPreset,
+                                onFx = viewModel::setFx,
+                                onResetSound = viewModel::resetSound,
+                                onAddSongs = openPicker,
+                                onSync = { viewModel.refresh(); recordingsViewModel.refresh() },
+                                onClearDownloads = viewModel::clearDownloads,
+                                onDeleteRecordings = recordingsViewModel::deleteAllMine,
+                            ),
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                        is MusicPage.Mix -> {
+                            val list = SmartMixes.build(songs, Instant.now()).firstOrNull { it.kind == page.kind }?.songs.orEmpty()
+                            SongListPage(
+                                songs = list,
+                                currentSongId = currentId,
+                                emptyTitle = stringResource(R.string.music_list_empty_title),
+                                emptyMessage = stringResource(R.string.music_list_empty_message),
+                                onPlay = { song, l -> viewModel.play(l, song) },
+                                onPlayAll = { shuffle -> viewModel.playAll(list, shuffle) },
+                                onSongMenu = { dialog = MusicDialog.SongMenu(it.id) },
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
                         is MusicPage.Lyrics -> {
                             val song = songById(page.songId)
                             LyricsPage(
@@ -557,6 +601,7 @@ private fun HomeMenu(
     onSearchOnline: () -> Unit,
     onSort: (SongSort) -> Unit,
     onSleep: () -> Unit,
+    onSettings: () -> Unit,
 ) {
     val colors = TwinTheme.colors
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss, modifier = Modifier.background(colors.card)) {
@@ -574,6 +619,11 @@ private fun HomeMenu(
             text = { Text(stringResource(R.string.music_sleep_title), color = colors.ink) },
             leadingIcon = { Icon(Icons.Rounded.Bedtime, null, tint = colors.ink) },
             onClick = onSleep,
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.music_settings_title), color = colors.ink) },
+            leadingIcon = { Icon(Icons.Rounded.Tune, null, tint = colors.ink) },
+            onClick = onSettings,
         )
         Text(stringResource(R.string.music_sort_title), style = MaterialTheme.typography.labelMedium, color = colors.inkMuted, modifier = Modifier.padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.s))
         SongSort.entries.forEach { option ->

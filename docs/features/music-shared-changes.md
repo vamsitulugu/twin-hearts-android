@@ -14,3 +14,7 @@ All of these are already applied in the zip. Listed so you can review them.
 | `res/values/strings_music.xml` | new, all Music words |
 
 No database (Room) entities. No backend changes. The server needs `migrations/music_v2.sql` applied for playlists (already part of the web app).
+
+## Phase 5.2 update (settings, Made for Us, hero, downloads, sound effects)
+
+**No file outside `feature/music/` was changed** apart from `res/values/strings_music.xml` (the Music strings file, new strings appended) and the Music tests. No new library, permission or manifest entry was needed (Media3 `exoplayer`, `session` and `ui` were already there; `FOREGROUND_SERVICE_MEDIA_PLAYBACK` and `POST_NOTIFICATIONS` already existed).

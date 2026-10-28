@@ -84,6 +84,14 @@ interface MusicApi {
     @GET("api/lyrics/status/{songId}")
     suspend fun lyricsStatus(@Path("songId") songId: String): LyricsStatusDto
 
+    /**
+     * Asks the server to look lyrics up and save them on the song. The web app calls this only right
+     * after a song is saved, never while playing (routes/lyrics.js). The server waits 24 h before
+     * searching again for a song that had no match.
+     */
+    @POST("api/lyrics/auto-fetch")
+    suspend fun autoFetchLyrics(@Body body: AutoFetchBody): AutoFetchDto
+
     // ── recordings (routes/recordings.js) ──
 
     @GET("api/recordings/{coupleId}")

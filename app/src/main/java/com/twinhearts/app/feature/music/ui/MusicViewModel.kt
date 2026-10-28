@@ -9,6 +9,10 @@ import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.core.common.UiState
 import com.twinhearts.app.feature.music.data.AudioFileReader
 import com.twinhearts.app.feature.music.data.MusicRepository
+import com.twinhearts.app.feature.music.data.MusicSettingsStore
+import com.twinhearts.app.feature.music.data.OfflineStore
+import com.twinhearts.app.feature.music.domain.model.FxPreset
+import com.twinhearts.app.feature.music.domain.model.SoundFx
 import com.twinhearts.app.feature.music.domain.model.Lyrics
 import com.twinhearts.app.feature.music.domain.model.MusicIdentity
 import com.twinhearts.app.feature.music.domain.model.MusicLibrary
@@ -40,6 +44,8 @@ import javax.inject.Inject
 class MusicViewModel @Inject constructor(
     private val repository: MusicRepository,
     private val controller: MusicPlayerController,
+    private val settingsStore: MusicSettingsStore,
+    private val offlineStore: OfflineStore,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(MusicUiState())
@@ -55,6 +61,10 @@ class MusicViewModel @Inject constructor(
 
     init {
         refresh()
+        viewModelScope.launch { settingsStore.settings.collect { s -> _state.update { it.copy(settings = s) } } }
+        viewModelScope.launch { offlineStore.ids.collect { ids -> _state.update { it.copy(offlineIds = ids) } } }
+        viewModelScope.launch { offlineStore.busy.collect { ids -> _state.update { it.copy(downloading = ids) } } }
+        viewModelScope.launch { offlineStore.summary.collect { sum -> _state.update { it.copy(offline = sum) } } }
         viewModelScope.launch { controller.played.collect { loadLibrary(silent = true) } }
         viewModelScope.launch { controller.failed.collect { send(MusicEvent.Message(R.string.music_msg_cannot_play)) } }
     }
@@ -225,7 +235,10 @@ class MusicViewModel @Inject constructor(
                     return@forEachIndexed
                 }
                 when (val r = repository.addSongFromDevice(identity, uri, info, SongVisibility.Both)) {
-                    is AppResult.Success -> added++
+                    is AppResult.Success -> {
+                        added++
+                        r.data?.let { lookUpLyrics(identity, it) }
+                    }
                     is AppResult.Failure -> send(MusicEvent.Failure(r.error))
                 }
             }
@@ -347,6 +360,7 @@ class MusicViewModel @Inject constructor(
                 is AppResult.Success -> {
                     _state.update { it.copy(online = it.online.copy(addingId = null, addedIds = it.online.addedIds + track.id)) }
                     send(MusicEvent.Message(R.string.music_msg_online_added, listOf(track.title)))
+                    r.data?.let { lookUpLyrics(identity, it) }
                     loadLibrary(silent = true)
                 }
                 is AppResult.Failure -> {
@@ -394,6 +408,58 @@ class MusicViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /**
+     * "Find lyrics automatically": right after a song is saved the server is asked to look lyrics up,
+     * like the web's import worker. It never blocks adding the song, and a miss is silent.
+     */
+    private fun lookUpLyrics(identity: MusicIdentity, song: Song) {
+        if (!_state.value.settings.autoLyrics) return
+        viewModelScope.launch {
+            val r = repository.findLyrics(identity, song)
+            if (r is AppResult.Success && r.data) loadLibrary(silent = true)
+        }
+    }
+
+    // ── settings (Music settings page) ──
+
+    fun setCrossfade(seconds: Int) { viewModelScope.launch { settingsStore.setCrossfade(seconds) } }
+
+    fun setAutoLyrics(on: Boolean) { viewModelScope.launch { settingsStore.setAutoLyrics(on) } }
+
+    fun setNormalize(on: Boolean) { viewModelScope.launch { settingsStore.setNormalize(on) } }
+
+    fun setVocalReduce(on: Boolean) { viewModelScope.launch { settingsStore.setVocalReduce(on) } }
+
+    fun setPreset(preset: FxPreset) { viewModelScope.launch { settingsStore.setPreset(preset) } }
+
+    fun setFx(fx: SoundFx) { viewModelScope.launch { settingsStore.setFx(fx) } }
+
+    fun resetSound() { viewModelScope.launch { settingsStore.resetSound() } }
+
+    // ── offline downloads ──
+
+    /** Song menu: saves the song for offline listening, or removes the saved copy. */
+    fun toggleDownload(song: Song) {
+        if (song.id in _state.value.offlineIds) {
+            offlineStore.remove(song.id)
+            send(MusicEvent.Message(R.string.music_msg_download_removed, listOf(song.title)))
+            return
+        }
+        send(MusicEvent.Message(R.string.music_msg_download_started, listOf(song.title)))
+        viewModelScope.launch {
+            val ok = offlineStore.download(song)
+            send(
+                if (ok) MusicEvent.Message(R.string.music_msg_download_done, listOf(song.title))
+                else MusicEvent.Message(R.string.music_msg_download_failed, listOf(song.title)),
+            )
+        }
+    }
+
+    fun clearDownloads() {
+        offlineStore.clear()
+        send(MusicEvent.Message(R.string.music_msg_downloads_cleared))
     }
 
     // ── helpers ──

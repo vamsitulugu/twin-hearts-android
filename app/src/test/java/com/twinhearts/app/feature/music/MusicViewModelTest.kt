@@ -5,6 +5,10 @@ import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.core.common.UiState
 import com.twinhearts.app.feature.auth.MainDispatcherRule
 import com.twinhearts.app.feature.music.data.MusicRepository
+import com.twinhearts.app.feature.music.data.MusicSettingsStore
+import com.twinhearts.app.feature.music.data.OfflineStore
+import com.twinhearts.app.feature.music.data.OfflineSummary
+import com.twinhearts.app.feature.music.domain.model.MusicSettings
 import com.twinhearts.app.feature.music.domain.model.LibraryScope
 import com.twinhearts.app.feature.music.domain.model.MusicIdentity
 import com.twinhearts.app.feature.music.domain.model.MusicLibrary
@@ -21,6 +25,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -34,6 +39,8 @@ class MusicViewModelTest {
     private val who = MusicIdentity("c1", "user1", "Me", "Partner")
     private val repository = mockk<MusicRepository>(relaxed = true)
     private val controller = mockk<MusicPlayerController>(relaxed = true)
+    private val settingsStore = mockk<MusicSettingsStore>(relaxed = true)
+    private val offline = mockk<OfflineStore>(relaxed = true)
 
     private fun library(vararg songs: com.twinhearts.app.feature.music.domain.model.Song) =
         MusicLibrary(songs.toList(), PlaylistsResult(true, emptyList()))
@@ -43,7 +50,11 @@ class MusicViewModelTest {
         every { controller.state } returns MutableStateFlow(PlayerState())
         every { controller.played } returns MutableSharedFlow()
         every { controller.failed } returns MutableSharedFlow()
-        return MusicViewModel(repository, controller)
+        every { settingsStore.settings } returns flowOf(MusicSettings())
+        every { offline.ids } returns MutableStateFlow(emptySet())
+        every { offline.busy } returns MutableStateFlow(emptySet())
+        every { offline.summary } returns MutableStateFlow(OfflineSummary())
+        return MusicViewModel(repository, controller, settingsStore, offline)
     }
 
     @Test

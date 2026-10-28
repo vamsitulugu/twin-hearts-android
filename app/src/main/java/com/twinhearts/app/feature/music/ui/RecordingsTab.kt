@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Mic
@@ -41,6 +42,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import com.twinhearts.app.core.design.TwinTextField
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -104,6 +107,7 @@ internal data class RecordingsActions(
     val onFavorite: (Recording) -> Unit,
     val onRename: (Recording, String) -> Unit,
     val onDelete: (Recording) -> Unit,
+    val onQuery: (String) -> Unit = {},
 )
 
 @Composable
@@ -154,6 +158,18 @@ internal fun RecordingsTab(
                 TwinFilterChip(stringResource(R.string.music_rec_everyone), state.owner == RecordingOwner.Everyone, { actions.onOwner(RecordingOwner.Everyone) })
                 TwinFilterChip(stringResource(R.string.music_rec_mine), state.owner == RecordingOwner.Mine, { actions.onOwner(RecordingOwner.Mine) })
                 TwinFilterChip(stringResource(R.string.music_rec_partners, partnerName), state.owner == RecordingOwner.Partner, { actions.onOwner(RecordingOwner.Partner) })
+            }
+        }
+        if (state.all is UiState.Content) {
+            item(key = "search") {
+                TwinTextField(
+                    value = state.query,
+                    onValueChange = actions.onQuery,
+                    label = stringResource(R.string.music_rec_search_label),
+                    placeholder = stringResource(R.string.music_rec_search_hint),
+                    leadingIcon = Icons.Rounded.Search,
+                    imeAction = ImeAction.Search,
+                )
             }
         }
         when (val all = state.all) {

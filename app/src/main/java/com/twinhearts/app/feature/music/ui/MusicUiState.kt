@@ -4,7 +4,10 @@ import androidx.annotation.PluralsRes
 import androidx.annotation.StringRes
 import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.UiState
+import com.twinhearts.app.feature.music.data.OfflineSummary
+import com.twinhearts.app.feature.music.domain.MixKind
 import com.twinhearts.app.feature.music.domain.model.LibraryScope
+import com.twinhearts.app.feature.music.domain.model.MusicSettings
 import com.twinhearts.app.feature.music.domain.model.Lyrics
 import com.twinhearts.app.feature.music.domain.model.MusicIdentity
 import com.twinhearts.app.feature.music.domain.model.MusicLibrary
@@ -25,6 +28,8 @@ sealed interface MusicPage {
     data object Search : MusicPage
     data object OnlineSearch : MusicPage
     data object KaraokeList : MusicPage
+    data object Settings : MusicPage
+    data class Mix(val kind: MixKind) : MusicPage
     data class Lyrics(val songId: String) : MusicPage
     data class Sing(val songId: String) : MusicPage
 }
@@ -52,6 +57,11 @@ data class MusicUiState(
     val online: OnlineUiState = OnlineUiState(),
     val lyrics: UiState<Lyrics> = UiState.Loading,
     val lyricsSaving: Boolean = false,
+    val settings: MusicSettings = MusicSettings(),
+    /** Songs saved for offline listening, songs downloading now, and the total for Storage. */
+    val offlineIds: Set<String> = emptySet(),
+    val downloading: Set<String> = emptySet(),
+    val offline: OfflineSummary = OfflineSummary(),
 ) {
     val page: MusicPage? get() = pages.lastOrNull()
 }

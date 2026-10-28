@@ -16,6 +16,8 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckBoxOutlineBlank
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
@@ -84,6 +86,10 @@ internal data class SongMenuActions(
     val onDelete: () -> Unit,
     /** Only set when the menu was opened inside a playlist. */
     val onRemoveFromPlaylist: (() -> Unit)? = null,
+    /** Offline copy: `downloaded` shows "Remove download", otherwise "Download for offline". */
+    val downloaded: Boolean = false,
+    val downloading: Boolean = false,
+    val onToggleDownload: () -> Unit = {},
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -140,6 +146,18 @@ internal fun SongMenuSheet(song: Song, mine: Boolean, actions: SongMenuActions, 
             SheetAction(Icons.Rounded.Lyrics, stringResource(R.string.music_action_lyrics), actions.onLyrics)
             SheetAction(Icons.Rounded.Info, stringResource(R.string.music_action_details), actions.onDetails)
             SheetAction(Icons.Rounded.Share, stringResource(R.string.music_action_share), actions.onShare)
+            SheetAction(
+                icon = if (actions.downloaded) Icons.Rounded.DownloadDone else Icons.Rounded.Download,
+                label = stringResource(
+                    when {
+                        actions.downloading -> R.string.music_action_downloading
+                        actions.downloaded -> R.string.music_action_remove_download
+                        else -> R.string.music_action_download
+                    },
+                ),
+                onClick = { if (!actions.downloading) actions.onToggleDownload() },
+                highlighted = actions.downloaded,
+            )
             actions.onRemoveFromPlaylist?.let { remove ->
                 SheetAction(Icons.Rounded.Delete, stringResource(R.string.music_action_remove_playlist), remove)
             }
