@@ -62,6 +62,16 @@ class ChatFiles @Inject constructor(
         }.getOrNull()
     }
 
+    /**
+     * Gives a document the type the server accepts for documents. Android often reports a
+     * generic or wrong type for Office files; the server rejects anything not on its list, so the
+     * file ending decides instead.
+     */
+    fun asDocument(file: PickedFile): PickedFile {
+        val mime = DOCUMENT_TYPES[file.name.substringAfterLast('.', "").lowercase()] ?: return file
+        return PickedFile(file.uri, file.name, file.size, mime)
+    }
+
     /** Streams the file to the server; nothing is held in memory (videos can be large). */
     fun body(file: PickedFile): RequestBody = object : RequestBody() {
         override fun contentType(): MediaType? = file.mime.toMediaTypeOrNull()
@@ -157,6 +167,23 @@ class ChatFiles @Inject constructor(
     private fun Location.latLng() = latitude to longitude
 
     private companion object {
+        val DOCUMENT_TYPES = mapOf(
+            "pdf" to "application/pdf",
+            "doc" to "application/msword",
+            "docx" to "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "xls" to "application/vnd.ms-excel",
+            "xlsx" to "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "ppt" to "application/vnd.ms-powerpoint",
+            "pptx" to "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "txt" to "text/plain",
+            "md" to "text/plain",
+            "log" to "text/plain",
+            "csv" to "text/csv",
+            "json" to "application/json",
+            "rtf" to "application/rtf",
+            "zip" to "application/zip",
+        )
+
         const val MAX_WALLPAPER_SIDE = 1600
         const val WALLPAPER_QUALITY = 85
         const val FRESH_FIX_MS = 120_000L

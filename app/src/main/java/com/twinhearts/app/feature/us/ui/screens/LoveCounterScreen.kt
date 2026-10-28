@@ -1,10 +1,14 @@
 package com.twinhearts.app.feature.us.ui.screens
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
@@ -13,12 +17,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
 import com.twinhearts.app.core.design.GlassCard
 import com.twinhearts.app.core.design.SectionHeader
-import com.twinhearts.app.core.design.StatTile
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.feature.us.domain.model.LoveCounterState
 
@@ -27,7 +30,7 @@ import com.twinhearts.app.feature.us.domain.model.LoveCounterState
 fun LoveCounterScreen(counter: LoveCounterState) {
     val colors = TwinTheme.colors
     Column(modifier = Modifier.fillMaxSize()) {
-        SectionHeader(title = "Love Counter")
+        SectionHeader(title = "Love Counter", modifier = Modifier.padding(horizontal = TwinTheme.spacing.l))
 
         // Hero: couple names + days counter
         Column(
@@ -57,19 +60,19 @@ fun LoveCounterScreen(counter: LoveCounterState) {
         }
 
         // Time grid: years / months / days / hours / minutes / seconds
-        SectionHeader(title = "Time Together")
+        SectionHeader(title = "Time Together", modifier = Modifier.padding(horizontal = TwinTheme.spacing.l))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = TwinTheme.spacing.l),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TimeCounterCard(value = counter.years.toString(), label = "Years")
-            TimeCounterCard(value = counter.months.toString(), label = "Months")
-            TimeCounterCard(value = counter.daysTogether.toString(), label = "Days")
-            TimeCounterCard(value = counter.remainingHours.toString(), label = "Hours")
-            TimeCounterCard(value = counter.remainingMinutes.toString(), label = "Minutes")
-            TimeCounterCard(value = counter.remainingSeconds.toString(), label = "Seconds")
+            TimeCounterCard(modifier = Modifier.weight(1f), value = counter.years.toString(), label = "Years")
+            TimeCounterCard(modifier = Modifier.weight(1f), value = counter.months.toString(), label = "Months")
+            TimeCounterCard(modifier = Modifier.weight(1f), value = counter.daysTogether.toString(), label = "Days")
+            TimeCounterCard(modifier = Modifier.weight(1f), value = counter.remainingHours.toString(), label = "Hours")
+            TimeCounterCard(modifier = Modifier.weight(1f), value = counter.remainingMinutes.toString(), label = "Minutes")
+            TimeCounterCard(modifier = Modifier.weight(1f), value = counter.remainingSeconds.toString(), label = "Seconds")
         }
 
         // Live indicator
@@ -84,7 +87,6 @@ fun LoveCounterScreen(counter: LoveCounterState) {
                     .size(8.dp)
                     .clip(TwinTheme.shapes.circle)
                     .background(colors.success),
-                contentAlignment = Alignment.Center,
             )
             Text(
                 text = "Live",
@@ -93,10 +95,10 @@ fun LoveCounterScreen(counter: LoveCounterState) {
             )
         }
 
-        androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(TwinTheme.spacing.l))
+        Spacer(modifier = Modifier.height(TwinTheme.spacing.l))
 
         // Section cards matching web lovecounter sections
-        SectionHeader(title = "Milestones")
+        SectionHeader(title = "Milestones", modifier = Modifier.padding(horizontal = TwinTheme.spacing.l))
         GlassCard(modifier = Modifier.fillMaxWidth().padding(horizontal = TwinTheme.spacing.l)) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
@@ -112,7 +114,7 @@ fun LoveCounterScreen(counter: LoveCounterState) {
             }
         }
 
-        SectionHeader(title = "Anniversary")
+        SectionHeader(title = "Anniversary", modifier = Modifier.padding(horizontal = TwinTheme.spacing.l))
         GlassCard(modifier = Modifier.fillMaxWidth().padding(horizontal = TwinTheme.spacing.l)) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
@@ -132,12 +134,11 @@ fun LoveCounterScreen(counter: LoveCounterState) {
 
 /** One time unit card: big number + small label. */
 @Composable
-private fun TimeCounterCard(value: String, label: String) {
+private fun TimeCounterCard(value: String, label: String, modifier: Modifier = Modifier) {
     val colors = TwinTheme.colors
     val shape = TwinTheme.shapes.card
     Column(
-        modifier = Modifier
-            .weight(1f)
+        modifier = modifier
             .clip(shape)
             .background(colors.glass)
             .border(1.dp, colors.line, shape)

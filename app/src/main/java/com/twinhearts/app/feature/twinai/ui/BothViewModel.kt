@@ -7,6 +7,7 @@ import com.twinhearts.app.R
 import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.feature.twinai.data.TwinAiRepository
+import com.twinhearts.app.feature.twinai.data.realtime.BothRealtime
 import com.twinhearts.app.feature.twinai.domain.model.AiIdentity
 import com.twinhearts.app.feature.twinai.domain.model.BothDiscussion
 import com.twinhearts.app.feature.twinai.domain.model.BothRound
@@ -59,6 +60,7 @@ data class BothUiState(
 @HiltViewModel
 class BothViewModel @Inject constructor(
     private val repository: TwinAiRepository,
+    private val realtime: BothRealtime,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(BothUiState())
@@ -82,8 +84,37 @@ class BothViewModel @Inject constructor(
                 restoreOrHome()
             }
             ensurePolling()
+            viewModelScope.launch {
+                who()?.let { realtime.connect(it.coupleId, ::onLiveEvent) }
+            }
         } else {
             pollJob?.cancel()
+            realtime.close()
+        }
+    }
+
+    /** A live event arrived: ask for the round right now instead of waiting for the next check. */
+    private fun onLiveEvent(event: String) {
+        viewModelScope.launch {
+            if (event == "session_deleted" && _state.value.open == null) {
+                loadHistory()
+                return@launch
+            }
+            val round = _state.value.open?.current ?: return@launch
+            val who = who() ?: return@launch
+            val r = repository.round(who, round.id)
+            if (r is AppResult.Success) {
+                updateRound(round.id) {
+                    it.copy(
+                        status = r.data.status,
+                        youSubmitted = r.data.youSubmitted,
+                        partnerSubmitted = r.data.partnerSubmitted,
+                        yourContent = r.data.yourContent ?: it.yourContent,
+                        result = r.data.result,
+                    )
+                }
+                ensurePolling()
+            }
         }
     }
 
@@ -329,6 +360,11 @@ class BothViewModel @Inject constructor(
 
     private fun say(@StringRes id: Int) {
         _messages.tryEmit(id)
+    }
+
+    override fun onCleared() {
+        realtime.close()
+        super.onCleared()
     }
 
     private companion object {

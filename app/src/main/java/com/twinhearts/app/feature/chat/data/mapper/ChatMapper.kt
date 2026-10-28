@@ -49,7 +49,8 @@ fun ChatMessageDto.isHiddenFor(myRole: String): Boolean =
     deletedFor.orEmpty().split(',').any { it.trim() == myRole }
 
 fun ChatMessageDto.toDomain(myRole: String): ChatMessage? {
-    val created = parseServerTime(createdAt) ?: return null
+    // An unreadable time must not hide a message that the server really has; show it as "now".
+    val created = parseServerTime(createdAt) ?: Instant.now()
     val meta = meta()
     val kind = kindOf(type)
     val delivery = when {

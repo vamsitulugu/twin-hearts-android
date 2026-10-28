@@ -205,6 +205,8 @@ internal fun MessageList(
             modifier = Modifier.fillMaxWidth().fillMaxHeight(),
             state = listState,
             reverseLayout = true,
+            // Few messages start at the top (like WhatsApp); the newest message is still index 0.
+            verticalArrangement = Arrangement.Top,
             contentPadding = PaddingValues(horizontal = TwinTheme.spacing.m, vertical = TwinTheme.spacing.s),
         ) {
             items(reversed, key = { it.key }) { item ->
@@ -362,7 +364,7 @@ private fun MessageBubble(
                         ReplyQuote(quoted = quoted, partnerName = partnerName, onClick = { actions.onJump(message.replyToId) })
                     }
                     BubbleBody(message, votes, voice, actions)
-                    MetaRow(message)
+                    MetaRow(message, Modifier.align(if (mine) Alignment.End else Alignment.Start))
                     if (failed) {
                         Text(stringResource(R.string.chat_failed_retry), style = MaterialTheme.typography.labelSmall, color = colors.error)
                     }
@@ -800,10 +802,11 @@ private fun waveBars(seed: String): List<Float> {
 
 /** Time, "edited", pin, star and (my messages only) the ticks. */
 @Composable
-private fun MetaRow(message: ChatMessage) {
+private fun MetaRow(message: ChatMessage, modifier: Modifier = Modifier) {
     val colors = TwinTheme.colors
     Row(
-        modifier = Modifier.fillMaxWidth().padding(top = TwinTheme.spacing.xs),
+        // No fillMaxWidth: the bubble must be as wide as its text, not always the maximum.
+        modifier = modifier.padding(top = TwinTheme.spacing.xs),
         horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.xs, Alignment.End),
         verticalAlignment = Alignment.CenterVertically,
     ) {

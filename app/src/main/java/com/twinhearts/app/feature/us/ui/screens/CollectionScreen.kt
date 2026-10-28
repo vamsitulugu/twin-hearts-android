@@ -1,6 +1,5 @@
 package com.twinhearts.app.feature.us.ui.screens
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,78 +8,89 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.PlayCircleFilled
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import com.twinhearts.app.core.design.Avatar
 import com.twinhearts.app.core.design.GlassCard
 import com.twinhearts.app.core.design.SectionHeader
 import com.twinhearts.app.core.design.StatTile
+import com.twinhearts.app.core.design.TwinTextField
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.feature.us.domain.model.CollectionItem
 
-/** Collection screen (web: collection.html). Tabs, hero stats, shared memory list. */
+/** Collection screen (web: collection.html). Hero stats, search, shared memory list. */
 @Composable
 fun CollectionScreen(items: List<CollectionItem>) {
     val colors = TwinTheme.colors
+    var query by remember { mutableStateOf("") }
+    val visible = items.filter {
+        query.isBlank() || it.sender.contains(query, ignoreCase = true) || it.type.contains(query, ignoreCase = true)
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
-        SectionHeader(title = "Collection")
+        SectionHeader(
+            title = "Collection",
+            modifier = Modifier.padding(horizontal = TwinTheme.spacing.l),
+        )
 
         // Hero stats: 4 stat tiles
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = TwinTheme.spacing.l),
+            horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            StatTile(value = items.size.toString(), label = "Shared Items")
-            StatTile(value = "2", label = "Albums")
-            StatTile(value = "0", label = "Downloads")
-            StatTile(value = "0", label = "Favourites")
+            StatTile(value = items.size.toString(), label = "Shared Items", modifier = Modifier.weight(1f))
+            StatTile(value = "2", label = "Albums", modifier = Modifier.weight(1f))
+            StatTile(value = "0", label = "Downloads", modifier = Modifier.weight(1f))
+            StatTile(value = "0", label = "Favourites", modifier = Modifier.weight(1f))
         }
 
-        // Toolbar: search + filters
-        Row(
+        // Toolbar: search
+        TwinTextField(
+            value = query,
+            onValueChange = { query = it },
+            label = "Search",
+            placeholder = "Search memories",
+            leadingIcon = Icons.Rounded.Search,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = TwinTheme.spacing.l),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            androidx.compose.material3.TextField(
-                value = "",
-                onValueChange = {},
-                placeholder = { Text(text = "Search memories", color = colors.inkMuted) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                colors = androidx.compose.material3.TextFieldDefaults.textFieldColors(
-                    backgroundColor = colors.glass,
-                    focusedBackgroundColor = colors.glass,
-                    unfocusedBackgroundColor = colors.glass,
-                    disabledBackgroundColor = colors.glass,
-                ),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(TwinTheme.shapes.fieldHeight)
-                    .clip(TwinTheme.shapes.field)
-                    .border(1.dp, colors.line, TwinTheme.shapes.field),
-            )
-        }
+                .padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.s),
+        )
 
         // Voice / media list
-        SectionHeader(title = "Memories", actionLabel = "See all", onAction = {})
-        if (items.isEmpty()) {
-            androidx.compose.material3.Text(
+        SectionHeader(
+            title = "Memories",
+            modifier = Modifier.padding(horizontal = TwinTheme.spacing.l),
+            actionLabel = "See all",
+            onAction = {},
+        )
+        if (visible.isEmpty()) {
+            Text(
                 text = "No shared memories yet. Start by sharing a photo or voice note.",
                 color = colors.inkMuted,
+                style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = TwinTheme.spacing.l),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                textAlign = TextAlign.Center,
             )
         } else {
             Column(
@@ -88,7 +98,7 @@ fun CollectionScreen(items: List<CollectionItem>) {
                     .fillMaxWidth()
                     .padding(horizontal = TwinTheme.spacing.l),
             ) {
-                items.forEach { item ->
+                visible.forEach { item ->
                     CollectionItemRow(item = item)
                 }
             }
@@ -96,11 +106,10 @@ fun CollectionScreen(items: List<CollectionItem>) {
     }
 }
 
-/** One item in the collection list: avatar, play button, sender, date, actions. */
+/** One item in the collection list: avatar, sender, date, actions. */
 @Composable
 private fun CollectionItemRow(item: CollectionItem) {
     val colors = TwinTheme.colors
-    val isMine = item.sender == "You"
     GlassCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -108,20 +117,7 @@ private fun CollectionItemRow(item: CollectionItem) {
         onClick = {},
     ) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier.size(36.dp).clip(TwinTheme.shapes.circle),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = item.sender.firstOrNull()?.uppercase() ?: "?",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = colors.ink,
-                    modifier = Modifier
-                        .background(if (isMine) colors.primaryBrush else colors.accent)
-                        .size(36.dp)
-                        .clip(TwinTheme.shapes.circle),
-                )
-            }
+            Avatar(name = item.sender, size = 36.dp)
             Column(modifier = Modifier.weight(1f).padding(horizontal = TwinTheme.spacing.m)) {
                 Text(
                     text = item.sender,
@@ -148,18 +144,15 @@ private fun IconButtonRow(type: String) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (type == "voice" || type == "video") {
-            IconButton(
-                onClick = {},
-                modifier = Modifier.size(34.dp),
-            ) {
-                Icon(Icons.Default.PlayCircleFilled, contentDescription = "Play", tint = colors.accent)
+            IconButton(onClick = {}, modifier = Modifier.size(34.dp)) {
+                Icon(Icons.Rounded.PlayCircleFilled, contentDescription = "Play", tint = colors.accent)
             }
         }
         IconButton(onClick = {}, modifier = Modifier.size(34.dp)) {
-            Icon(Icons.Default.FavoriteBorder, contentDescription = "Favorite", tint = colors.inkMuted)
+            Icon(Icons.Rounded.FavoriteBorder, contentDescription = "Favorite", tint = colors.inkMuted)
         }
         IconButton(onClick = {}, modifier = Modifier.size(34.dp)) {
-            Icon(Icons.Default.DeleteOutline, contentDescription = "Delete", tint = colors.inkMuted)
+            Icon(Icons.Rounded.DeleteOutline, contentDescription = "Delete", tint = colors.inkMuted)
         }
     }
 }
@@ -174,12 +167,6 @@ private fun formatTime(ts: Long): String {
         diff < 86_400_000 -> "${(diff / 3_600_000).toInt()}h ago"
         else -> "${(diff / 86_400_000).toInt()}d ago"
     }
-}
-
-/** Simple icon button without Material3 Surface. */
-@Composable
-private fun IconButton(onClick: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    androidx.compose.material3.IconButton(onClick = onClick, modifier = modifier) { content() }
 }
 
 // ┌─────────────────────────────────────────────────────────────────┐

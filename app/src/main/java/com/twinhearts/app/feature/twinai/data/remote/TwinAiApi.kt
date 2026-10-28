@@ -1,10 +1,16 @@
 package com.twinhearts.app.feature.twinai.data.remote
 
+import kotlinx.serialization.json.JsonElement
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.HTTP
 import retrofit2.http.POST
+import retrofit2.http.Multipart
+import retrofit2.http.Part
+import retrofit2.http.PartMap
 import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.Streaming
@@ -56,4 +62,21 @@ interface TwinAiApi {
     /** Retrofit's @DELETE cannot carry a body, and this route reads `coupleId` from one. */
     @HTTP(method = "DELETE", path = "api/ai-both/session/{id}", hasBody = true)
     suspend fun deleteSession(@Path("id") id: String, @Body body: CoupleBody): StatusDto
+
+    // ── Pro (same routes as the web's Go Pro card) ──
+
+    @GET("api/pro/status")
+    suspend fun proStatus(@Query("coupleId") coupleId: String): ProStatusDto
+
+    @Multipart
+    @POST("api/pro/upgrade-request")
+    suspend fun upgradeRequest(
+        @PartMap fields: Map<String, @JvmSuppressWildcards RequestBody>,
+        @Part paymentProof: MultipartBody.Part?,
+    ): UpgradeAckDto
+
+    // ── App state: only used to read the latest journal mood for Twin ──
+
+    @GET("api/data/state/{coupleId}")
+    suspend fun appState(@Path("coupleId") coupleId: String): JsonElement
 }

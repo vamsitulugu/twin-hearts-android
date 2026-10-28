@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="calls_calling">Calling…</string>
+    <string name="calls_incoming_voice">Incoming voice call</string>
+    <string name="calls_incoming_video">Incoming video call</string>
+    <string name="calls_connecting">Connecting…</string>
+    <string name="calls_ended">Call ended</string>
+    <string name="calls_declined">Call declined</string>
+    <string name="calls_no_answer">No answer</string>
+    <string name="calls_missed">Missed call</string>
+    <string name="calls_failed">Could not connect. Please try again.</string>
+    <string name="calls_permission">Microphone or camera permission is needed for calls.</string>
+    <string name="calls_accept">Accept</string>
+    <string name="calls_decline">Decline</string>
+    <string name="calls_end">End</string>
+    <string name="calls_mute">Mute</string>
+    <string name="calls_speaker">Speaker</string>
+    <string name="calls_camera">Camera</string>
+    <string name="calls_flip">Flip</string>
+</resources>

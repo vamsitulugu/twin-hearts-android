@@ -1,13 +1,22 @@
 package com.twinhearts.app.feature.us.ui.screens
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -15,9 +24,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.twinhearts.app.core.design.GlassCard
 import com.twinhearts.app.core.design.SectionHeader
 import com.twinhearts.app.core.design.StatTile
@@ -32,20 +44,21 @@ fun DreamGoalsScreen(
 ) {
     val colors = TwinTheme.colors
     Column(modifier = Modifier.fillMaxSize()) {
-        SectionHeader(title = "Dream Goals")
+        SectionHeader(title = "Dream Goals", modifier = Modifier.padding(horizontal = TwinTheme.spacing.l))
 
         // Hero stats
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = TwinTheme.spacing.l),
+            horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            StatTile(value = goals.size.toString(), label = "Goals")
-            StatTile(value = goals.count { it.completed }.toString(), label = "Completed")
-            StatTile(value = goals.count { it.priority == "high" }.toString(), label = "High Priority")
-            val totalProgress = if (goals.isEmpty()) 0 else goals.averageOf { it.progress }.toInt()
-            StatTile(value = "$totalProgress%", label = "Progress")
+            StatTile(value = goals.size.toString(), label = "Goals", modifier = Modifier.weight(1f))
+            StatTile(value = goals.count { it.completed }.toString(), label = "Completed", modifier = Modifier.weight(1f))
+            StatTile(value = goals.count { it.priority == "high" }.toString(), label = "High Priority", modifier = Modifier.weight(1f))
+            val totalProgress = if (goals.isEmpty()) 0 else goals.map { it.progress }.average().toInt()
+            StatTile(value = "$totalProgress%", label = "Progress", modifier = Modifier.weight(1f))
         }
 
         // Insight card (web: ga-insight-card)
@@ -57,7 +70,7 @@ fun DreamGoalsScreen(
                     modifier = Modifier.size(32.dp).clip(TwinTheme.shapes.circle),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Default.Psychology, contentDescription = null, tint = colors.accent)
+                    Icon(Icons.Rounded.Psychology, contentDescription = null, tint = colors.accent)
                 }
                 Column(modifier = Modifier.weight(1f).padding(horizontal = TwinTheme.spacing.m)) {
                     Text(
@@ -85,19 +98,19 @@ fun DreamGoalsScreen(
         }
 
         // Dream cards grid (web: dream-card)
-        SectionHeader(title = "All Goals")
+        SectionHeader(title = "All Goals", modifier = Modifier.padding(horizontal = TwinTheme.spacing.l))
         if (goals.isEmpty()) {
-            androidx.compose.material3.Text(
+            Text(
                 text = "No dream goals yet. Add your first goal below.",
                 color = colors.inkMuted,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = TwinTheme.spacing.l),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                textAlign = TextAlign.Center,
             )
         } else {
-            androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
-                columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(2),
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = TwinTheme.spacing.l),
@@ -113,6 +126,8 @@ fun DreamGoalsScreen(
 /** Category card: title + progress bar + item list preview. */
 @Composable
 private fun CategoryProgressCard(title: String, items: List<DreamGoal>, accent: Color) {
+    val colors = TwinTheme.colors
+    val totalProgress = items.map { it.progress }.average().toFloat()
     GlassCard(modifier = Modifier.fillMaxWidth().padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.s)) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
@@ -125,7 +140,7 @@ private fun CategoryProgressCard(title: String, items: List<DreamGoal>, accent: 
                 style = MaterialTheme.typography.labelSmall,
                 color = colors.inkMuted,
             )
-            androidx.compose.foundation.layout.Row(
+            Row(
                 modifier = Modifier.fillMaxWidth().padding(top = TwinTheme.spacing.s),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -135,21 +150,11 @@ private fun CategoryProgressCard(title: String, items: List<DreamGoal>, accent: 
                     color = colors.inkMuted,
                     modifier = Modifier.width(48.dp),
                 )
-                androidx.compose.foundation.layout.Row(
-                    modifier = Modifier.weight(1f)
-                        .background(TwinTheme.colors.lineSoft)
-                        .clip(TwinTheme.shapes.small)
-                        .height(6.dp),
-                ) {
-                    val totalProgress = items.averageOf { it.progress }.toFloat()
-                    androidx.compose.foundation.layout.Row(
-                        modifier = Modifier
-                            .weight(totalProgress / 100f)
-                            .background(accent)
-                            .clip(TwinTheme.shapes.small)
-                            .height(6.dp),
-                    )
-                }
+                ProgressBar(
+                    fraction = totalProgress / 100f,
+                    fill = SolidColor(accent),
+                    modifier = Modifier.weight(1f),
+                )
                 Text(
                     text = "${totalProgress.toInt()}%",
                     style = MaterialTheme.typography.labelSmall,
@@ -158,6 +163,25 @@ private fun CategoryProgressCard(title: String, items: List<DreamGoal>, accent: 
                 )
             }
         }
+    }
+}
+
+/** Track + fill. Uses a fraction of the width, so 0% is fine (Modifier.weight() would crash at 0). */
+@Composable
+private fun ProgressBar(fraction: Float, fill: Brush, modifier: Modifier = Modifier) {
+    val shape = TwinTheme.shapes.small
+    Box(
+        modifier = modifier
+            .height(6.dp)
+            .clip(shape)
+            .background(TwinTheme.colors.lineSoft),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                .fillMaxHeight()
+                .background(fill),
+        )
     }
 }
 
@@ -231,20 +255,11 @@ private fun DreamCard(goal: DreamGoal) {
                     color = colors.inkMuted,
                     modifier = Modifier.width(48.dp),
                 )
-                androidx.compose.foundation.layout.Row(
-                    modifier = Modifier.weight(1f)
-                        .background(TwinTheme.colors.lineSoft)
-                        .clip(TwinTheme.shapes.small)
-                        .height(6.dp),
-                ) {
-                    androidx.compose.foundation.layout.Row(
-                        modifier = Modifier
-                            .weight(goal.progress / 100f)
-                            .background(colors.primaryBrush)
-                            .clip(TwinTheme.shapes.small)
-                            .height(6.dp),
-                    )
-                }
+                ProgressBar(
+                    fraction = goal.progress / 100f,
+                    fill = colors.primaryBrush,
+                    modifier = Modifier.weight(1f),
+                )
                 Text(
                     text = "${goal.progress}%",
                     style = MaterialTheme.typography.labelSmall,

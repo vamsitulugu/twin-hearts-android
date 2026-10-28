@@ -30,6 +30,9 @@ object Routes {
     // Phase 3: Us tab container (Love Counter · Collection · Dream Goals)
     @Serializable data object Us
 
+    // Phase 2.3: voice / video call screen ([incoming] true = already ringing)
+    @Serializable data class Call(val video: Boolean, val incoming: Boolean = false)
+
     // Debug builds only (the screen itself lives in src/debug)
     @Serializable data object DesignGallery
 }

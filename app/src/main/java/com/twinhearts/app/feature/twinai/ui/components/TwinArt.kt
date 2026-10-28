@@ -58,6 +58,11 @@ fun TwinRobot(modifier: Modifier = Modifier) {
         val body = Brush.radialGradient(
             listOf(Art.bodyLight, Art.bodyMid, Art.bodyShade), center = o(84f, 130f), radius = 70f * s,
         )
+        // small floating hearts, as in the web art
+        val tiny = Brush.linearGradient(listOf(accent, primary))
+        drawHeart(o(160f, 34f), 7f * s, tiny)
+        drawHeart(o(172f, 66f), 4f * s, tiny)
+        drawHeart(o(28f, 40f), 5f * s, tiny)
         // feet
         drawOval(body, o(50f, 196f), Size(44f * s, 20f * s))
         drawOval(body, o(106f, 196f), Size(44f * s, 20f * s))

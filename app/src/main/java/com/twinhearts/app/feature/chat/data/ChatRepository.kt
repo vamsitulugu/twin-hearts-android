@@ -8,6 +8,8 @@ import com.twinhearts.app.core.network.safeApiCall
 import com.twinhearts.app.feature.chat.data.mapper.forRole
 import com.twinhearts.app.feature.chat.data.mapper.parseServerTime
 import com.twinhearts.app.feature.chat.data.mapper.toDomain
+import com.twinhearts.app.feature.chat.data.mapper.toMessageDto
+import com.twinhearts.app.feature.chat.data.mapper.toMessageDtos
 import com.twinhearts.app.feature.chat.data.remote.ChatApi
 import com.twinhearts.app.feature.chat.data.remote.DeleteBody
 import com.twinhearts.app.feature.chat.data.remote.DisappearBody
@@ -141,13 +143,13 @@ class ChatRepositoryImpl @Inject constructor(
 
     override suspend fun recent(who: ChatIdentity): AppResult<List<ChatMessage>> =
         when (val r = safeApiCall { api.messages(who.coupleId, limit = RECENT_LIMIT) }) {
-            is AppResult.Success -> AppResult.Success(r.data.toDomain(who.myRole))
+            is AppResult.Success -> r.data.toMessageDtos()?.let { AppResult.Success(it.toDomain(who.myRole)) } ?: AppResult.Failure(AppError.Unknown)
             is AppResult.Failure -> r
         }
 
     override suspend fun since(who: ChatIdentity, after: Instant): AppResult<List<ChatMessage>> =
         when (val r = safeApiCall { api.messages(who.coupleId, after = after.toString()) }) {
-            is AppResult.Success -> AppResult.Success(r.data.toDomain(who.myRole))
+            is AppResult.Success -> r.data.toMessageDtos()?.let { AppResult.Success(it.toDomain(who.myRole)) } ?: AppResult.Failure(AppError.Unknown)
             is AppResult.Failure -> r
         }
 
@@ -166,8 +168,15 @@ class ChatRepositoryImpl @Inject constructor(
     ): AppResult<ChatMessage> {
         val uploaded = mutableListOf<UploadResponse>()
         for (photo in photos) {
-            val jpeg = compressor.toJpeg(photo.uri, photo.rotation) ?: return AppResult.Failure(AppError.Unknown)
-            val part = MultipartBody.Part.createFormData("file", "photo.jpg", jpeg.toRequestBody("image/jpeg".toMediaType()))
+            val jpeg = compressor.toJpeg(photo.uri, photo.rotation)
+            val part = if (jpeg != null) {
+                MultipartBody.Part.createFormData("file", "photo.jpg", jpeg.toRequestBody("image/jpeg".toMediaType()))
+            } else {
+                // The picture could not be shrunk (rare format): send the original file as it is.
+                val raw = files.describe(photo.uri)?.takeIf { it.mime.startsWith("image/") }
+                    ?: return AppResult.Failure(AppError.Unknown)
+                MultipartBody.Part.createFormData("file", raw.name, files.body(raw))
+            }
             when (val r = safeApiCall { api.uploadImage(part, who.coupleId.asText()) }) {
                 is AppResult.Success -> uploaded += r.data
                 is AppResult.Failure -> return r
@@ -216,7 +225,7 @@ class ChatRepositoryImpl @Inject constructor(
     }
 
     override suspend fun sendFile(who: ChatIdentity, clientId: String, uri: Uri, replyTo: Long?): AppResult<ChatMessage> {
-        val file = files.describe(uri) ?: return AppResult.Failure(AppError.Unknown)
+        val file = files.describe(uri)?.let(files::asDocument) ?: return AppResult.Failure(AppError.Unknown)
         val part = MultipartBody.Part.createFormData("file", file.name, files.body(file))
         val up = when (val r = safeApiCall { api.uploadDoc(part, who.coupleId.asText()) }) {
             is AppResult.Success -> r.data
@@ -302,7 +311,7 @@ class ChatRepositoryImpl @Inject constructor(
 
     private suspend fun post(who: ChatIdentity, body: SendMessageBody): AppResult<ChatMessage> =
         when (val r = safeApiCall { api.send(body) }) {
-            is AppResult.Success -> r.data.toDomain(who.myRole)?.let { AppResult.Success(it) } ?: AppResult.Failure(AppError.Unknown)
+            is AppResult.Success -> r.data.toMessageDto()?.toDomain(who.myRole)?.let { AppResult.Success(it) } ?: AppResult.Failure(AppError.Unknown)
             is AppResult.Failure -> r
         }
 
@@ -332,9 +341,9 @@ class ChatRepositoryImpl @Inject constructor(
     override suspend fun pin(who: ChatIdentity, messageId: Long, pinned: Boolean): AppResult<ChatMessage> =
         message(who) { api.pin(messageId, PinBody(who.coupleId, pinned)) }
 
-    private suspend fun message(who: ChatIdentity, call: suspend () -> com.twinhearts.app.feature.chat.data.remote.ChatMessageDto): AppResult<ChatMessage> =
+    private suspend fun message(who: ChatIdentity, call: suspend () -> JsonElement): AppResult<ChatMessage> =
         when (val r = safeApiCall(call)) {
-            is AppResult.Success -> r.data.toDomain(who.myRole)?.let { AppResult.Success(it) } ?: AppResult.Failure(AppError.Unknown)
+            is AppResult.Success -> r.data.toMessageDto()?.toDomain(who.myRole)?.let { AppResult.Success(it) } ?: AppResult.Failure(AppError.Unknown)
             is AppResult.Failure -> r
         }
 
@@ -348,7 +357,7 @@ class ChatRepositoryImpl @Inject constructor(
 
     override suspend fun search(who: ChatIdentity, query: String, filter: SearchFilter): AppResult<List<ChatMessage>> =
         when (val r = safeApiCall { api.search(who.coupleId, query, filter.apiValue) }) {
-            is AppResult.Success -> AppResult.Success(r.data.toDomain(who.myRole))
+            is AppResult.Success -> r.data.toMessageDtos()?.let { AppResult.Success(it.toDomain(who.myRole)) } ?: AppResult.Failure(AppError.Unknown)
             is AppResult.Failure -> r
         }
 

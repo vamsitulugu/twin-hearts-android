@@ -12,7 +12,7 @@ import java.time.temporal.ChronoUnit
 
 /** Converts the session + shared state into the Love Counter domain model. */
 fun toLoveCounterState(anniversary: String?, session: Session): LoveCounterState {
-    val anniversary = anniversary.takeIf { it.isNotBlank() }
+    val anniversary = anniversary?.takeIf { it.isNotBlank() }
     val started = startedAtFrom(anniversary)
     val today = LocalDate.now()
     val days = if (started != null) ChronoUnit.DAYS.between(started, today).toInt().coerceAtLeast(0) else 0

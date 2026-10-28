@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.chat.data.remote
 
+import kotlinx.serialization.json.JsonElement
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.ResponseBody
@@ -15,7 +16,12 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.Url
 
-/** Why this file exists: the only door from Chat to the old Express server (R-40, R-60). */
+/**
+ * Why this file exists: the only door from Chat to the old Express server (R-40, R-60).
+ *
+ * Message answers come back as raw JSON on purpose: the old table has odd columns, and one odd
+ * value must never make the whole chat fail. `ChatLenient.kt` reads each row defensively.
+ */
 interface ChatApi {
 
     /** Newest [limit] messages, oldest first. With [after] (an ISO time) only newer ones. */
@@ -24,13 +30,13 @@ interface ChatApi {
         @Path("coupleId") coupleId: String,
         @Query("limit") limit: Int? = null,
         @Query("after") after: String? = null,
-    ): List<ChatMessageDto>
+    ): JsonElement
 
     @POST("api/chat")
-    suspend fun send(@Body body: SendMessageBody): ChatMessageDto
+    suspend fun send(@Body body: SendMessageBody): JsonElement
 
     @PATCH("api/chat/{id}")
-    suspend fun edit(@Path("id") id: Long, @Body body: EditBody): ChatMessageDto
+    suspend fun edit(@Path("id") id: Long, @Body body: EditBody): JsonElement
 
     /** DELETE with a JSON body: the old server reads `mode` from it. */
     @HTTP(method = "DELETE", path = "api/chat/{id}", hasBody = true)
@@ -40,13 +46,13 @@ interface ChatApi {
     suspend fun markRead(@Path("coupleId") coupleId: String, @Body body: RoleBody): OkResponse
 
     @POST("api/chat/{id}/star")
-    suspend fun toggleStar(@Path("id") id: Long, @Body body: StarBody): ChatMessageDto
+    suspend fun toggleStar(@Path("id") id: Long, @Body body: StarBody): JsonElement
 
     @POST("api/chat/{id}/react")
-    suspend fun react(@Path("id") id: Long, @Body body: ReactBody): ChatMessageDto
+    suspend fun react(@Path("id") id: Long, @Body body: ReactBody): JsonElement
 
     @POST("api/chat/{id}/pin")
-    suspend fun pin(@Path("id") id: Long, @Body body: PinBody): ChatMessageDto
+    suspend fun pin(@Path("id") id: Long, @Body body: PinBody): JsonElement
 
     /** Opens (and burns) a view-once photo or video. 410 when it was already viewed. */
     @POST("api/chat/{id}/view")
@@ -57,7 +63,7 @@ interface ChatApi {
         @Path("coupleId") coupleId: String,
         @Query("q") query: String,
         @Query("filter") filter: String,
-    ): List<ChatMessageDto>
+    ): JsonElement
 
     @GET("api/chat/{coupleId}/presence")
     suspend fun presence(@Path("coupleId") coupleId: String): List<PresenceDto>

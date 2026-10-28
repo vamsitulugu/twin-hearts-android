@@ -2,6 +2,7 @@ package com.twinhearts.app.feature.us.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.feature.us.data.UsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,7 +22,7 @@ class UsViewModel @Inject constructor(
     private val repository: UsRepository,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(UsScreenState.Loading)
+    private val _state = MutableStateFlow<UsScreenState>(UsScreenState.Loading)
     val state: StateFlow<UsScreenState> = _state.asStateFlow()
 
     init {
@@ -35,20 +36,20 @@ class UsViewModel @Inject constructor(
             val collection = repository.collection()
             val dreamGoals = repository.dreamGoals()
 
-            val results = listOf(loveCounter, collection, dreamGoals)
-            val failure = results.firstOrNull { it is AppResult.Failure<*> } as? AppResult.Failure<*>
-            if (failure != null) {
-                _state.update { UsScreenState.Error(failure.error) }
-                return@launch
-            }
-
-            _state.update {
-                UsScreenState.Content(
-                    loveCounter = (loveCounter as AppResult.Success<*>).data,
-                    collection = (collection as AppResult.Success<*>).data,
-                    dreamGoals = (dreamGoals as AppResult.Success<*>).data,
+            val next: UsScreenState = when {
+                loveCounter is AppResult.Failure -> UsScreenState.Error(loveCounter.error)
+                collection is AppResult.Failure -> UsScreenState.Error(collection.error)
+                dreamGoals is AppResult.Failure -> UsScreenState.Error(dreamGoals.error)
+                loveCounter is AppResult.Success &&
+                    collection is AppResult.Success &&
+                    dreamGoals is AppResult.Success -> UsScreenState.Content(
+                    loveCounter = loveCounter.data,
+                    collection = collection.data,
+                    dreamGoals = dreamGoals.data,
                 )
+                else -> UsScreenState.Error(AppError.Unknown)
             }
+            _state.update { next }
         }
     }
 

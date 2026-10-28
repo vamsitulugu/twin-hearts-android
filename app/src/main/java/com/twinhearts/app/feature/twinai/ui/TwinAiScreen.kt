@@ -24,6 +24,14 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.twinhearts.app.feature.twinai.ui.components.GlassTextArea
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import com.twinhearts.app.feature.twinai.ui.components.TwinOrbFlight
+import com.twinhearts.app.feature.twinai.ui.pro.ProGateSheet
+import com.twinhearts.app.feature.twinai.ui.pro.ProGateViewModel
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -60,10 +68,24 @@ fun TwinAiScreen(
     modifier: Modifier = Modifier,
     viewModel: TwinAiViewModel = hiltViewModel(),
     bothViewModel: BothViewModel = hiltViewModel(),
+    proViewModel: ProGateViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
     val both by bothViewModel.state.collectAsStateWithLifecycle()
+    val pro by proViewModel.state.collectAsStateWithLifecycle()
+
+    // Orb flight: the first question sends a small orb from the hero robot to the dock.
+    var heroCenter by remember { mutableStateOf(Offset.Zero) }
+    var dockCenter by remember { mutableStateOf(Offset.Zero) }
+    var rootOrigin by remember { mutableStateOf(Offset.Zero) }
+    var flying by remember { mutableStateOf(false) }
+    var hadMessages by remember { mutableStateOf(false) }
+    LaunchedEffect(state.messages.isEmpty()) {
+        val has = state.messages.isNotEmpty()
+        if (has && !hadMessages && heroCenter != Offset.Zero && dockCenter != Offset.Zero) flying = true
+        hadMessages = has
+    }
 
     fun toast(resId: Int) = Toast.makeText(context, resId, Toast.LENGTH_SHORT).show()
 
@@ -125,6 +147,9 @@ fun TwinAiScreen(
     LaunchedEffect(Unit) {
         bothViewModel.messages.collect { toast(it) }
     }
+    LaunchedEffect(Unit) {
+        proViewModel.messages.collect { toast(it) }
+    }
 
     // Back closes an open discussion first; only then does it leave the page.
     BackHandler(enabled = state.voiceOpen) { endVoice() }
@@ -142,7 +167,7 @@ fun TwinAiScreen(
         )
     }
 
-    Box(modifier.fillMaxSize()) {
+    Box(modifier.fillMaxSize().onGloballyPositioned { rootOrigin = it.positionInWindow() }) {
     Column(Modifier.fillMaxSize().imePadding()) {
         TwinAiHeader(
             syncing = state.syncing,
@@ -182,6 +207,7 @@ fun TwinAiScreen(
             },
             onSync = {
                 viewModel.refresh()
+                proViewModel.forgetStatus()
                 if (state.tab == TwinTab.Both) bothViewModel.loadHistory()
             },
         )
@@ -189,7 +215,13 @@ fun TwinAiScreen(
             TwinModeTabs(
                 options = listOf(stringResource(R.string.twinai_tab_you), stringResource(R.string.twinai_tab_both)),
                 selectedIndex = state.tab.ordinal,
-                onSelect = { viewModel.selectTab(TwinTab.entries[it]) },
+                onSelect = { index ->
+                    if (index == TwinTab.Both.ordinal && state.tab != TwinTab.Both) {
+                        proViewModel.requireBoth { viewModel.selectTab(TwinTab.Both) }
+                    } else {
+                        viewModel.selectTab(TwinTab.entries[index])
+                    }
+                },
                 modifier = Modifier
                     .padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.s)
                     .fillMaxWidth(0.62f),
@@ -232,6 +264,7 @@ fun TwinAiScreen(
                     onRetry = viewModel::askAgain,
                     onRegenerate = viewModel::askAgain,
                     onListen = { speaker.toggle(it.id, it.text) },
+                    onHeroPositioned = { heroCenter = it },
                 )
                 TwinTab.Both -> BothContent(both, actions, query = query)
             }
@@ -246,9 +279,14 @@ fun TwinAiScreen(
                 quickOpen = state.quickOpen,
                 onPrompt = { viewModel.ask(it.prompt) },
                 sendEnabled = state.input.isNotBlank() && !state.streaming,
+                onOrbPositioned = { dockCenter = it },
             )
         }
     }
+    if (flying) {
+        TwinOrbFlight(from = heroCenter - rootOrigin, to = dockCenter - rootOrigin, onDone = { flying = false })
+    }
+    ProGateSheet(pro, proViewModel)
     if (state.voiceOpen) {
         TwinVoiceOverlay(controller = voice, onEnd = ::endVoice)
     }

@@ -25,7 +25,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonObject
+import kotlinx.serialization.json.putJsonArray
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -94,10 +94,8 @@ class UsRepositoryImpl @Inject constructor(
             by = session.role,
         )
         val patch = buildJsonObject {
-            putJsonObject("bucket") {
-                next.forEachIndexed { index, item ->
-                    put(index.toString(), toJsonObject(item))
-                }
+            putJsonArray("bucket") {
+                next.forEach { item -> add(toJsonObject(item)) }
             }
         }
         return save(session, patch)

@@ -24,6 +24,8 @@ import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -59,6 +61,7 @@ fun YouContent(
     modifier: Modifier = Modifier,
     showHero: Boolean = true,
     emptyNote: String? = null,
+    onHeroPositioned: (Offset) -> Unit = {},
 ) {
     val listState = rememberLazyListState()
     val lastLength = messages.lastOrNull()?.text?.length ?: 0
@@ -81,7 +84,7 @@ fun YouContent(
             horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.s,
         ),
     ) {
-        if (showHero) item(key = "hero") { TwinHero(greetingName, compact = messages.isNotEmpty()) }
+        if (showHero) item(key = "hero") { TwinHero(greetingName, compact = messages.isNotEmpty(), onRobotPositioned = onHeroPositioned) }
         if (emptyNote != null) {
             item(key = "note") { Text(emptyNote, style = MaterialTheme.typography.bodyMedium, color = TwinTheme.colors.inkFaint) }
         }
@@ -105,7 +108,7 @@ fun YouContent(
 
 /** "Hey Vamsi, / I'm Twin AI." card with the robot on the right. */
 @Composable
-private fun TwinHero(name: String, compact: Boolean) {
+private fun TwinHero(name: String, compact: Boolean, onRobotPositioned: (Offset) -> Unit) {
     val colors = TwinTheme.colors
     val glow = colors.accent
     GlassCard(
@@ -147,7 +150,11 @@ private fun TwinHero(name: String, compact: Boolean) {
                     )
                 }
             }
-            TwinRobot(Modifier.width(if (compact) 96.dp else 150.dp))
+            TwinRobot(
+                Modifier
+                    .width(if (compact) 96.dp else 150.dp)
+                    .onGloballyPositioned { c -> onRobotPositioned(c.positionInWindow() + Offset(c.size.width / 2f, c.size.height / 2f)) },
+            )
         }
     }
 }

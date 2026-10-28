@@ -10,6 +10,11 @@ import com.twinhearts.app.feature.twinai.domain.model.BothRound
 import com.twinhearts.app.feature.twinai.domain.model.BothSection
 import com.twinhearts.app.feature.twinai.domain.model.BothSession
 import com.twinhearts.app.feature.twinai.domain.model.RoundStatus
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import java.time.Instant
 import java.time.OffsetDateTime
 
@@ -47,4 +52,12 @@ fun parseServerInstant(raw: String?): Instant? {
     return runCatching { OffsetDateTime.parse(raw).toInstant() }
         .recoverCatching { Instant.parse(raw) }
         .getOrNull()
+}
+
+/** The newest journal entry's mood from the shared app state, or "" (the web sends `S.journal[0].mood`). */
+fun latestMood(state: JsonElement?): String {
+    val journal = (state as? JsonObject)?.get("journal") as? JsonArray ?: return ""
+    val first = journal.firstOrNull() as? JsonObject ?: return ""
+    val mood = first["mood"] as? JsonPrimitive ?: return ""
+    return mood.contentOrNull.orEmpty()
 }

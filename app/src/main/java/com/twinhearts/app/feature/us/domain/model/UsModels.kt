@@ -35,12 +35,3 @@ data class LoveCounterState(
     val remainingMinutes: Int,
     val remainingSeconds: Int,
 )
-
-/** UI state for the Us tab container. */
-data class UsUiState(
-    val loveCounter: LoveCounterState = LoveCounterState(),
-    val collection: List<CollectionItem> = emptyList(),
-    val dreamGoals: List<DreamGoal> = emptyList(),
-    val isLoading: Boolean = false,
-    val error: String? = null,
-)

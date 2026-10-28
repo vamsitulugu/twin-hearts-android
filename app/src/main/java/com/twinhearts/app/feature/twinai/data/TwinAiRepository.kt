@@ -1,11 +1,13 @@
 package com.twinhearts.app.feature.twinai.data
 
 import android.content.Context
+import android.net.Uri
 import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.core.common.map
 import com.twinhearts.app.core.data.SessionStore
 import com.twinhearts.app.core.network.safeApiCall
+import com.twinhearts.app.feature.twinai.data.mapper.latestMood
 import com.twinhearts.app.feature.twinai.data.mapper.toDomain
 import com.twinhearts.app.feature.twinai.data.remote.AiChatBody
 import com.twinhearts.app.feature.twinai.data.remote.CoupleBody
@@ -19,12 +21,18 @@ import com.twinhearts.app.feature.twinai.domain.model.AiStreamEvent
 import com.twinhearts.app.feature.twinai.domain.model.BothDiscussion
 import com.twinhearts.app.feature.twinai.domain.model.BothRound
 import com.twinhearts.app.feature.twinai.domain.model.BothSession
+import com.twinhearts.app.feature.twinai.domain.model.ProUpgradeForm
 import com.twinhearts.app.feature.twinai.domain.model.RoundStatus
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -56,6 +64,15 @@ interface TwinAiRepository {
     suspend fun delete(who: AiIdentity, sessionId: String): AppResult<Unit>
 
     /** The discussion that was open when the page was last left (the web reopens it). */
+    /** True when this couple has active Pro. */
+    suspend fun isPro(who: AiIdentity): AppResult<Boolean>
+
+    /** Sends the "I've paid" request (with the screenshot picked by the user) to the admin. */
+    suspend fun submitUpgrade(who: AiIdentity, form: ProUpgradeForm, proofUri: String?): AppResult<Unit>
+
+    /** Forget the cached journal mood (the Sync button). */
+    fun invalidateMood()
+
     fun lastDiscussionId(): String?
     fun saveLastDiscussionId(id: String?)
 }
@@ -67,7 +84,48 @@ class TwinAiRepositoryImpl @Inject constructor(
     @ApplicationContext context: Context,
 ) : TwinAiRepository {
 
+    private val appContext = context.applicationContext
+    private var cachedMood: String? = null
+
     private val prefs = context.getSharedPreferences("twin_ai", Context.MODE_PRIVATE)
+
+    override suspend fun isPro(who: AiIdentity) = safeApiCall { api.proStatus(who.coupleId) }.map { it.isPro }
+
+    override fun invalidateMood() {
+        cachedMood = null
+    }
+
+    /** Reads the latest journal mood once (cached). A slow or failed read never delays the answer for long. */
+    private suspend fun moodFor(who: AiIdentity): String {
+        cachedMood?.let { return it }
+        val result = withTimeoutOrNull(4_000) { safeApiCall { api.appState(who.coupleId) } }
+        return if (result is AppResult.Success) latestMood(result.data).also { cachedMood = it } else ""
+    }
+
+    override suspend fun submitUpgrade(who: AiIdentity, form: ProUpgradeForm, proofUri: String?): AppResult<Unit> {
+        fun text(value: String) = value.toRequestBody("text/plain".toMediaType())
+        val fields = mapOf(
+            "coupleId" to text(who.coupleId),
+            "plan" to text(form.plan.key),
+            "paidByName" to text(form.paidName.trim()),
+            "paidByPhone" to text(form.paidPhone.trim()),
+            "partnerName" to text(form.partnerName.trim()),
+            "partnerPhone" to text(form.partnerPhone.trim()),
+            "transactionId" to text(form.transactionId.trim()),
+            "notes" to text(form.note.trim()),
+        )
+        val proof = proofUri?.let { uri ->
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    val parsed = Uri.parse(uri)
+                    val mime = appContext.contentResolver.getType(parsed) ?: "image/jpeg"
+                    val bytes = appContext.contentResolver.openInputStream(parsed)?.use { it.readBytes() }
+                    bytes?.let { MultipartBody.Part.createFormData("paymentProof", "payment.jpg", it.toRequestBody(mime.toMediaType())) }
+                }.getOrNull()
+            }
+        }
+        return safeApiCall { api.upgradeRequest(fields, proof) }.map { }
+    }
 
     override fun lastDiscussionId(): String? = prefs.getString(KEY_LAST, null)
 
@@ -81,8 +139,7 @@ class TwinAiRepositoryImpl @Inject constructor(
     }
 
     override fun reply(who: AiIdentity, question: String): Flow<AiStreamEvent> = flow {
-        // The web app sends the latest journal mood too; the journal is not in this app yet, so it is left empty.
-        val body = AiChatBody(question, who.myName, who.partnerName, who.anniversary)
+        val body = AiChatBody(question, who.myName, who.partnerName, who.anniversary, moodFor(who))
         var gotText = false
         var failure: AppError? = null
 

@@ -11,6 +11,7 @@ import com.twinhearts.app.feature.auth.authGraph
 import com.twinhearts.app.feature.chat.chatGraph
 import com.twinhearts.app.feature.getstarted.getStartedGraph
 import com.twinhearts.app.feature.home.homeGraph
+import com.twinhearts.app.feature.livemap.liveMapGraph
 import com.twinhearts.app.feature.movie.movieGraph
 import com.twinhearts.app.feature.pairing.pairingGraph
 import com.twinhearts.app.feature.twinai.twinAiGraph
@@ -30,6 +31,7 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
     twinAiGraph(navController) // 2.3 Twin AI
     movieGraph(navController) // 5.2 Watch Together (movies)
     usGraph(navController) // 3.1 Us (Love Counter · Collection · Dream Goals)
+    liveMapGraph(navController) // 5.3 Live Map (Map · Track · Partner · Places)
 }
 
 /**
@@ -39,7 +41,6 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
  */
 internal fun NavGraphBuilder.pendingGraphs(navController: NavHostController) {
     val openGallery = { navController.navigate(Routes.DesignGallery) }
-    pending<Routes.LiveMap>(R.string.core_nav_map, openGallery)
     pending<Routes.Settings>(R.string.core_nav_settings, openGallery)
     pending<Routes.Profile>(R.string.app_name, openGallery)
 }

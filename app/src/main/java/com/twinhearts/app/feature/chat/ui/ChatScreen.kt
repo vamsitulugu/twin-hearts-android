@@ -131,6 +131,7 @@ private enum class Sheet {
 fun ChatScreen(
     onBack: () -> Unit,
     onCall: () -> Unit,
+    onVideoCall: () -> Unit,
     viewModel: ChatViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -308,6 +309,7 @@ fun ChatScreen(
     val actions = ChatActions(
         onBack = onBack,
         onCall = onCall,
+        onVideoCall = onVideoCall,
         onRetryLoad = viewModel::load,
         onSync = { viewModel.poll(full = true) },
         onOpenSearch = { sheet = Sheet.Search },
@@ -618,6 +620,7 @@ internal const val MORE_EMOJI = "…"
 internal class ChatActions(
     val onBack: () -> Unit = {},
     val onCall: () -> Unit = {},
+    val onVideoCall: () -> Unit = {},
     val onRetryLoad: () -> Unit = {},
     val onSync: () -> Unit = {},
     val onOpenSearch: () -> Unit = {},
@@ -760,7 +763,7 @@ private fun ChatHeader(partnerName: String, state: ChatUiState, actions: ChatAct
             }
         }
         HeaderButton(Icons.Rounded.Call, stringResource(R.string.chat_action_call), actions.onCall)
-        HeaderButton(Icons.Rounded.Videocam, stringResource(R.string.chat_action_video), actions.onCall)
+        HeaderButton(Icons.Rounded.Videocam, stringResource(R.string.chat_action_video), actions.onVideoCall)
         HeaderButton(Icons.Rounded.StarBorder, stringResource(R.string.chat_action_starred), actions.onOpenStarred)
         HeaderButton(Icons.Rounded.Search, stringResource(R.string.chat_action_search), actions.onOpenSearch)
         Box {

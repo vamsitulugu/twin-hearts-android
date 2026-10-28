@@ -20,6 +20,7 @@ import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.twinhearts.app.R
+import com.twinhearts.app.feature.calls.ui.IncomingCallWatcher
 import com.twinhearts.app.core.design.BottomBarItem
 import com.twinhearts.app.core.design.TwinBackground
 import com.twinhearts.app.core.design.TwinBottomBar
@@ -48,12 +49,24 @@ fun TwinApp(viewModel: AppViewModel = hiltViewModel()) {
 private fun TwinNavigation(startDestination: Any) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
+
+    // A call from my partner opens the call page on any screen (the app must be open).
+    IncomingCallWatcher(
+        onIncoming = { video ->
+            if (navController.currentDestination?.hasRoute<Routes.Call>() != true) {
+                navController.navigate(Routes.Call(video = video, incoming = true)) { launchSingleTop = true }
+            }
+        },
+    )
     val destination = backStackEntry?.destination
     val selectedItem = bottomBarItems.firstOrNull { item ->
         destination?.hierarchy?.any { it.hasRoute(item.key::class) } == true
     }
-    // The Twin page has its own input dock with the orb, so the bar is hidden there (web reference).
-    val showBottomBar = selectedItem != null && selectedItem.key != Routes.TwinAi
+    // Twin has its own input dock with the orb, and Chat gives the whole bottom to the typing bar
+    // (like WhatsApp), so the bar is hidden on both. Leave Chat with the back arrow.
+    val showBottomBar = selectedItem != null &&
+        selectedItem.key != Routes.TwinAi &&
+        selectedItem.key != Routes.Chat
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -75,8 +88,11 @@ private fun TwinNavigation(startDestination: Any) {
             }
         },
     ) { innerPadding ->
-        // Without the bottom bar, the screen itself must stay above the gesture bar.
-        val insets = if (showBottomBar) Modifier else Modifier.navigationBarsPadding()
+        // Without the bottom bar, the screen itself must stay above the gesture bar. Chat is the
+        // exception: its typing bar already handles the gesture bar and the keyboard, so adding
+        // it here too would leave an empty gap under the typing bar.
+        val ownsBottomInset = selectedItem?.key == Routes.Chat
+        val insets = if (showBottomBar || ownsBottomInset) Modifier else Modifier.navigationBarsPadding()
         AppNavHost(
             navController = navController,
             startDestination = startDestination,

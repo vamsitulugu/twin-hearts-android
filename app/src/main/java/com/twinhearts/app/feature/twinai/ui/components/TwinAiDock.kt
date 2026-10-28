@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -26,6 +25,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -58,6 +60,7 @@ fun TwinAiDock(
     onPrompt: (QuickPrompt) -> Unit,
     sendEnabled: Boolean,
     modifier: Modifier = Modifier,
+    onOrbPositioned: (Offset) -> Unit = {},
 ) {
     val colors = TwinTheme.colors
     Column(modifier.fillMaxWidth().padding(horizontal = TwinTheme.spacing.m)) {
@@ -118,6 +121,7 @@ fun TwinAiDock(
                         hint = stringResource(R.string.twinai_input_hint),
                         minHeight = 48.dp,
                         shape = TwinTheme.shapes.pill,
+                        onEnter = { if (sendEnabled) onSend() },
                         trailing = {
                             Icon(
                                 Icons.Rounded.Mic,
@@ -138,7 +142,10 @@ fun TwinAiDock(
                     enabled = sendEnabled,
                 ) { Icon(Icons.AutoMirrored.Rounded.Send, null, tint = colors.ink, modifier = Modifier.size(22.dp)) }
             }
-            TwinOrb(Modifier.offset(y = 0.dp), size = 52.dp)
+            TwinOrb(
+                Modifier.onGloballyPositioned { c -> onOrbPositioned(c.positionInWindow() + Offset(c.size.width / 2f, c.size.height / 2f)) },
+                size = 52.dp,
+            )
         }
     }
 }

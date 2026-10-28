@@ -1,12 +1,18 @@
 package com.twinhearts.app.feature.twinai
 
+import com.twinhearts.app.feature.twinai.data.mapper.latestMood
+import com.twinhearts.app.feature.twinai.data.mapper.latestMood
 import com.twinhearts.app.feature.twinai.data.mapper.parseServerInstant
 import com.twinhearts.app.feature.twinai.data.mapper.toDomain
 import com.twinhearts.app.feature.twinai.data.remote.ResultDto
 import com.twinhearts.app.feature.twinai.data.remote.RoundDto
 import com.twinhearts.app.feature.twinai.data.remote.SectionDto
 import com.twinhearts.app.feature.twinai.data.remote.SessionDto
+import com.twinhearts.app.feature.twinai.domain.model.ProPlan
+import com.twinhearts.app.feature.twinai.domain.model.ProUpgradeForm
 import com.twinhearts.app.feature.twinai.domain.model.RoundStatus
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -44,5 +50,34 @@ class TwinAiMapperTest {
         assertNotNull(parseServerInstant("2026-10-26T09:00:00Z"))
         assertNull(parseServerInstant("nope"))
         assertNull(parseServerInstant(null))
+    }
+
+    @Test
+    fun latestMoodReadsNewestJournalEntry() {
+        val state = Json.parseToJsonElement("""{"journal":[{"mood":"😊","body":"x"},{"mood":"😢"}]}""")
+        assertEquals("😊", latestMood(state))
+        assertEquals("", latestMood(Json.parseToJsonElement("""{"journal":[]}""")))
+        assertEquals("", latestMood(Json.parseToJsonElement("null")))
+    }
+
+    @Test
+    fun latestMoodReadsFirstJournalEntry() {
+        val state = Json.parseToJsonElement("""{"journal":[{"mood":"😊","body":"x"},{"mood":"😢"}]}""")
+        assertEquals("😊", latestMood(state))
+    }
+
+    @Test
+    fun latestMoodIsEmptyWhenThereIsNoJournal() {
+        assertEquals("", latestMood(Json.parseToJsonElement("""{"other":1}""")))
+        assertEquals("", latestMood(Json.parseToJsonElement("null")))
+        assertEquals("", latestMood(null))
+    }
+
+    @Test
+    fun upgradeFormNeedsAllRequiredFields() {
+        val form = ProUpgradeForm(ProPlan.Monthly, "A", "1", "B", "2", "TXN")
+        assertTrue(form.isComplete)
+        assertTrue(!form.copy(transactionId = " ").isComplete)
+        assertEquals(499, ProPlan.Lifetime.amount)
     }
 }

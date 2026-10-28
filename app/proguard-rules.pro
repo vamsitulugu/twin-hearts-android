@@ -3,3 +3,6 @@
 -dontwarn okhttp3.**
 -dontwarn okio.**
 -dontwarn retrofit2.**
+
+# WebRTC talks to its native code by name
+-keep class org.webrtc.** { *; }

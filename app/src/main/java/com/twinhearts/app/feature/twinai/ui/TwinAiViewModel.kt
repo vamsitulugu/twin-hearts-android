@@ -67,6 +67,7 @@ class TwinAiViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             _state.update { it.copy(syncing = true) }
+            repository.invalidateMood()
             val who = repository.identity()
             identity = who
             _state.update {
