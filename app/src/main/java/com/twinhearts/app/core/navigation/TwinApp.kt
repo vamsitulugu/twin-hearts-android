@@ -64,9 +64,11 @@ private fun TwinNavigation(startDestination: Any) {
     }
     // Twin has its own input dock with the orb, and Chat gives the whole bottom to the typing bar
     // (like WhatsApp), so the bar is hidden on both. Leave Chat with the back arrow.
-    val showBottomBar = selectedItem != null &&
+    // Fight Log keeps the bottom bar (as in the web reference), with no tab highlighted.
+    val onFights = destination?.hasRoute<Routes.Fights>() == true
+    val showBottomBar = (selectedItem != null &&
         selectedItem.key != Routes.TwinAi &&
-        selectedItem.key != Routes.Chat
+        selectedItem.key != Routes.Chat) || onFights
 
     Scaffold(
         containerColor = Color.Transparent,

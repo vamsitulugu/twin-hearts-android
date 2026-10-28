@@ -30,6 +30,20 @@ object Routes {
     // Meet Planner, opened from the Home "Meet Planner" chip
     @Serializable data object MeetPlanner
 
+    // Fight Log, opened from the Home "Fight Log" shortcut
+    @Serializable data object Fights
+
+    // Pages opened from Home and Chat (restored: these were missing from the repo copy)
+    @Serializable data object Us
+    @Serializable data object Collection
+    @Serializable data object Money
+    @Serializable data object Calendar
+    @Serializable data object Music
+    @Serializable data object Study
+
+    /** The call page. [incoming] is true when my partner is calling me. */
+    @Serializable data class Call(val video: Boolean = false, val incoming: Boolean = false)
+
     // Debug builds only (the screen itself lives in src/debug)
     @Serializable data object DesignGallery
 }

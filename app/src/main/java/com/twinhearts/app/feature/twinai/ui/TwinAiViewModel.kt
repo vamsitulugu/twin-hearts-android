@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.AppResult
+import com.twinhearts.app.core.common.TwinPromptHandoff
 import com.twinhearts.app.feature.twinai.data.TwinAiRepository
 import com.twinhearts.app.feature.twinai.domain.model.AiAuthor
 import com.twinhearts.app.feature.twinai.domain.model.AiIdentity
@@ -50,6 +51,7 @@ data class TwinAiUiState(
 @HiltViewModel
 class TwinAiViewModel @Inject constructor(
     private val repository: TwinAiRepository,
+    private val handoff: TwinPromptHandoff,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(TwinAiUiState())
@@ -76,6 +78,8 @@ class TwinAiViewModel @Inject constructor(
                     syncing = false,
                 )
             }
+            // A question handed over by another page (e.g. Fight Log > AI Help) is asked once.
+            handoff.take()?.let { ask(it) }
         }
     }
 

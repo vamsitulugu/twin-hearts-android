@@ -2,6 +2,7 @@ package com.twinhearts.app.feature.twinai
 
 import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.AppResult
+import com.twinhearts.app.core.common.TwinPromptHandoff
 import com.twinhearts.app.feature.auth.MainDispatcherRule
 import com.twinhearts.app.feature.twinai.data.TwinAiRepository
 import com.twinhearts.app.feature.twinai.domain.model.AiAuthor
@@ -28,7 +29,7 @@ class TwinAiViewModelTest {
     private fun viewModel(bothOn: Boolean = false): TwinAiViewModel {
         coEvery { repository.identity() } returns who
         coEvery { repository.bothEnabled(who) } returns AppResult.Success(bothOn)
-        return TwinAiViewModel(repository)
+        return TwinAiViewModel(repository, TwinPromptHandoff())
     }
 
     @Test

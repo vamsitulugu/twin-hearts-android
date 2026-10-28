@@ -8,13 +8,22 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import com.twinhearts.app.R
 import com.twinhearts.app.feature.auth.authGraph
+import com.twinhearts.app.feature.calendar.calendarGraph
+import com.twinhearts.app.feature.calls.callsGraph
 import com.twinhearts.app.feature.chat.chatGraph
+import com.twinhearts.app.feature.collection.collectionGraph
+import com.twinhearts.app.feature.fights.fightsGraph
 import com.twinhearts.app.feature.getstarted.getStartedGraph
 import com.twinhearts.app.feature.home.homeGraph
+import com.twinhearts.app.feature.livemap.liveMapGraph
 import com.twinhearts.app.feature.meetplanner.ui.meetPlannerGraph
+import com.twinhearts.app.feature.money.moneyGraph
 import com.twinhearts.app.feature.movie.movieGraph
+import com.twinhearts.app.feature.music.musicGraph
 import com.twinhearts.app.feature.pairing.pairingGraph
+import com.twinhearts.app.feature.study.studyGraph
 import com.twinhearts.app.feature.twinai.twinAiGraph
+import com.twinhearts.app.feature.us.UsRoute.usGraph
 
 /**
  * THE one place where finished features are plugged in (R-43).
@@ -30,6 +39,15 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
     twinAiGraph(navController) // 2.3 Twin AI
     movieGraph(navController) // 5.2 Watch Together (movies)
     meetPlannerGraph(navController) // 4.x Meet Planner
+    fightsGraph(navController) // 3.x Fight Log
+    callsGraph(navController) // Calls (voice and video)
+    calendarGraph(navController) // Calendar
+    collectionGraph(navController) // Collection
+    moneyGraph(navController) // Money
+    musicGraph(navController) // Music
+    studyGraph(navController) // Study
+    liveMapGraph(navController) // Live Map
+    usGraph(navController) // 3.1 Us
 }
 
 /**
@@ -39,7 +57,6 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
  */
 internal fun NavGraphBuilder.pendingGraphs(navController: NavHostController) {
     val openGallery = { navController.navigate(Routes.DesignGallery) }
-    pending<Routes.LiveMap>(R.string.core_nav_map, openGallery)
     pending<Routes.Settings>(R.string.core_nav_settings, openGallery)
     pending<Routes.Profile>(R.string.app_name, openGallery)
 }

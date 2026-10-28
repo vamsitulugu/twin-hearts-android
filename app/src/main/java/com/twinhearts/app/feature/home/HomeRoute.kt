@@ -24,6 +24,13 @@ fun NavGraphBuilder.homeGraph(navController: NavHostController) {
                     HomeShortcut.OurProfile -> navController.navigate(Routes.Profile)
                     HomeShortcut.Movie -> navController.navigate(Routes.Movie)
                     HomeShortcut.MeetPlanner -> navController.navigate(Routes.MeetPlanner)
+                    HomeShortcut.FightLog -> navController.navigate(Routes.Fights)
+                    HomeShortcut.LoveCounter, HomeShortcut.DreamGoals -> navController.navigate(Routes.Us)
+                    HomeShortcut.Collection -> navController.navigate(Routes.Collection)
+                    HomeShortcut.Music -> navController.navigate(Routes.Music)
+                    HomeShortcut.Study -> navController.navigate(Routes.Study)
+                    HomeShortcut.Money -> navController.navigate(Routes.Money)
+                    HomeShortcut.Calendar -> navController.navigate(Routes.Calendar)
                     else -> Toast.makeText(context, R.string.core_pending_message, Toast.LENGTH_SHORT).show()
                 }
             },
