@@ -76,18 +76,23 @@ fun TwinBottomBar(
             .fillMaxWidth()
             .navigationBarsPadding()
             .padding(horizontal = 14.dp)
-            .padding(top = 22.dp, bottom = TwinTheme.spacing.s),
+            .padding(top = 28.dp, bottom = TwinTheme.spacing.s),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(62.dp)
-                .shadow(14.dp, barShape, ambientColor = Color.Black, spotColor = Color.Black)
+                // Glass: see-through white sheen + bright top edge. No .shadow() here: it clips its
+                // children to the bar shape, which cut the top of the orb.
                 .background(
-                    Brush.verticalGradient(listOf(colors.navGlass.copy(alpha = 0.90f), Color(0xFF0F0A0C).copy(alpha = 0.94f))),
+                    Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.13f), Color.White.copy(alpha = 0.05f))),
                     barShape,
                 )
-                .border(1.dp, colors.navBorder, barShape)
+                .border(
+                    1.dp,
+                    Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.32f), Color.White.copy(alpha = 0.08f))),
+                    barShape,
+                )
                 .padding(horizontal = 6.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically,
@@ -116,7 +121,18 @@ private fun BarItem(
     val colors = TwinTheme.colors
     val tint = if (selected) Color.White else Color.White.copy(alpha = 0.58f)
     Column(
-        modifier = modifier.selectable(selected = selected, role = Role.Tab, onClick = onClick),
+        modifier = modifier
+            .padding(vertical = 5.dp, horizontal = 2.dp)
+            .then(
+                if (item.isOrb) {
+                    Modifier // never clip the orb: it floats above the bar
+                } else {
+                    Modifier
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(if (selected) colors.navActive else Color.Transparent)
+                },
+            )
+            .selectable(selected = selected, role = Role.Tab, onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -124,7 +140,6 @@ private fun BarItem(
             // Same 24 dp slot as the other icons; the orb floats above the bar from inside it.
             Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) {
                 TwinOrb(
-                    icon = item.icon,
                     selected = selected,
                     modifier = Modifier
                         .wrapContentSize(unbounded = true)
@@ -134,10 +149,8 @@ private fun BarItem(
         } else {
             Box(
                 modifier = Modifier
-                    .height(30.dp)
-                    .width(46.dp)
-                    .clip(RoundedCornerShape(15.dp))
-                    .background(if (selected) colors.navActive else Color.Transparent),
+                    .height(26.dp)
+                    .width(46.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -159,11 +172,11 @@ private fun BarItem(
 }
 
 /**
- * The raised centre button: dark glass ring + magenta-burgundy energy sphere, like the web orb.
- * It breathes slowly, unless the phone asks for no animations (R-55).
+ * The raised centre button: dark glass ring around the animated energy sphere (same as the web orb).
+ * The ring breathes slowly, unless the phone asks for no animations (R-55).
  */
 @Composable
-private fun TwinOrb(icon: ImageVector, selected: Boolean, modifier: Modifier = Modifier) {
+private fun TwinOrb(selected: Boolean, modifier: Modifier = Modifier) {
     val colors = TwinTheme.colors
     val reduceMotion = rememberReduceMotion()
     val pulse = if (reduceMotion) {
@@ -184,23 +197,14 @@ private fun TwinOrb(icon: ImageVector, selected: Boolean, modifier: Modifier = M
                 scaleX = scale
                 scaleY = scale
             }
-            .shadow(12.dp, TwinTheme.shapes.circle, ambientColor = colors.accent, spotColor = colors.accent)
+            .shadow(12.dp, TwinTheme.shapes.circle, clip = false, ambientColor = colors.accent, spotColor = colors.accent)
             .clip(TwinTheme.shapes.circle)
             .background(Color(0xFF120A0E))
             .border(1.dp, Color.White.copy(alpha = if (selected) 0.40f else 0.22f), TwinTheme.shapes.circle)
-            .padding(5.dp)
-            .clip(TwinTheme.shapes.circle)
-            .background(
-                Brush.radialGradient(
-                    0f to colors.orbHot,
-                    0.45f to colors.primaryStart,
-                    1f to Color(0xFF2A0618),
-                ),
-            )
-            .border(1.dp, Color.White.copy(alpha = 0.18f), TwinTheme.shapes.circle),
+            .padding(5.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = null, tint = Color.White.copy(alpha = 0.92f), modifier = Modifier.size(22.dp))
+        EnergyOrb(size = 50.dp)
     }
 }
 

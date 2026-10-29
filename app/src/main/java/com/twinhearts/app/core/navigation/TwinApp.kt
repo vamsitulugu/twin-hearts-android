@@ -42,6 +42,8 @@ import com.twinhearts.app.core.design.BottomBarItem
 import com.twinhearts.app.core.common.LocalReduceMotionSetting
 import com.twinhearts.app.core.design.LocalOpenSidebar
 import com.twinhearts.app.core.design.TwinBackground
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.fillMaxSize
 import com.twinhearts.app.core.design.TwinBottomBar
 import com.twinhearts.app.core.design.TwinOrbIcon
 import kotlinx.coroutines.launch
@@ -151,22 +153,26 @@ private fun TwinNavigation(startDestination: Any, session: com.twinhearts.app.co
                 }
             },
         ) {
+            // On Home the bar FLOATS over the page (no reserved strip behind it, like the web app);
+            // the page scrolls under it. Other tabs keep the normal reserved bar slot.
+            val floatBar = showBottomBar && selectedItem?.key == Routes.Home
+            val onBarClick: (BottomBarItem) -> Unit = { item ->
+                navController.navigate(item.key) {
+                    popUpTo<Routes.Home> { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
             Scaffold(
                 containerColor = Color.Transparent,
                 // Bars and screens handle their own insets (see TwinTopBar and TwinBottomBar).
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 bottomBar = {
-                    if (showBottomBar) {
+                    if (showBottomBar && !floatBar) {
                         TwinBottomBar(
                             items = bottomBarItems,
                             selectedKey = selectedItem?.key,
-                            onItemClick = { item ->
-                                navController.navigate(item.key) {
-                                    popUpTo<Routes.Home> { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
+                            onItemClick = onBarClick,
                         )
                     }
                 },
@@ -176,13 +182,23 @@ private fun TwinNavigation(startDestination: Any, session: com.twinhearts.app.co
                 // it here too would leave an empty gap under the typing bar.
                 val ownsBottomInset = selectedItem?.key == Routes.Chat
                 val insets = if (showBottomBar || ownsBottomInset) Modifier else Modifier.navigationBarsPadding()
-                AppNavHost(
-                    navController = navController,
-                    startDestination = startDestination,
-                    modifier = Modifier
-                        .padding(innerPadding)
-                        .then(insets),
-                )
+                androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
+                    AppNavHost(
+                        navController = navController,
+                        startDestination = startDestination,
+                        modifier = Modifier
+                            .padding(innerPadding)
+                            .then(insets),
+                    )
+                    if (floatBar) {
+                        TwinBottomBar(
+                            items = bottomBarItems,
+                            selectedKey = selectedItem?.key,
+                            onItemClick = onBarClick,
+                            modifier = Modifier.align(Alignment.BottomCenter),
+                        )
+                    }
+                }
             }
         }
     }

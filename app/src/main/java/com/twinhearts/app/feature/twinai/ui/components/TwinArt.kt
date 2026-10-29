@@ -25,7 +25,9 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.twinhearts.app.core.common.rememberReduceMotion
+import com.twinhearts.app.core.design.EnergyOrb
 import com.twinhearts.app.core.design.TwinTheme
+import com.twinhearts.app.feature.twinai.domain.model.OrbState
 
 /*
  * Why this file exists: Twin's illustrations (the robot holding a heart, the small chat avatar and
@@ -109,35 +111,26 @@ fun TwinAvatar(modifier: Modifier = Modifier, size: Dp = 32.dp) {
     }
 }
 
-/** The glowing Twin orb that sits on the input bar. Slowly spins unless animations are off (R-55). */
+/** The glowing Twin orb (same animated energy sphere as the web app). Still frame if animations are off (R-55). */
 @Composable
-fun TwinOrb(modifier: Modifier = Modifier, size: Dp = 56.dp) {
-    val colors = TwinTheme.colors
-    val reduce = rememberReduceMotion()
-    val angle = if (reduce) {
-        0f
-    } else {
-        val t = rememberInfiniteTransition(label = "orb")
-        val a by t.animateFloat(0f, 360f, infiniteRepeatable(tween(14_000, easing = LinearEasing), RepeatMode.Restart), label = "orbAngle")
-        a
+fun TwinOrb(modifier: Modifier = Modifier, size: Dp = 56.dp, state: OrbState = OrbState.Idle, micLevel: Float = 0f) {
+    val mic = micLevel.coerceIn(0f, 1f)
+    val speed = when (state) {
+        OrbState.Thinking -> 1.9f
+        OrbState.Listening -> 1f + mic * 1.1f
+        OrbState.Speaking -> 1.5f
+        OrbState.Offline -> 0.15f
+        else -> 1f
     }
-    Canvas(modifier = modifier.size(size)) {
-        val r = this.size.width / 2f
-        drawCircle(
-            Brush.radialGradient(
-                listOf(colors.accent, colors.primaryEnd, colors.background),
-                center = Offset(r * 0.8f, r * 0.7f), radius = r * 1.3f,
-            ),
-            radius = r,
-        )
-        rotate(angle, pivot = center) {
-            val line = Stroke(width = r * 0.05f, cap = StrokeCap.Round)
-            val white = Color.White.copy(alpha = 0.75f)
-            drawArc(white, 200f, 70f, false, Offset(r * 0.25f, r * 0.45f), Size(r * 1.5f, r * 0.9f), style = line)
-            drawArc(white.copy(alpha = 0.5f), 20f, 80f, false, Offset(r * 0.3f, r * 0.6f), Size(r * 1.4f, r * 0.8f), style = line)
-            drawArc(white.copy(alpha = 0.35f), 110f, 60f, false, Offset(r * 0.5f, r * 0.3f), Size(r * 1.0f, r * 1.3f), style = line)
-        }
+    val energy = when (state) {
+        OrbState.Thinking -> 1.35f
+        OrbState.Listening -> 1f + mic * 0.8f
+        OrbState.Speaking -> 1.25f
+        OrbState.Error -> 1.4f
+        OrbState.Offline -> 0.25f
+        else -> 1f
     }
+    EnergyOrb(modifier, size, speed, energy, offline = state == OrbState.Offline, error = state == OrbState.Error)
 }
 
 private fun DrawScope.drawHeart(center: Offset, half: Float, brush: Brush) {
