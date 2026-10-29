@@ -34,3 +34,8 @@
 4. Pull/refresh → reloads from the server (Render may sleep on first request — wait for loading skeleton).
 5. Large font (fontScale 1.3) → layout still readable, no overflow.
 6. Network off → error state with retry button shows, no crash.
+
+## v4 manual tests
+1. Add Movie: pick a poster, fill review + scene, save. Open it: poster, About and Favorite Scene show. Tap Edit, change, save (needs backend steps 1-2).
+2. Upload a big movie, press Home / lock the screen: the notification keeps moving; tap Cancel in it to stop.
+3. Reactions: tap one on the app, see it on the partner's web page, and the other way round (needs backend steps 3-4).

@@ -1,9 +1,11 @@
 package com.twinhearts.app.feature.movie.data.upload
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.os.SystemClock
+import androidx.core.content.ContextCompat
 import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.core.data.SessionStore
@@ -64,7 +66,7 @@ sealed interface UploadState {
  * Why this file exists: it sends one big movie file to the shared cloud storage in 16 MB pieces
  * (the same steps as the web app). The pieces go straight to storage through short-lived links the
  * server hands out, so the movie never passes through the server and no secret is in the app (R-60).
- * It lives for the whole app run, so leaving the movie screen does not stop the upload.
+ * It lives for the whole app run, and [UploadService] keeps the process alive, so leaving the movie screen or closing the app does not stop the upload.
  */
 @Singleton
 class CloudUploader @Inject constructor(
@@ -92,7 +94,11 @@ class CloudUploader @Inject constructor(
 
     fun start(request: UploadRequest) {
         if (isRunning) return
+        // Set first, so the notification service (started next) already sees a running upload.
+        _state.value = UploadState.Running(request.title, 0, request.sizeBytes, 0, finishing = false)
         job = scope.launch { upload(request) }
+        // A foreground service keeps the upload going when the app is closed or the screen is off.
+        runCatching { ContextCompat.startForegroundService(context, Intent(context, UploadService::class.java)) }
     }
 
     /** Stops the upload; the work below then tells the server to throw away the unfinished pieces. */

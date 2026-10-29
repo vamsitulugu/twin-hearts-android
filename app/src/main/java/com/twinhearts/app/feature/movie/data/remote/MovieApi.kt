@@ -5,7 +5,11 @@ import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import retrofit2.http.Multipart
 import retrofit2.http.PATCH
+import retrofit2.http.Part
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -41,6 +45,11 @@ interface MovieApi {
     @GET("api/movie-fav") suspend fun favorites(@Query("coupleId") coupleId: String): FavoritesDto
     @POST("api/movie-fav") suspend fun addFavorite(@Body b: AddFavoriteBody): FavoriteOneDto
     @PATCH("api/movie-fav/{id}") suspend fun updateFavorite(@Path("id") id: String, @Body b: UpdateFavoriteBody): FavoriteOneDto
+    /** routes/media.js `POST /upload` (multipart `file`, `coupleId`): a poster picked from the gallery. */
+    @Multipart
+    @POST("api/media/upload")
+    suspend fun uploadPoster(@Part file: MultipartBody.Part, @Part("coupleId") coupleId: RequestBody): PosterUploadDto
+
     @DELETE("api/movie-fav/{id}") suspend fun deleteFavorite(@Path("id") id: String): OkDto
     @GET("api/movie-search/search") suspend fun search(@Query("q") q: String): SearchDto
     @GET("api/movie-search/{tmdbId}/details") suspend fun details(@Path("tmdbId") id: String): DetailsDto

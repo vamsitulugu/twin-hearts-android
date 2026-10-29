@@ -121,19 +121,16 @@ class BrowseViewModel @Inject constructor(
     }
 
     /** The "Add Movie" form of the web page. It saves into the same shared list as "Search online". */
-    fun addManual(title: String, year: String, genre: String?, status: WatchStatus, stars: Int, owner: MovieOwner, onDone: () -> Unit) {
+    fun addManual(form: MovieForm, onDone: () -> Unit) {
         val me = who ?: return
-        val partner = if (me.role == "user1") "user2" else "user1"
-        val movie = MovieItem(
-            id = "", tmdbId = null, title = title.trim(), year = year.trim().ifEmpty { null }, genre = genre,
-            posterUrl = null, backdropUrl = null, overview = null, rating = stars.takeIf { it > 0 }?.toDouble(), status = status,
-            addedBy = when (owner) {
-                MovieOwner.Mine -> me.role
-                MovieOwner.Partner -> partner
-                MovieOwner.Together -> "both"
-            },
-        )
         viewModelScope.launch {
+            val poster = form.poster?.let { sendPoster(me, it) }
+            val movie = MovieItem(
+                id = "", tmdbId = null, title = form.title.trim(), year = form.year.trim().ifEmpty { null }, genre = form.genre,
+                posterUrl = poster, backdropUrl = null, overview = form.review.trim().ifEmpty { null },
+                rating = form.stars.takeIf { it > 0 }?.toDouble(), status = form.status,
+                addedBy = ownerRole(me, form.owner), scene = form.scene.trim().ifEmpty { null },
+            )
             when (repo.addFavorite(me, movie)) {
                 is AppResult.Success -> {
                     _messages.tryEmit(R.string.movie_toast_added)
@@ -143,6 +140,41 @@ class BrowseViewModel @Inject constructor(
                 is AppResult.Failure -> _messages.tryEmit(R.string.movie_toast_add_failed)
             }
         }
+    }
+
+    /** Edit Movie: saves every field of the form onto an existing movie. */
+    fun saveEdit(original: MovieItem, form: MovieForm, onDone: (MovieItem) -> Unit) {
+        val me = who ?: return
+        viewModelScope.launch {
+            val poster = form.poster?.let { sendPoster(me, it) } ?: original.posterUrl
+            val edited = original.copy(
+                title = form.title.trim(), year = form.year.trim().ifEmpty { null }, genre = form.genre, posterUrl = poster,
+                overview = form.review.trim().ifEmpty { null }, rating = form.stars.takeIf { it > 0 }?.toDouble(),
+                status = form.status, addedBy = ownerRole(me, form.owner), scene = form.scene.trim().ifEmpty { null },
+            )
+            when (repo.editFavorite(edited)) {
+                is AppResult.Success -> {
+                    _messages.tryEmit(R.string.movie_toast_saved)
+                    reloadQuietly(me)
+                    onDone(edited)
+                }
+                is AppResult.Failure -> _messages.tryEmit(R.string.movie_toast_update_failed)
+            }
+        }
+    }
+
+    private suspend fun sendPoster(me: MovieIdentity, jpeg: ByteArray): String? = when (val r = repo.uploadPoster(me, jpeg)) {
+        is AppResult.Success -> r.data
+        is AppResult.Failure -> {
+            _messages.tryEmit(R.string.movie_toast_poster_failed)
+            null
+        }
+    }
+
+    private fun ownerRole(me: MovieIdentity, owner: MovieOwner): String = when (owner) {
+        MovieOwner.Mine -> me.role
+        MovieOwner.Partner -> if (me.role == "user1") "user2" else "user1"
+        MovieOwner.Together -> "both"
     }
 
     fun setStatus(movie: MovieItem, status: WatchStatus) = update(movie, status, null)

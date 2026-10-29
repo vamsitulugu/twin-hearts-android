@@ -62,6 +62,7 @@ fun MovieDetailSheet(
     onAdd: () -> Unit,
     isFavorite: Boolean,
     onFavorite: () -> Unit,
+    onEdit: () -> Unit,
 ) {
     val colors = TwinTheme.colors
     val saved = movie.id.isNotEmpty()
@@ -77,6 +78,10 @@ fun MovieDetailSheet(
             )
             movie.overview?.takeIf { it.isNotBlank() }?.let {
                 Text(it, color = colors.ink, style = MaterialTheme.typography.bodyMedium, maxLines = 6, overflow = TextOverflow.Ellipsis)
+            }
+            movie.scene?.takeIf { it.isNotBlank() }?.let {
+                Text(stringResource(R.string.movie_detail_scene), color = colors.inkMuted, style = MaterialTheme.typography.labelMedium)
+                Text(it, color = colors.ink, style = MaterialTheme.typography.bodyMedium)
             }
             if (saved) {
                 Text(stringResource(R.string.movie_detail_status), color = colors.inkMuted, style = MaterialTheme.typography.labelMedium)
@@ -101,6 +106,7 @@ fun MovieDetailSheet(
                     stringResource(if (isFavorite) R.string.movie_fav_in else R.string.movie_fav_add), onFavorite,
                     Modifier.fillMaxWidth(), style = GlassButtonStyle.Secondary,
                 )
+                GlassButton(stringResource(R.string.movie_edit_open), onEdit, Modifier.fillMaxWidth(), style = GlassButtonStyle.Secondary)
                 GlassButton(stringResource(R.string.movie_detail_remove), onRemove, Modifier.fillMaxWidth(), style = GlassButtonStyle.Ghost)
             } else {
                 GlassButton(stringResource(R.string.movie_detail_add), onAdd, Modifier.fillMaxWidth())

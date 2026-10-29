@@ -210,8 +210,16 @@ private fun UploadButton(onUpload: (LocalVideo) -> Unit) {
             if (video == null) Toast.makeText(context, R.string.movie_toast_bad_video, Toast.LENGTH_SHORT).show() else onUpload(video)
         }
     }
+    // Android 13+ needs this permission to show the upload progress notification. The upload runs either way.
+    val notifPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { picker.launch(UPLOAD_TYPES) }
     GlassButton(
-        stringResource(R.string.movie_cloud_upload), { picker.launch(UPLOAD_TYPES) },
+        stringResource(R.string.movie_cloud_upload),
+        {
+            val needs = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
+                androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) !=
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (needs) notifPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS) else picker.launch(UPLOAD_TYPES)
+        },
         Modifier.fillMaxWidth(), leadingIcon = Icons.Rounded.CloudUpload,
     )
 }

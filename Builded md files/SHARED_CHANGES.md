@@ -56,3 +56,8 @@ Mark **3.1 Us** as 🟨 in progress in the Phase 3 tracker, and add a handoff ro
 - `feature/calls/ui/CallBubble.kt` (new file in the Calls feature): `rememberCallStarter()` and `CallBubble()` used by `MovieGraph.kt` only.
 - `strings_movie.xml`: more `movie_*` strings and a `movie_genre_count` plural.
 - No Gradle, manifest or backend change beyond v2.
+
+## v4 additions
+- Manifest: `FOREGROUND_SERVICE_DATA_SYNC` permission and `UploadService` (`foregroundServiceType="dataSync"`). `POST_NOTIFICATIONS` and `FOREGROUND_SERVICE` were already there.
+- Backend: see `backend-changes/movie/README.md` (SQL column, two route files, one optional web diff).
+- No Gradle change.

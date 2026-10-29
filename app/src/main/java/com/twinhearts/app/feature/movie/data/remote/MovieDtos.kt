@@ -78,6 +78,7 @@ data class FavoriteDto(
     val rating: Double? = null,
     val status: String? = null,
     @SerialName("added_by") val addedBy: String? = null,
+    val scene: String? = null,
 )
 
 @Serializable
@@ -85,8 +86,17 @@ data class AddFavoriteBody(
     val coupleId: String, val tmdbId: String?, val title: String, val year: String?, val genre: String?,
     val posterUrl: String?, val backdropUrl: String?, val overview: String?, val rating: Double?,
     val status: String, val addedBy: String,
+    val scene: String? = null,
 )
-@Serializable data class UpdateFavoriteBody(val status: String? = null, val rating: Double? = null)
+@Serializable
+data class UpdateFavoriteBody(
+    val status: String? = null, val rating: Double? = null,
+    // Edit Movie: needs backend-changes/movie/movie-favorites.js. Empty text clears a field.
+    val title: String? = null, val year: String? = null, val genre: String? = null, val posterUrl: String? = null,
+    val overview: String? = null, val scene: String? = null, val addedBy: String? = null,
+)
+
+@Serializable data class PosterUploadDto(val url: String = "")
 
 @Serializable data class SearchDto(val results: List<SearchItemDto> = emptyList())
 @Serializable
@@ -120,6 +130,6 @@ data class SharedMovieDto(
 @Serializable data class CompleteBody(val parts: List<PartEtagDto>)
 
 // ── Reactions (needs backend-changes/movie/reactions) ──
-@Serializable data class ReactionBody(val role: String, val emoji: String)
+@Serializable data class ReactionBody(val role: String, val emoji: String, val relay: Boolean = true)
 @Serializable
 data class ReactionDto(val at: Long = 0, val role: String = "", val emoji: String = "")

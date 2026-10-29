@@ -56,7 +56,7 @@ fun RoomDto.toDomain(role: String): WatchRoom {
 fun FavoriteDto.toDomain() = MovieItem(
     id = id?.content.orEmpty(), tmdbId = tmdbId?.content?.takeIf { it != "null" }, title = title, year = year,
     genre = genre, posterUrl = posterUrl, backdropUrl = backdropUrl, overview = overview, rating = rating,
-    status = WatchStatus.from(status), addedBy = addedBy,
+    status = WatchStatus.from(status), addedBy = addedBy, scene = scene,
 )
 
 fun SearchItemDto.toDomain() = MovieItem(

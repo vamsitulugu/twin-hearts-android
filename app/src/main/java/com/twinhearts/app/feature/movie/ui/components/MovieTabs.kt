@@ -77,6 +77,7 @@ import com.twinhearts.app.feature.movie.domain.model.MovieItem
 import com.twinhearts.app.feature.movie.domain.model.SharedMovie
 import com.twinhearts.app.feature.movie.domain.model.WatchStatus
 import com.twinhearts.app.feature.movie.domain.movieGenres
+import com.twinhearts.app.feature.movie.domain.owner
 import com.twinhearts.app.feature.movie.ui.LocalVideo
 import com.twinhearts.app.feature.movie.ui.BrowseViewModel
 import com.twinhearts.app.feature.movie.ui.OnlineSearch
@@ -108,6 +109,7 @@ fun MovieTabsContent(
     val role by browseVm.role.collectAsState()
     var selected by remember { mutableStateOf<MovieItem?>(null) }
     var adding by rememberSaveable { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<MovieItem?>(null) }
     var genre by rememberSaveable { mutableStateOf<String?>(null) }
     var libraryFilter by rememberSaveable { mutableStateOf(LibraryFilter.All) }
     val edge = TwinTheme.spacing.screenEdge
@@ -153,15 +155,22 @@ fun MovieTabsContent(
             onRemove = { browseVm.remove(movie); selected = null },
             onAdd = { browseVm.add(movie); selected = null },
             isFavorite = movie.id in favorites,
+            onEdit = { editing = movie; selected = null },
             onFavorite = { browseVm.toggleFavorite(movie) },
         )
     }
     if (adding) {
         AddMovieSheet(
-            onSave = { title, year, genre, status, stars, owner ->
-                browseVm.addManual(title, year, genre, status, stars, owner) { adding = false }
-            },
+            onSave = { form -> browseVm.addManual(form) { adding = false } },
             onDismiss = { adding = false },
+        )
+    }
+    editing?.let { movie ->
+        AddMovieSheet(
+            initial = movie,
+            initialOwner = movie.owner(role),
+            onSave = { form -> browseVm.saveEdit(movie, form) { edited -> editing = null; selected = edited } },
+            onDismiss = { editing = null },
         )
     }
 }

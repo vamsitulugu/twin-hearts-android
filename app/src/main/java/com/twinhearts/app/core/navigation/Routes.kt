@@ -40,6 +40,7 @@ object Routes {
     @Serializable data object Calendar
     @Serializable data object Music
     @Serializable data object Study
+    @Serializable data object Level
 
     /** The call page. [incoming] is true when my partner is calling me. */
     @Serializable data class Call(val video: Boolean = false, val incoming: Boolean = false)

@@ -71,6 +71,8 @@ data class MovieItem(
     val status: WatchStatus,
     /** Who added it: "user1", "user2" or "both" (watched together). Null for older rows. */
     val addedBy: String? = null,
+    /** Favourite scene or quote. The web page's "review" is [overview]. */
+    val scene: String? = null,
 )
 
 /** The three "belongs to" choices of the web form and the owner chips of the Library tab. */

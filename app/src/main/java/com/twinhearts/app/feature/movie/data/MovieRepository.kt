@@ -6,6 +6,9 @@ import com.twinhearts.app.core.network.safeApiCall
 import com.twinhearts.app.feature.movie.data.mapper.toDomain
 import com.twinhearts.app.feature.movie.data.remote.AcceptBody
 import com.twinhearts.app.feature.movie.data.remote.AddFavoriteBody
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import com.twinhearts.app.feature.movie.data.remote.ChatBody
 import com.twinhearts.app.feature.movie.data.remote.EndBody
 import com.twinhearts.app.feature.movie.data.remote.MovieApi
@@ -62,6 +65,12 @@ interface MovieRepository {
     suspend fun selectShared(who: MovieIdentity, movieId: String): AppResult<WatchRoom>
     suspend fun playbackUrl(who: MovieIdentity, movieId: String): AppResult<String>
     suspend fun deleteShared(who: MovieIdentity, movieId: String): AppResult<Unit>
+
+    /** Edit Movie: sends every editable field (needs the backend change). */
+    suspend fun editFavorite(movie: MovieItem): AppResult<Unit>
+
+    /** Sends a poster picked on the phone (JPEG bytes) and returns its link. */
+    suspend fun uploadPoster(who: MovieIdentity, jpeg: ByteArray): AppResult<String>
 
     suspend fun sendReaction(who: MovieIdentity, emoji: String): AppResult<Unit>
     suspend fun reactions(who: MovieIdentity, afterMs: Long): AppResult<List<MovieReaction>>
@@ -146,7 +155,7 @@ class MovieRepositoryImpl @Inject constructor(
             ?: movie.tmdbId?.let { runCatching { api.details(it).genre }.getOrNull() }
         val body = AddFavoriteBody(
             who.coupleId, movie.tmdbId, movie.title, movie.year, genre, movie.posterUrl, movie.backdropUrl,
-            movie.overview, movie.rating, movie.status.api, movie.addedBy ?: who.role,
+            movie.overview, movie.rating, movie.status.api, movie.addedBy ?: who.role, movie.scene,
         )
         api.addFavorite(body).favorite?.toDomain() ?: movie
     }
@@ -165,6 +174,23 @@ class MovieRepositoryImpl @Inject constructor(
 
     override suspend fun playbackUrl(who: MovieIdentity, movieId: String) =
         safeApiCall { api.playbackUrl(who.coupleId, movieId, who.userId).url }
+
+    override suspend fun editFavorite(movie: MovieItem) = safeApiCall {
+        api.updateFavorite(
+            movie.id,
+            UpdateFavoriteBody(
+                status = movie.status.api, rating = movie.rating, title = movie.title, year = movie.year.orEmpty(),
+                genre = movie.genre.orEmpty(), posterUrl = movie.posterUrl, overview = movie.overview.orEmpty(),
+                scene = movie.scene.orEmpty(), addedBy = movie.addedBy,
+            ),
+        )
+        Unit
+    }
+
+    override suspend fun uploadPoster(who: MovieIdentity, jpeg: ByteArray) = safeApiCall {
+        val part = MultipartBody.Part.createFormData("file", "poster.jpg", jpeg.toRequestBody("image/jpeg".toMediaType()))
+        api.uploadPoster(part, who.coupleId.toRequestBody("text/plain".toMediaType())).url
+    }
 
     override suspend fun deleteShared(who: MovieIdentity, movieId: String) =
         safeApiCall { api.deleteShared(who.coupleId, movieId, who.userId); Unit }

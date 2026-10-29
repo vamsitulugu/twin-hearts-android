@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Couple Level page. Wording copied from the web app (index.html renderLevelPage). -->
+<resources>
+    <string name="level_title">Couple Level</string>
+    <string name="level_ring_label">Couple level</string>
+    <string name="level_ring_desc">Couple level %1$d, %2$d of %3$d XP</string>
+    <string name="level_xp_now">%1$d XP</string>
+    <string name="level_xp_of">/ %1$d XP</string>
+    <string name="level_pill">%1$d XP to next level</string>
+
+    <string name="level_insight_start">Chat, log habits, and complete dreams together to start earning XP.</string>
+    <string name="level_insight_away"> away from unlocking “%1$s” %2$s</string>
+    <string name="level_insight_all_before">You’ve unlocked every badge — </string>
+    <string name="level_insight_all_after"> and counting!</string>
+
+    <string name="level_next_kicker">Next unlock</string>
+    <string name="level_next_left">%1$d XP left</string>
+    <string name="level_next_blurb">%1$s ❤️</string>
+    <string name="level_next_progress">%1$d / %2$d XP</string>
+    <string name="level_all_title">Every badge unlocked</string>
+    <string name="level_all_message">Keep earning XP to keep levelling up together.</string>
+
+    <string name="level_locked_title">Locked badges</string>
+    <string name="level_locked_sub">Complete activities to unlock</string>
+    <string name="level_locked_empty_title">Nothing left to unlock</string>
+    <string name="level_locked_empty_message">You have every badge.</string>
+    <string name="level_earned_title">Badges earned</string>
+    <string name="level_earned_sub">%1$d of %2$d unlocked</string>
+    <string name="level_earned_sub_empty">Your unlocked badges will appear here</string>
+    <string name="level_earned_empty_title">No badges earned yet</string>
+    <string name="level_earned_empty_message">Earn XP to unlock your first badge!</string>
+    <string name="level_badge_xp">%1$d XP</string>
+
+    <string name="level_earn_title">How to earn XP</string>
+    <string name="level_earn_xp">+%1$d XP</string>
+
+    <string name="level_badge_sweet_start">Sweet Start</string>
+    <string name="level_badge_sweet_start_sub">Our first step</string>
+    <string name="level_badge_sweet_start_blurb">Your first step in our journey</string>
+    <string name="level_badge_getting_close">Getting Close</string>
+    <string name="level_badge_getting_close_sub">Growing together</string>
+    <string name="level_badge_getting_close_blurb">Closer with every shared moment</string>
+    <string name="level_badge_best_friends">Best Friends</string>
+    <string name="level_badge_best_friends_sub">More than just love</string>
+    <string name="level_badge_best_friends_blurb">More than love, a true team</string>
+    <string name="level_badge_soulmates">Soulmates</string>
+    <string name="level_badge_soulmates_sub">Unbreakable bond</string>
+    <string name="level_badge_soulmates_blurb">An unbreakable bond</string>
+    <string name="level_badge_forever_us">Forever Us</string>
+    <string name="level_badge_forever_us_sub">Always together</string>
+    <string name="level_badge_forever_us_blurb">Forever, together</string>
+
+    <string name="level_action_chatting">Chatting</string>
+    <string name="level_action_chatting_desc">Send messages</string>
+    <string name="level_action_habit">Habit done</string>
+    <string name="level_action_habit_desc">Complete a habit</string>
+    <string name="level_action_fight">Fight resolved</string>
+    <string name="level_action_fight_desc">Solve a conflict</string>
+    <string name="level_action_song">Share a song</string>
+    <string name="level_action_song_desc">Share music together</string>
+    <string name="level_action_wellness">Wellness logged</string>
+    <string name="level_action_wellness_desc">Log health or wellness</string>
+    <string name="level_action_capsule">Love capsule</string>
+    <string name="level_action_capsule_desc">Create a love capsule</string>
+    <string name="level_action_dream">Dream completed</string>
+    <string name="level_action_dream_desc">Complete a dream</string>
+    <string name="level_action_surprise">Surprise</string>
+    <string name="level_action_surprise_desc">Send a surprise</string>
+</resources>

@@ -68,3 +68,9 @@ No websocket exists. The app **polls the room every 1.5 s** and chat every 2 s, 
 ## Added in v3
 - **UI matched to the web page:** tabs with icons, Home hero card (eyebrow, chips, Watch Together / View Details, ⋮), "See all" on rows, colourful genre cards (poster or the web gradient, emoji, "N Movies"), Library search + Add + Search Online buttons, five stat tiles (Total, Watched, Watchlist, Favorites, ⭐Avg), Direct Device / Cloud Storage buttons with icons, "Pick a movie from your phone" card, "YOUR MOVIES" label.
 - **In-movie calls:** Voice and Video buttons in the player. The partner's video (or a voice pill with timer, mute, hang up) shows as a draggable window over the movie, using the app-wide call engine. The graph file (`MovieGraph.kt`) plugs it in through `MovieCallHooks`, so the movie code does not import Calls.
+
+## Added in v4 (the last "not ported" items)
+- **Add / Edit Movie, full form:** poster (picked from the gallery, shrunk to a JPEG and sent with `POST /api/media/upload`), name, year, genre, rating, status, owner, **personal review** (the movie's `overview`) and **favourite scene** (`scene`). Open a saved movie → **Edit**; the detail sheet now shows the scene.
+- **Upload with the app closed:** a foreground service (`UploadService`) keeps the upload running when the app is closed or the screen is off, shows progress in a notification with a Cancel button, and posts "ready to watch together" when done. Android 13+ asks for the notification permission first; the upload runs even if you say no.
+- **Reactions web ↔ app:** the server now relays app reactions to the web page's realtime channel, and the web page also posts its reactions to the server, so both directions work. Files in `backend-changes/movie/`.
+- Server changes are needed for Edit, scene and reactions (see `backend-changes/movie/README.md`). Without them the app still runs; those extra fields are just not saved.
