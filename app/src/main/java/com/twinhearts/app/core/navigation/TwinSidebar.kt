@@ -122,7 +122,7 @@ internal val sidebarGroups = listOf(
         R.string.home_group_explore,
         listOf(
             SidebarEntry(null, R.string.home_page_globe, Icons.Outlined.Public),
-            SidebarEntry(null, R.string.home_page_places, Icons.Outlined.Place),
+            SidebarEntry(Routes.Places, R.string.home_page_places, Icons.Outlined.Place),
             SidebarEntry(Routes.Collection, R.string.home_page_collection, Icons.Outlined.CardGiftcard),
             SidebarEntry(null, R.string.home_page_games, Icons.Outlined.SportsEsports),
             SidebarEntry(Routes.Study, R.string.home_page_study, Icons.Outlined.MenuBook),

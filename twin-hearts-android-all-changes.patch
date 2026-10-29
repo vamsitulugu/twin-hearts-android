@@ -378,6 +378,26 @@ index 5c3c64c..bbf8978 100644
      private val _startRoute = MutableStateFlow<Any?>(null)
      val startRoute: StateFlow<Any?> = _startRoute.asStateFlow()
  
+diff --git a/app/src/main/java/com/twinhearts/app/core/navigation/FeatureGraphs.kt b/app/src/main/java/com/twinhearts/app/core/navigation/FeatureGraphs.kt
+index 7bd4494..ca3d6a1 100644
+--- a/app/src/main/java/com/twinhearts/app/core/navigation/FeatureGraphs.kt
++++ b/app/src/main/java/com/twinhearts/app/core/navigation/FeatureGraphs.kt
+@@ -23,6 +23,7 @@ import com.twinhearts.app.feature.music.musicGraph
+ import com.twinhearts.app.feature.pairing.pairingGraph
+ import com.twinhearts.app.feature.study.studyGraph
+ import com.twinhearts.app.feature.twinai.twinAiGraph
++import com.twinhearts.app.feature.places.ui.placesGraph
+ import com.twinhearts.app.feature.level.levelGraph
+ import com.twinhearts.app.feature.us.UsRoute.usGraph
+ 
+@@ -50,6 +51,7 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
+     liveMapGraph(navController) // Live Map
+     usGraph(navController) // 3.1 Us
+     levelGraph(navController) // 3.2 Couple Level
++    placesGraph(navController) // Places
+ }
+ 
+ /**
 diff --git a/app/src/main/java/com/twinhearts/app/core/navigation/PendingFeatureScreen.kt b/app/src/main/java/com/twinhearts/app/core/navigation/PendingFeatureScreen.kt
 index 994398e..bd0c23b 100644
 --- a/app/src/main/java/com/twinhearts/app/core/navigation/PendingFeatureScreen.kt
@@ -391,6 +411,18 @@ index 994398e..bd0c23b 100644
          Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
              EmptyState(
                  title = title,
+diff --git a/app/src/main/java/com/twinhearts/app/core/navigation/Routes.kt b/app/src/main/java/com/twinhearts/app/core/navigation/Routes.kt
+index 03c8e20..47ac385 100644
+--- a/app/src/main/java/com/twinhearts/app/core/navigation/Routes.kt
++++ b/app/src/main/java/com/twinhearts/app/core/navigation/Routes.kt
+@@ -41,6 +41,7 @@ object Routes {
+     @Serializable data object Music
+     @Serializable data object Study
+     @Serializable data object Level
++    @Serializable data object Places
+ 
+     /** The call page. [incoming] is true when my partner is calling me. */
+     @Serializable data class Call(val video: Boolean = false, val incoming: Boolean = false)
 diff --git a/app/src/main/java/com/twinhearts/app/core/navigation/TwinApp.kt b/app/src/main/java/com/twinhearts/app/core/navigation/TwinApp.kt
 index c29ae92..c8da770 100644
 --- a/app/src/main/java/com/twinhearts/app/core/navigation/TwinApp.kt
@@ -608,7 +640,7 @@ index c29ae92..c8da770 100644
  }
 diff --git a/app/src/main/java/com/twinhearts/app/core/navigation/TwinSidebar.kt b/app/src/main/java/com/twinhearts/app/core/navigation/TwinSidebar.kt
 new file mode 100644
-index 0000000..8267678
+index 0000000..1976189
 --- /dev/null
 +++ b/app/src/main/java/com/twinhearts/app/core/navigation/TwinSidebar.kt
 @@ -0,0 +1,346 @@
@@ -736,7 +768,7 @@ index 0000000..8267678
 +        R.string.home_group_explore,
 +        listOf(
 +            SidebarEntry(null, R.string.home_page_globe, Icons.Outlined.Public),
-+            SidebarEntry(null, R.string.home_page_places, Icons.Outlined.Place),
++            SidebarEntry(Routes.Places, R.string.home_page_places, Icons.Outlined.Place),
 +            SidebarEntry(Routes.Collection, R.string.home_page_collection, Icons.Outlined.CardGiftcard),
 +            SidebarEntry(null, R.string.home_page_games, Icons.Outlined.SportsEsports),
 +            SidebarEntry(Routes.Study, R.string.home_page_study, Icons.Outlined.MenuBook),
@@ -972,7 +1004,7 @@ index eb7cd6e..0bba0c7 100644
                          SelectionBar(state, actions)
                      } else {
 diff --git a/app/src/main/java/com/twinhearts/app/feature/home/HomeRoute.kt b/app/src/main/java/com/twinhearts/app/feature/home/HomeRoute.kt
-index fce3f48..5e3dbd3 100644
+index fce3f48..24e935c 100644
 --- a/app/src/main/java/com/twinhearts/app/feature/home/HomeRoute.kt
 +++ b/app/src/main/java/com/twinhearts/app/feature/home/HomeRoute.kt
 @@ -6,6 +6,7 @@ import androidx.navigation.NavGraphBuilder
@@ -983,7 +1015,7 @@ index fce3f48..5e3dbd3 100644
  import com.twinhearts.app.core.navigation.Routes
  import com.twinhearts.app.feature.home.ui.HomeScreen
  import com.twinhearts.app.feature.home.ui.HomeShortcut
-@@ -18,9 +19,11 @@ import com.twinhearts.app.feature.home.ui.HomeShortcut
+@@ -18,14 +19,17 @@ import com.twinhearts.app.feature.home.ui.HomeShortcut
  fun NavGraphBuilder.homeGraph(navController: NavHostController) {
      composable<Routes.Home> {
          val context = LocalContext.current
@@ -995,13 +1027,20 @@ index fce3f48..5e3dbd3 100644
                      HomeShortcut.OurProfile -> navController.navigate(Routes.Profile)
                      HomeShortcut.Movie -> navController.navigate(Routes.Movie)
                      HomeShortcut.MeetPlanner -> navController.navigate(Routes.MeetPlanner)
+                     HomeShortcut.FightLog -> navController.navigate(Routes.Fights)
+                     HomeShortcut.LoveCounter, HomeShortcut.DreamGoals -> navController.navigate(Routes.Us)
++                    HomeShortcut.Places -> navController.navigate(Routes.Places)
+                     HomeShortcut.Level -> navController.navigate(Routes.Level)
+                     HomeShortcut.Collection -> navController.navigate(Routes.Collection)
+                     HomeShortcut.Music -> navController.navigate(Routes.Music)
 diff --git a/app/src/main/java/com/twinhearts/app/feature/home/ui/HomeScreen.kt b/app/src/main/java/com/twinhearts/app/feature/home/ui/HomeScreen.kt
-index edf5ea4..e81878d 100644
+index edf5ea4..cbf0468 100644
 --- a/app/src/main/java/com/twinhearts/app/feature/home/ui/HomeScreen.kt
 +++ b/app/src/main/java/com/twinhearts/app/feature/home/ui/HomeScreen.kt
-@@ -1,5 +1,11 @@
+@@ -1,5 +1,12 @@
  package com.twinhearts.app.feature.home.ui
  
++import androidx.compose.ui.unit.dp
 +import androidx.compose.foundation.layout.fillMaxWidth
 +import androidx.compose.ui.graphics.Color
 +import androidx.compose.ui.graphics.Brush
@@ -1011,7 +1050,7 @@ index edf5ea4..e81878d 100644
  import androidx.compose.foundation.layout.Arrangement
  import androidx.compose.foundation.layout.Column
  import androidx.compose.foundation.layout.Spacer
-@@ -121,14 +127,34 @@ internal fun HomeContent(
+@@ -121,14 +128,34 @@ internal fun HomeContent(
      Column(
          modifier = modifier
              .fillMaxSize()
@@ -1053,7 +1092,7 @@ index edf5ea4..e81878d 100644
          Column(
              modifier = Modifier.padding(horizontal = TwinTheme.spacing.screenEdge),
              verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
-@@ -174,6 +200,7 @@ internal fun HomeContent(
+@@ -174,6 +201,7 @@ internal fun HomeContent(
          HomeAllPages(onShortcut)
          HomeFooterQuote(nowMillis)
          Spacer(Modifier.height(TwinTheme.spacing.xxl))

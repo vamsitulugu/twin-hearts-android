@@ -23,6 +23,7 @@ import com.twinhearts.app.feature.music.musicGraph
 import com.twinhearts.app.feature.pairing.pairingGraph
 import com.twinhearts.app.feature.study.studyGraph
 import com.twinhearts.app.feature.twinai.twinAiGraph
+import com.twinhearts.app.feature.places.ui.placesGraph
 import com.twinhearts.app.feature.level.levelGraph
 import com.twinhearts.app.feature.us.UsRoute.usGraph
 
@@ -50,6 +51,7 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
     liveMapGraph(navController) // Live Map
     usGraph(navController) // 3.1 Us
     levelGraph(navController) // 3.2 Couple Level
+    placesGraph(navController) // Places
 }
 
 /**

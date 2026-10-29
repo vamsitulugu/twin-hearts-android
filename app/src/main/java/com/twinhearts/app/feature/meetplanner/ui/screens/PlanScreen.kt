@@ -46,7 +46,7 @@ import com.twinhearts.app.feature.meetplanner.ui.components.MeetHeader
 import com.twinhearts.app.feature.meetplanner.ui.components.MeetTextArea
 import com.twinhearts.app.feature.meetplanner.ui.components.ModeRow
 import java.time.LocalDate
-
+import androidx.compose.ui.unit.dp
 /** Why this file exists: "Plan a New Meetup": name, city, dates, trip type, budget, travel mode, notes. */
 @Composable
 internal fun PlanScreen(state: MeetUiState, actions: MeetActions) {
