@@ -179,7 +179,7 @@ internal fun HomeComingUp(
                 Text(
                     text = stringResource(R.string.home_calendar_link),
                     style = MaterialTheme.typography.labelLarge,
-                    color = TwinTheme.colors.pinkSoft,
+                    color = Color.White,
                 )
             }
         }
@@ -243,8 +243,8 @@ private fun EventCard(
         modifier = Modifier
             .widthIn(min = EventCardMinWidth, max = EventCardMaxWidth)
             .clip(shape)
-            .background(if (highlight) colors.accent.copy(alpha = SELECTED_FILL_ALPHA) else colors.glass)
-            .border(1.dp, if (highlight) colors.accent else colors.line, shape)
+            .background(HomeCardStyle.GrayGlass)
+            .border(1.dp, if (highlight) colors.accent else HomeCardStyle.GrayGlassBorder, shape)
             .clickable(role = Role.Button, onClick = onClick)
             .padding(TwinTheme.spacing.m),
         verticalAlignment = Alignment.CenterVertically,
@@ -254,7 +254,7 @@ private fun EventCard(
             modifier = Modifier
                 .size(EventIconSize)
                 .clip(TwinTheme.shapes.circle)
-                .background(colors.glass),
+                .background(HomeCardStyle.GlassFill),
             contentAlignment = Alignment.Center,
         ) { Text(icon, fontSize = EmojiSize) }
         Column(modifier = Modifier.weight(1f, fill = false)) {
@@ -274,7 +274,7 @@ private fun EventCard(
             )
         }
         if (badge != null) {
-            Text(badge, style = MaterialTheme.typography.labelLarge, color = colors.pinkSoft)
+            Text(badge, style = MaterialTheme.typography.labelLarge, color = Color.White)
         }
     }
 }
@@ -300,10 +300,15 @@ internal fun HomeMoodCard(
     val dash = stringResource(R.string.home_mood_dash)
     val partner = partnerName.ifBlank { stringResource(R.string.home_partner_fallback) }
 
-    GlassCard(
-        modifier = modifier.fillMaxWidth(),
-        onClick = onOpenCalendar,
-        contentPadding = TwinTheme.spacing.m,
+    val cardShape = TwinTheme.shapes.card
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(cardShape)
+            .background(HomeCardStyle.GrayGlass)
+            .border(1.dp, HomeCardStyle.GrayGlassBorder, cardShape)
+            .clickable(onClick = onOpenCalendar)
+            .padding(TwinTheme.spacing.m),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -315,7 +320,7 @@ internal fun HomeMoodCard(
             Text(
                 text = if (streak >= 2) stringResource(R.string.home_mood_streak, streak) else stringResource(R.string.home_calendar_link),
                 style = MaterialTheme.typography.labelMedium,
-                color = colors.pinkSoft,
+                color = Color.White,
             )
         }
         Spacer(Modifier.height(TwinTheme.spacing.s))
@@ -368,8 +373,8 @@ private fun QuickMoodButton(kind: MoodKind, selected: Boolean, modifier: Modifie
         modifier = modifier
             .heightIn(min = QuickButtonMinHeight)
             .clip(shape)
-            .background(if (selected) kind.color().copy(alpha = SELECTED_FILL_ALPHA) else colors.glass)
-            .border(1.dp, if (selected) kind.color() else colors.lineSoft, shape)
+            .background(if (selected) kind.color().copy(alpha = SELECTED_FILL_ALPHA) else HomeCardStyle.GlassFill)
+            .border(1.dp, if (selected) kind.color() else HomeCardStyle.GlassBorderSoft, shape)
             .clickable(role = Role.Button, onClick = onClick)
             .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
@@ -390,7 +395,7 @@ private fun MoodGraph(mood: MoodBoard, today: LocalDate, paired: Boolean) {
                 fun yOf(score: Int) = size.height * (64f - (score - 1) / 4f * 56f) / GRAPH_VIEWBOX_HEIGHT
                 listOf(8f, 36f, 64f).forEach { gy ->
                     val y = size.height * gy / GRAPH_VIEWBOX_HEIGHT
-                    drawLine(colors.lineSoft, Offset(0f, y), Offset(size.width, y), strokeWidth = 1f)
+                    drawLine(HomeCardStyle.GlassBorderSoft, Offset(0f, y), Offset(size.width, y), strokeWidth = 1f)
                 }
                 fun draw(moods: Map<String, MoodKind>, lineColor: Color, radius: Float, ring: Color) {
                     val points = days.mapIndexed { i, day ->
@@ -438,7 +443,7 @@ private fun MoodDayColumns(mood: MoodBoard, today: LocalDate, paired: Boolean) {
                 Text(
                     text = if (back == 0) todayLabel else date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (back == 0) colors.pinkSoft else colors.inkMuted,
+                    color = if (back == 0) Color.White else colors.inkMuted,
                     maxLines = 1,
                 )
                 Text(
@@ -585,8 +590,8 @@ private fun MoodChip(kind: MoodKind, selected: Boolean, onClick: () -> Unit) {
         modifier = Modifier
             .heightIn(min = TwinTheme.shapes.minTouch)
             .clip(shape)
-            .background(if (selected) kind.color().copy(alpha = SELECTED_FILL_ALPHA) else colors.glass)
-            .border(1.dp, if (selected) kind.color() else colors.lineSoft, shape)
+            .background(if (selected) kind.color().copy(alpha = SELECTED_FILL_ALPHA) else HomeCardStyle.GlassFill)
+            .border(1.dp, if (selected) kind.color() else HomeCardStyle.GlassBorderSoft, shape)
             .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = TwinTheme.spacing.m, vertical = TwinTheme.spacing.m),
     )
@@ -674,14 +679,14 @@ private fun CalendarCell(
     val shape = TwinTheme.shapes.small
     val border = when {
         isSelected -> colors.accent
-        isToday -> colors.pinkSoft
-        else -> colors.lineSoft
+        isToday -> Color.White
+        else -> HomeCardStyle.GlassBorderSoft
     }
     Column(
         modifier = modifier
             .aspectRatio(0.8f)
             .clip(shape)
-            .background(if (mood != null) mood.color().copy(alpha = SELECTED_FILL_ALPHA) else colors.glass)
+            .background(if (mood != null) mood.color().copy(alpha = SELECTED_FILL_ALPHA) else HomeCardStyle.GlassFill)
             .border(if (isSelected || isToday) 2.dp else 1.dp, border, shape)
             .then(if (isFuture) Modifier else Modifier.clickable(role = Role.Button, onClick = onClick))
             .padding(vertical = TwinTheme.spacing.xs),
@@ -732,7 +737,7 @@ private fun FlowRowCenter(counts: List<Map.Entry<MoodKind, Int>>) {
             Row(
                 modifier = Modifier
                     .clip(TwinTheme.shapes.pill)
-                    .background(colors.glass)
+                    .background(HomeCardStyle.GlassFill)
                     .border(1.dp, kind.color(), TwinTheme.shapes.pill)
                     .padding(horizontal = TwinTheme.spacing.m, vertical = TwinTheme.spacing.xs),
                 horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.xs),

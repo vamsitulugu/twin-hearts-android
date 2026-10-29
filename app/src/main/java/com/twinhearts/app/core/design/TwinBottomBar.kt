@@ -84,13 +84,18 @@ fun TwinBottomBar(
                 .height(62.dp)
                 // Glass: see-through white sheen + bright top edge. No .shadow() here: it clips its
                 // children to the bar shape, which cut the top of the orb.
+                // Web .glass-nav: dark tint (rgba(18,8,14,.42) + backdrop blur) so content never shows
+                // through as clear; no blur here (R-55), so the tint is stronger. Then the white sheen.
+                .background(Color(0xFF12080E).copy(alpha = 0.78f), barShape)
                 .background(
-                    Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.13f), Color.White.copy(alpha = 0.05f))),
+                    Brush.verticalGradient(
+                        listOf(Color.White.copy(alpha = 0.16f), Color.White.copy(alpha = 0.05f), Color.White.copy(alpha = 0.02f)),
+                    ),
                     barShape,
                 )
                 .border(
                     1.dp,
-                    Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.32f), Color.White.copy(alpha = 0.08f))),
+                    Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.22f), Color.White.copy(alpha = 0.10f))),
                     barShape,
                 )
                 .padding(horizontal = 6.dp),
@@ -119,7 +124,7 @@ private fun BarItem(
     modifier: Modifier = Modifier,
 ) {
     val colors = TwinTheme.colors
-    val tint = if (selected) Color.White else Color.White.copy(alpha = 0.58f)
+    val tint = if (selected) Color.White else Color.White.copy(alpha = 0.52f)
     Column(
         modifier = modifier
             .padding(vertical = 5.dp, horizontal = 2.dp)

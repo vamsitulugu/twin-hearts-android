@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyRow
@@ -141,7 +143,7 @@ internal fun HomeHero(myName: String, nowMillis: Long) {
     val index = ((nowMillis / MS_PER_DAY) % before.size).toInt()
     val quote = buildAnnotatedString {
         append(before[index])
-        withStyle(SpanStyle(fontStyle = FontStyle.Italic, color = colors.pinkSoft)) { append(words[index]) }
+        withStyle(SpanStyle(fontStyle = FontStyle.Italic, color = HomeCardStyle.QuoteAccent)) { append(words[index]) }
         append(after[index])
     }
     Column(
@@ -169,18 +171,18 @@ internal fun HomeSearchRow(onShortcut: (HomeShortcut) -> Unit) {
                 .weight(1f)
                 .heightIn(min = SearchHeight)
                 .clip(TwinTheme.shapes.pill)
-                .background(colors.glass)
-                .border(1.dp, colors.lineSoft, TwinTheme.shapes.pill)
+                .background(HomeCardStyle.SearchFill)
+                .border(1.dp, HomeCardStyle.SearchBorder, TwinTheme.shapes.pill)
                 .clickable(role = Role.Button) { onShortcut(HomeShortcut.Search) }
                 .padding(horizontal = TwinTheme.spacing.l),
             horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Rounded.Search, contentDescription = null, tint = colors.inkFaint, modifier = Modifier.size(20.dp))
+            Icon(Icons.Rounded.Search, contentDescription = null, tint = Color.White.copy(alpha = 0.75f), modifier = Modifier.size(20.dp))
             Text(
                 text = stringResource(R.string.home_search_hint),
                 style = MaterialTheme.typography.bodyMedium,
-                color = colors.inkFaint,
+                color = Color.White.copy(alpha = 0.75f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -193,37 +195,42 @@ internal fun HomeSearchRow(onShortcut: (HomeShortcut) -> Unit) {
     }
 }
 
-/** Memories (highlighted), Music, Movie, Meet Planner, Daily Routine. Scrolls sideways. */
+/** Memories, Music, Movie, Meet Planner, Daily Routine: one row of 5 equal tiles (web: 5-column grid). */
 @Composable
 internal fun HomeChips(onShortcut: (HomeShortcut) -> Unit) {
-    LazyRow(
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = TwinTheme.spacing.screenEdge),
-        horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = TwinTheme.spacing.screenEdge),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(homeChips) { chip ->
-            ShortcutChip(chip, primary = chip == HomeShortcut.Memories, onClick = { onShortcut(chip) })
+        homeChips.forEach { chip ->
+            ShortcutChip(chip, onClick = { onShortcut(chip) }, modifier = Modifier.weight(1f))
         }
     }
 }
 
 @Composable
-private fun ShortcutChip(shortcut: HomeShortcut, primary: Boolean, onClick: () -> Unit) {
-    val colors = TwinTheme.colors
-    val pill = TwinTheme.shapes.pill
-    val fill: Brush = if (primary) colors.primaryBrush else Brush.linearGradient(listOf(colors.glass, colors.glass))
-    Row(
-        modifier = Modifier
-            .heightIn(min = TwinTheme.shapes.minTouch)
-            .clip(pill)
-            .background(fill)
-            .border(1.dp, if (primary) Color.White.copy(alpha = 0.18f) else colors.line, pill)
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = TwinTheme.spacing.l),
-        horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
-        verticalAlignment = Alignment.CenterVertically,
+private fun ShortcutChip(shortcut: HomeShortcut, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val shape = RoundedCornerShape(16.dp)
+    Column(
+        modifier = modifier
+            .height(60.dp)
+            .clip(shape)
+            .background(HomeCardStyle.ChipFill)
+            .border(1.dp, HomeCardStyle.ChipBorder2, shape)
+            .clickable(role = Role.Button, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
     ) {
-        Icon(shortcut.icon, contentDescription = null, tint = colors.ink, modifier = Modifier.size(18.dp))
-        Text(stringResource(shortcut.labelRes), style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 1)
+        Icon(shortcut.icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+        Text(
+            stringResource(shortcut.labelRes),
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, letterSpacing = 0.sp),
+            color = Color.White,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -598,16 +605,16 @@ private fun PageTile(shortcut: HomeShortcut, onShortcut: (HomeShortcut) -> Unit,
             modifier = Modifier
                 .size(PageIconCircle)
                 .clip(TwinTheme.shapes.circle)
-                .background(colors.glass)
-                .border(1.dp, colors.line, TwinTheme.shapes.circle),
+                .background(HomeCardStyle.GlassFill)
+                .border(1.dp, HomeCardStyle.GlassBorder, TwinTheme.shapes.circle),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(shortcut.icon, contentDescription = null, tint = colors.pinkSoft, modifier = Modifier.size(PageIconSize))
+            Icon(shortcut.icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(PageIconSize))
         }
         Text(
             text = stringResource(shortcut.labelRes),
             style = MaterialTheme.typography.labelMedium,
-            color = colors.inkMuted,
+            color = Color.White.copy(alpha = 0.62f),
             textAlign = TextAlign.Center,
             maxLines = 2,
         )

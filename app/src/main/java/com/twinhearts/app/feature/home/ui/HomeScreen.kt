@@ -3,6 +3,8 @@ package com.twinhearts.app.feature.home.ui
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.layout
+import androidx.compose.foundation.border
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
@@ -130,30 +132,34 @@ internal fun HomeContent(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .background(TwinTheme.colors.burgundy),
+            .background(HomeCardStyle.Hero),
     ) {
         // Pink/burgundy hero on top (web: .dh), black rounded sheet below it.
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(TwinTheme.colors.burgundy, Color(0xFF52072F)),
-                    ),
-                ),
+                // Flat web burgundy + a faint white glow top-right (web: .dh). No pink gradient.
+                .background(HomeCardStyle.Hero),
             verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.l),
         ) {
             HomeHeader(myName = myName, onProfileClick = { onShortcut(HomeShortcut.OurProfile) })
             HomeHero(myName = myName, nowMillis = nowMillis)
             HomeSearchRow(onShortcut)
             HomeChips(onShortcut)
-            Spacer(Modifier.height(TwinTheme.spacing.s))
+            Spacer(Modifier.height(HomeCardStyle.SheetRadius))
         }
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-                .background(Color(0xFF0F0B0D))
+                // Pull the sheet up over the hero by its corner radius (web: margin-top:-30px).
+                .layout { measurable, constraints ->
+                    val placeable = measurable.measure(constraints)
+                    val pull = HomeCardStyle.SheetRadius.roundToPx()
+                    layout(placeable.width, placeable.height - pull) { placeable.place(0, -pull) }
+                }
+                .clip(HomeSheetShape)
+                .background(HomeCardStyle.Sheet)
+                .border(1.dp, HomeCardStyle.SheetBorder, HomeSheetShape)
                 .padding(top = TwinTheme.spacing.xl),
             verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.l),
         ) {
@@ -226,6 +232,8 @@ internal fun HomeContent(
         )
     }
 }
+
+private val HomeSheetShape = RoundedCornerShape(topStart = HomeCardStyle.SheetRadius, topEnd = HomeCardStyle.SheetRadius)
 
 private val previewSession = Session(
     userId = "u1", coupleId = "c1", myName = "Vamsi", email = "a@b.com", phoneNumber = "123",
