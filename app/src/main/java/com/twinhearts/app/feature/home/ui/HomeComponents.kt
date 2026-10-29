@@ -1,6 +1,14 @@
 package com.twinhearts.app.feature.home.ui
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
+import com.twinhearts.app.core.common.rememberReduceMotion
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -78,7 +86,8 @@ import java.util.Calendar
 
 private val LogoSize = 36.dp
 private val LogoCorner = 10.dp
-private val ProfileSize = 40.dp
+private val ProfileSize = 38.dp
+private val ProfileRingSize = 46.dp
 private val SearchHeight = 48.dp
 private val PageIconCircle = 52.dp
 private val PageIconSize = 24.dp
@@ -108,13 +117,50 @@ internal fun HomeHeader(myName: String, onProfileClick: () -> Unit) {
                 .weight(1f)
                 .padding(start = TwinTheme.spacing.m),
         )
+        SpinningProfileButton(myName = myName, onClick = onProfileClick)
+    }
+}
+
+/**
+ * Profile avatar with a thin ring that spins around it at a constant speed, like a rolling wheel.
+ * The ring is a comet-style sweep (transparent tail -> bright head). It stops when the phone asks
+ * for no animations (R-55); only the ring rotates, the avatar and its tap target stay still.
+ */
+@Composable
+private fun SpinningProfileButton(myName: String, onClick: () -> Unit) {
+    val reduceMotion = rememberReduceMotion()
+    val angle = if (reduceMotion) {
+        null
+    } else {
+        rememberInfiniteTransition(label = "profileRing").animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(tween(durationMillis = 2600, easing = LinearEasing), RepeatMode.Restart),
+            label = "profileRingAngle",
+        )
+    }
+    val ringBrush = remember {
+        Brush.sweepGradient(
+            0.00f to Color.Transparent,
+            0.55f to Color.White.copy(alpha = 0.10f),
+            0.85f to HomeCardStyle.QuoteAccent.copy(alpha = 0.75f),
+            1.00f to Color.White,
+        )
+    }
+    Box(
+        modifier = Modifier
+            .size(ProfileRingSize)
+            .clip(TwinTheme.shapes.circle)
+            .clickable(role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
         Box(
             modifier = Modifier
-                .clip(TwinTheme.shapes.circle)
-                .clickable(role = Role.Button, onClick = onProfileClick),
-        ) {
-            Avatar(name = myName, size = ProfileSize)
-        }
+                .fillMaxSize()
+                .graphicsLayer { rotationZ = angle?.value ?: 0f }
+                .border(2.dp, ringBrush, CircleShape),
+        )
+        Avatar(name = myName, size = ProfileSize)
     }
 }
 

@@ -43,6 +43,8 @@ internal object HomeCardStyle {
         listOf(Color.White.copy(alpha = 0.14f), Color.White.copy(alpha = 0.07f)),
     )
     val GrayGlassBorder = Color.White.copy(alpha = 0.18f)
+    // Today's event: a brighter neutral white edge instead of the old pink accent.
+    val GrayGlassBorderStrong = Color.White.copy(alpha = 0.36f)
 
     val CardRadius = 24.dp
     val MenuRadius = 14.dp

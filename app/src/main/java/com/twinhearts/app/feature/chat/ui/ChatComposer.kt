@@ -90,7 +90,7 @@ internal fun ReplyBar(message: ChatMessage, partnerName: String, onCancel: () ->
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.glass)
+            .background(ChatStyle.Bar)
             .padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.s),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -112,7 +112,7 @@ internal fun EditBar(message: ChatMessage, onCancel: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.glass)
+            .background(ChatStyle.Bar)
             .padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.s),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
@@ -145,6 +145,10 @@ internal fun Composer(text: String, recordingSeconds: Int?, editing: Boolean, ac
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            // Same grey glass bar as the chat header on top; the background is drawn first so it
+            // also covers the area behind the gesture bar.
+            .background(ChatStyle.Bar)
+            .border(1.dp, colors.lineSoft)
             .navigationBarsPadding()
             .padding(horizontal = TwinTheme.spacing.s, vertical = TwinTheme.spacing.s),
         verticalAlignment = Alignment.CenterVertically,
@@ -167,7 +171,7 @@ internal fun Composer(text: String, recordingSeconds: Int?, editing: Boolean, ac
                     .weight(1f)
                     .heightIn(min = ComposerMinHeight)
                     .clip(TwinTheme.shapes.pill)
-                    .background(colors.glass)
+                    .background(ChatStyle.Field)
                     .border(1.dp, colors.lineSoft, TwinTheme.shapes.pill),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -231,7 +235,7 @@ private fun RoundAction(icon: ImageVector, description: String, onClick: () -> U
         modifier = Modifier
             .size(TwinTheme.shapes.minTouch)
             .clip(TwinTheme.shapes.circle)
-            .background(TwinTheme.colors.primaryBrush)
+            .background(ChatStyle.SentBubble)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -257,7 +261,7 @@ internal fun EmojiPickerSheet(recent: List<String>, closeOnPick: Boolean, onPick
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(TwinTheme.shapes.pill)
-                .background(colors.glass)
+                .background(ChatStyle.Glass)
                 .padding(horizontal = TwinTheme.spacing.m, vertical = TwinTheme.spacing.s),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),

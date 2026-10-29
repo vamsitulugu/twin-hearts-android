@@ -244,7 +244,7 @@ private fun EventCard(
             .widthIn(min = EventCardMinWidth, max = EventCardMaxWidth)
             .clip(shape)
             .background(HomeCardStyle.GrayGlass)
-            .border(1.dp, if (highlight) colors.accent else HomeCardStyle.GrayGlassBorder, shape)
+            .border(1.dp, if (highlight) HomeCardStyle.GrayGlassBorderStrong else HomeCardStyle.GrayGlassBorder, shape)
             .clickable(role = Role.Button, onClick = onClick)
             .padding(TwinTheme.spacing.m),
         verticalAlignment = Alignment.CenterVertically,

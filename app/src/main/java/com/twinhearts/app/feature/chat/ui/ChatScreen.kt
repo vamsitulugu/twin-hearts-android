@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.chat.ui
 
+import com.twinhearts.app.core.common.rememberCameraGate
 import android.Manifest
 import android.app.Activity
 import android.app.KeyguardManager
@@ -25,7 +26,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Menu
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ContentCopy
@@ -83,9 +85,8 @@ import com.twinhearts.app.core.design.ErrorState
 import com.twinhearts.app.core.design.GlassButton
 import com.twinhearts.app.core.design.LoadingSkeleton
 import com.twinhearts.app.core.design.PillSwitch
-import com.twinhearts.app.core.design.TwinBackground
+import com.twinhearts.app.core.design.LocalOpenSidebar
 import com.twinhearts.app.core.design.TwinTheme
-import com.twinhearts.app.core.design.TwinTopBar
 import com.twinhearts.app.feature.chat.data.PhotoPick
 import com.twinhearts.app.feature.chat.domain.CoupleGifts
 import com.twinhearts.app.feature.chat.domain.DisappearPresets
@@ -109,9 +110,10 @@ import java.time.LocalDate
  * which only draws. All the logic lives in [ChatViewModel].
  */
 
-private const val POLL_MS = 3_000L
-private const val FULL_REFRESH_EVERY = 4
-private const val HEARTBEAT_EVERY = 5
+// 1 s poll (was 3 s): replies, delivered and blue ticks show up about three times sooner.
+private const val POLL_MS = 1_000L
+private const val FULL_REFRESH_EVERY = 3
+private const val HEARTBEAT_EVERY = 15
 private const val BANNER_MS = 3_000L
 private const val MIN_VOICE_SECONDS = 1
 private const val MAX_PICKS = 10
@@ -226,13 +228,14 @@ fun ChatScreen(
     val locationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         if (result.values.any { it }) viewModel.shareLocation() else viewModel.showBanner(ChatBanner.Info(R.string.chat_location_denied))
     }
+    val withCamera = rememberCameraGate { viewModel.showBanner(ChatBanner.Info(R.string.chat_photo_failed)) }
     fun openCamera() {
         val uri = newCameraUri(context)
         if (uri == null) {
             viewModel.showBanner(ChatBanner.Info(R.string.chat_photo_failed))
         } else {
             cameraUri = uri
-            camera.launch(uri)
+            withCamera { camera.launch(uri) }
         }
     }
     fun beginRecording() {
@@ -556,7 +559,7 @@ private const val DRAFT_MS = 600L
 @Composable
 private fun LockedOverlay(onUnlock: () -> Unit) {
     val colors = TwinTheme.colors
-    TwinBackground {
+    Box(Modifier.fillMaxSize().background(ChatStyle.Base)) {
         Column(
             modifier = Modifier.fillMaxSize().padding(TwinTheme.spacing.xl),
             verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m, Alignment.CenterVertically),
@@ -663,11 +666,10 @@ internal fun ChatContent(
     val partner = state.settings.nickname.ifBlank { state.identity?.partnerName.orEmpty() }
     val items = remember(state.messages) { buildChatItems(state.messages, LocalDate.now()) }
     Box(Modifier.fillMaxSize()) {
-        TwinBackground {
-            Box(Modifier.fillMaxSize()) {
+        run {
+            Box(Modifier.fillMaxSize().background(ChatStyle.Base)) {
                 WallpaperLayer(state.wallpaper, Modifier.fillMaxSize())
                 Column(Modifier.fillMaxSize().imePadding()) {
-                    TwinTopBar(title = stringResource(R.string.chat_title), showLogo = true, showSidebarButton = true, onSearchClick = actions.onOpenSearch, onSyncClick = actions.onSync)
                     if (state.selected.isNotEmpty()) {
                         SelectionBar(state, actions)
                     } else {
@@ -722,17 +724,18 @@ private fun ChatHeader(partnerName: String, state: ChatUiState, actions: ChatAct
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.glass)
+            .background(ChatStyle.Bar)
             .border(1.dp, colors.lineSoft)
+            .statusBarsPadding()
             .padding(horizontal = TwinTheme.spacing.xs, vertical = TwinTheme.spacing.s),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.xs),
     ) {
-        IconButton(onClick = actions.onBack, modifier = Modifier.size(HeaderButtonSize)) {
-            Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.chat_back), tint = colors.ink)
+        IconButton(onClick = LocalOpenSidebar.current, modifier = Modifier.size(HeaderButtonSize)) {
+            Icon(Icons.Rounded.Menu, stringResource(R.string.core_menu), tint = colors.ink)
         }
         Box(
-            modifier = Modifier.size(AvatarSize).clip(TwinTheme.shapes.circle).background(colors.primaryBrush),
+            modifier = Modifier.size(AvatarSize).clip(TwinTheme.shapes.circle).background(ChatStyle.Avatar),
             contentAlignment = Alignment.Center,
         ) {
             Text(partnerName.take(1).uppercase(), style = MaterialTheme.typography.titleMedium, color = colors.ink)
@@ -798,7 +801,7 @@ private fun HeaderButton(icon: androidx.compose.ui.graphics.vector.ImageVector, 
         modifier = Modifier
             .size(HeaderButtonSize)
             .clip(TwinTheme.shapes.circle)
-            .background(colors.glass)
+            .background(ChatStyle.Glass)
             .border(1.dp, colors.lineSoft, TwinTheme.shapes.circle)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
@@ -855,8 +858,9 @@ private fun SelectionBar(state: ChatUiState, actions: ChatActions) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.glass)
+            .background(ChatStyle.Bar)
             .border(1.dp, colors.lineSoft)
+            .statusBarsPadding()
             .padding(horizontal = TwinTheme.spacing.xs, vertical = TwinTheme.spacing.s),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -876,7 +880,7 @@ private fun PinnedBar(message: ChatMessage, count: Int, actions: ChatActions) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.glass)
+            .background(ChatStyle.Bar)
             .clickable { actions.onPinnedTap(message.id) }
             .padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.s),
         verticalAlignment = Alignment.CenterVertically,

@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.memories.ui
 
+import com.twinhearts.app.core.common.rememberCameraGate
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -145,6 +146,7 @@ fun MemoriesScreen(
         cameraFile = null
         if (ok && file != null && file.length() > 0L) fileUri(context, file)?.let { viewModel.upload(listOf(it)) } else file?.delete()
     }
+    val withCamera = rememberCameraGate { Toast.makeText(context, R.string.memories_camera_failed, Toast.LENGTH_SHORT).show() }
     fun capture(video: Boolean) {
         val file = newCaptureFile(context, if (video) ".mp4" else ".jpg")
         val uri = file?.let { fileUri(context, it) }
@@ -153,7 +155,7 @@ fun MemoriesScreen(
             return
         }
         cameraFile = file
-        if (video) recordVideo.launch(uri) else takePhoto.launch(uri)
+        withCamera { if (video) recordVideo.launch(uri) else takePhoto.launch(uri) }
     }
     fun pick(type: ActivityResultContracts.PickVisualMedia.VisualMediaType) {
         pickMany.launch(PickVisualMediaRequest(type))

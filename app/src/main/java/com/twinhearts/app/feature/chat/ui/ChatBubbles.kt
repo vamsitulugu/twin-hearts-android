@@ -28,6 +28,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CallMade
+import androidx.compose.material.icons.rounded.CallMissed
+import androidx.compose.material.icons.rounded.CallReceived
+import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material.icons.rounded.AccessTime
 import androidx.compose.material.icons.rounded.Done
 import androidx.compose.material.icons.rounded.DoneAll
@@ -68,6 +73,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.twinhearts.app.R
 import com.twinhearts.app.core.design.TwinTheme
@@ -99,7 +105,7 @@ private val BubbleMaxWidth = 300.dp
 private val BubbleCorner = 18.dp
 private val BubbleFlat = 6.dp
 private val BubbleTail = 4.dp
-private val TickSize = 15.dp
+private val TickSize = 18.dp
 private val PlaySize = 36.dp
 private val WaveBarWidth = 3.dp
 private val WaveBarMax = 22.dp
@@ -115,7 +121,6 @@ private const val WAVE_BARS = 26
 private const val GROUP_GRID_MAX = 4
 private const val BUBBLE_FILL_ALPHA = 0.45f
 private const val QUOTE_FILL_ALPHA = 0.35f
-private const val SELECT_ALPHA = 0.28f
 private const val JUMP_DISTANCE = 3
 
 /** Short text for a message in the reply quote, the reply bar, search lists and the pinned bar. */
@@ -240,7 +245,7 @@ private fun JumpToLatest(unseen: Int, modifier: Modifier, onClick: () -> Unit) {
             .padding(TwinTheme.spacing.m)
             .size(TwinTheme.shapes.minTouch)
             .clip(TwinTheme.shapes.circle)
-            .background(colors.glass)
+            .background(ChatStyle.Glass)
             .border(1.dp, colors.lineSoft, TwinTheme.shapes.circle)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
@@ -265,7 +270,7 @@ internal fun DayPill(label: DayLabel) {
             color = colors.inkMuted,
             modifier = Modifier
                 .clip(TwinTheme.shapes.pill)
-                .background(colors.glass)
+                .background(ChatStyle.Glass)
                 .border(1.dp, colors.lineSoft, TwinTheme.shapes.pill)
                 .padding(horizontal = TwinTheme.spacing.m, vertical = TwinTheme.spacing.xs),
         )
@@ -316,7 +321,7 @@ private fun MessageBubble(
         Modifier
             .fillMaxWidth()
             .padding(top = topGap)
-            .then(if (selected) Modifier.background(colors.accent.copy(alpha = SELECT_ALPHA)) else Modifier)
+            .then(if (selected) Modifier.background(ChatStyle.Selection) else Modifier)
             .then(
                 if (canSwipe) {
                     Modifier.draggable(
@@ -342,7 +347,7 @@ private fun MessageBubble(
                         .widthIn(max = BubbleMaxWidth)
                         .clip(shape)
                         .then(
-                            if (mine) Modifier.background(colors.primaryBrush)
+                            if (mine) Modifier.background(ChatStyle.SentBubble)
                             else Modifier.background(colors.neutralGlass.copy(alpha = BUBBLE_FILL_ALPHA)),
                         )
                         .border(1.dp, if (failed) colors.error else colors.lineSoft, shape)
@@ -377,20 +382,90 @@ private fun MessageBubble(
     }
 }
 
+/** What the server wrote for a call ("Voice call · 2:31", "Missed voice call" ...), read into parts. */
+private enum class CallOutcome { Answered, Missed, NoAnswer, Declined }
+
+private data class CallLogInfo(val video: Boolean, val outcome: CallOutcome, val duration: String?)
+
+private val DurationRegex = Regex("""\d{1,2}:\d{2}(?::\d{2})?""")
+
+private fun parseCallLog(text: String?, mine: Boolean): CallLogInfo {
+    val t = text.orEmpty().lowercase()
+    val duration = DurationRegex.find(t)?.value?.takeIf { it != "0:00" && it != "00:00" }
+    val outcome = when {
+        t.contains("declin") -> CallOutcome.Declined
+        t.contains("missed") || t.contains("no answer") || t.contains("cancel") || (duration == null && !t.contains("ended")) ->
+            // I called and nobody picked up = "No answer"; they called and I did not = "Missed".
+            if (mine) CallOutcome.NoAnswer else CallOutcome.Missed
+        else -> CallOutcome.Answered
+    }
+    return CallLogInfo(video = t.contains("video"), outcome = outcome, duration = duration)
+}
+
+/** A call in the chat history, like WhatsApp: icon, "Voice/Video call", then picked up (time) or missed. */
 @Composable
 private fun CallLogRow(message: ChatMessage) {
     val colors = TwinTheme.colors
-    Box(Modifier.fillMaxWidth().padding(vertical = TwinTheme.spacing.xs), contentAlignment = Alignment.Center) {
-        Text(
-            text = message.text ?: stringResource(R.string.chat_preview_other),
-            style = MaterialTheme.typography.labelMedium,
-            color = colors.inkMuted,
+    val info = remember(message.text, message.mine) { parseCallLog(message.text, message.mine) }
+    val accent = when (info.outcome) {
+        CallOutcome.Answered -> ChatStyle.CallOk
+        CallOutcome.Missed -> ChatStyle.CallMissed
+        else -> colors.inkMuted
+    }
+    val statusText = when (info.outcome) {
+        CallOutcome.Answered -> info.duration ?: stringResource(R.string.calls_log_answered)
+        CallOutcome.Missed -> stringResource(R.string.calls_log_missed)
+        CallOutcome.NoAnswer -> stringResource(R.string.calls_no_answer)
+        CallOutcome.Declined -> stringResource(R.string.calls_log_declined)
+    }
+    val arrow = when {
+        message.mine -> Icons.Rounded.CallMade
+        info.outcome == CallOutcome.Missed -> Icons.Rounded.CallMissed
+        else -> Icons.Rounded.CallReceived
+    }
+    val shape = RoundedCornerShape(18.dp)
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = TwinTheme.spacing.xs),
+        horizontalArrangement = if (message.mine) Arrangement.End else Arrangement.Start,
+    ) {
+        Row(
             modifier = Modifier
-                .clip(TwinTheme.shapes.pill)
-                .background(colors.glass)
-                .border(1.dp, colors.lineSoft, TwinTheme.shapes.pill)
-                .padding(horizontal = TwinTheme.spacing.m, vertical = TwinTheme.spacing.xs),
-        )
+                .widthIn(min = 200.dp, max = BubbleMaxWidth)
+                .clip(shape)
+                .background(ChatStyle.Glass)
+                .border(1.dp, colors.lineSoft, shape)
+                .padding(horizontal = TwinTheme.spacing.m, vertical = TwinTheme.spacing.s),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
+        ) {
+            Box(
+                Modifier.size(40.dp).clip(TwinTheme.shapes.circle).background(accent.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(if (info.video) Icons.Rounded.Videocam else Icons.Rounded.Call, null, tint = accent, modifier = Modifier.size(20.dp))
+            }
+            Column(Modifier.weight(1f)) {
+                Text(
+                    stringResource(if (info.video) R.string.calls_log_video else R.string.calls_log_voice),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.ink,
+                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Icon(arrow, null, tint = accent, modifier = Modifier.size(14.dp))
+                    Text(
+                        statusText,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (info.outcome == CallOutcome.Missed) ChatStyle.CallMissed else colors.inkMuted,
+                    )
+                }
+            }
+            Text(
+                formatClock(message.createdAt),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, letterSpacing = 0.sp),
+                color = ChatStyle.MetaText,
+                modifier = Modifier.align(Alignment.Bottom),
+            )
+        }
     }
 }
 
@@ -408,8 +483,8 @@ private fun ReactionPills(message: ChatMessage, onReact: (ChatMessage, String) -
                 color = colors.ink,
                 modifier = Modifier
                     .clip(TwinTheme.shapes.pill)
-                    .background(if (group.mine) colors.accent.copy(alpha = SELECT_ALPHA) else colors.glass)
-                    .border(1.dp, if (group.mine) colors.pinkSoft else colors.lineSoft, TwinTheme.shapes.pill)
+                    .background(if (group.mine) ChatStyle.Selection else ChatStyle.Glass)
+                    .border(1.dp, if (group.mine) ChatStyle.MineOutline else colors.lineSoft, TwinTheme.shapes.pill)
                     .clickable { onReact(message, group.emoji) }
                     .padding(horizontal = TwinTheme.spacing.s, vertical = TwinTheme.spacing.xs),
             )
@@ -490,7 +565,7 @@ private fun BubbleBody(message: ChatMessage, votes: Map<String, Int>, voice: Voi
 private fun BodyText(text: String) {
     val colors = TwinTheme.colors
     var revealed by remember { mutableStateOf(false) }
-    val annotated = remember(text, revealed, colors) { richAnnotated(parseRichText(text), colors.pinkSoft, colors.ink, colors.glass, revealed) }
+    val annotated = remember(text, revealed, colors) { richAnnotated(parseRichText(text), colors.pinkSoft, colors.ink, ChatStyle.Glass, revealed) }
     val hasSpoiler = remember(text) { parseRichText(text).any { it.spoiler } }
     Text(
         text = annotated,
@@ -783,7 +858,7 @@ private fun VoiceRow(message: ChatMessage, voice: VoicePlayerState, onFailed: ()
                 color = colors.ink,
                 modifier = Modifier
                     .clip(TwinTheme.shapes.pill)
-                    .background(colors.glass)
+                    .background(ChatStyle.Glass)
                     .clickable { voice.cycleSpeed() }
                     .padding(horizontal = TwinTheme.spacing.s, vertical = PillShadowGap),
             )
@@ -800,20 +875,25 @@ private fun waveBars(seed: String): List<Float> {
     }
 }
 
-/** Time, "edited", pin, star and (my messages only) the ticks. */
+/** Time, "edited", pin, star and (my messages only) the ticks. Plain small text, no extra spacing. */
 @Composable
 private fun MetaRow(message: ChatMessage, modifier: Modifier = Modifier) {
-    val colors = TwinTheme.colors
+    val metaStyle = MaterialTheme.typography.labelSmall.copy(
+        fontSize = 11.sp,
+        lineHeight = 12.sp,
+        fontWeight = FontWeight.Normal,
+        letterSpacing = 0.sp,
+    )
     Row(
         // No fillMaxWidth: the bubble must be as wide as its text, not always the maximum.
-        modifier = modifier.padding(top = TwinTheme.spacing.xs),
-        horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.xs, Alignment.End),
+        modifier = modifier.padding(top = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.End),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (message.pinned) Icon(Icons.Rounded.PushPin, null, tint = colors.inkMuted, modifier = Modifier.size(TickSize - 3.dp))
-        if (message.starred) Icon(Icons.Rounded.Star, null, tint = colors.pinkSoft, modifier = Modifier.size(TickSize - 3.dp))
-        if (message.edited) Text(stringResource(R.string.chat_edited), style = MaterialTheme.typography.labelSmall, color = colors.inkMuted)
-        Text(formatClock(message.createdAt), style = MaterialTheme.typography.labelSmall, color = colors.inkMuted, textAlign = TextAlign.End)
+        if (message.pinned) Icon(Icons.Rounded.PushPin, null, tint = ChatStyle.MetaText, modifier = Modifier.size(11.dp))
+        if (message.starred) Icon(Icons.Rounded.Star, null, tint = ChatStyle.MetaText, modifier = Modifier.size(11.dp))
+        if (message.edited) Text(stringResource(R.string.chat_edited), style = metaStyle, color = ChatStyle.MetaText)
+        Text(formatClock(message.createdAt), style = metaStyle, color = ChatStyle.MetaText)
         if (message.mine) Ticks(message.delivery)
     }
 }
@@ -824,9 +904,11 @@ private fun Ticks(state: DeliveryState) {
     val (icon, tint) = when (state) {
         DeliveryState.Sending -> Icons.Rounded.AccessTime to colors.inkFaint
         DeliveryState.Failed -> Icons.Rounded.ErrorOutline to colors.error
-        DeliveryState.Sent -> Icons.Rounded.Done to colors.inkMuted
-        DeliveryState.Delivered -> Icons.Rounded.DoneAll to colors.inkMuted
-        DeliveryState.Read -> Icons.Rounded.DoneAll to colors.pinkSoft
+        // WhatsApp: one white tick = sent (partner offline / no net), two white = delivered (partner
+        // online, not seen yet), two blue = seen.
+        DeliveryState.Sent -> Icons.Rounded.Done to ChatStyle.TickSent
+        DeliveryState.Delivered -> Icons.Rounded.DoneAll to ChatStyle.TickDelivered
+        DeliveryState.Read -> Icons.Rounded.DoneAll to ChatStyle.TickSeen
     }
     Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(TickSize))
 }

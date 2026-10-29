@@ -3,6 +3,7 @@ package com.twinhearts.app.feature.chat.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -47,7 +48,6 @@ import com.twinhearts.app.core.common.asText
 import com.twinhearts.app.core.design.EmptyState
 import com.twinhearts.app.core.design.ErrorState
 import com.twinhearts.app.core.design.GlassButton
-import com.twinhearts.app.core.design.TwinBackground
 import com.twinhearts.app.core.design.TwinFilterChip
 import com.twinhearts.app.core.design.TwinTextField
 import com.twinhearts.app.core.design.TwinTheme
@@ -80,7 +80,7 @@ internal fun FullScreenSheet(title: String, onClose: () -> Unit, content: @Compo
         onDismissRequest = onClose,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
-        TwinBackground {
+        Box(Modifier.fillMaxSize().background(ChatStyle.Base)) {
             Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = TwinTheme.spacing.s),
@@ -111,7 +111,7 @@ private fun ResultRow(message: ChatMessage, partnerName: String, trailing: (@Com
         modifier = Modifier
             .fillMaxWidth()
             .clip(TwinTheme.shapes.small)
-            .background(colors.glass)
+            .background(ChatStyle.Glass)
             .border(1.dp, colors.lineSoft, TwinTheme.shapes.small)
             .padding(TwinTheme.spacing.m),
         verticalAlignment = Alignment.CenterVertically,
@@ -272,7 +272,7 @@ internal fun ScheduledDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(TwinTheme.shapes.small)
-                            .background(colors.glass)
+                            .background(ChatStyle.Glass)
                             .border(1.dp, colors.lineSoft, TwinTheme.shapes.small)
                             .padding(TwinTheme.spacing.m),
                         verticalAlignment = Alignment.CenterVertically,

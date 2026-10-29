@@ -172,7 +172,7 @@ internal fun MessageMenuSheet(message: ChatMessage, actions: MessageMenuActions,
                         style = MaterialTheme.typography.headlineMedium,
                         modifier = Modifier
                             .clip(TwinTheme.shapes.circle)
-                            .background(colors.glass)
+                            .background(ChatStyle.Glass)
                             .clickable { onDismiss(); actions.onReact(emoji) }
                             .padding(TwinTheme.spacing.s),
                     )
@@ -270,7 +270,7 @@ internal fun EmojiCardSheet(title: String, items: List<NamedEmoji>, onPick: (Nam
                 Column(
                     modifier = Modifier
                         .clip(TwinTheme.shapes.small)
-                        .background(colors.glass)
+                        .background(ChatStyle.Glass)
                         .border(1.dp, colors.lineSoft, TwinTheme.shapes.small)
                         .clickable { onDismiss(); onPick(item) }
                         .padding(TwinTheme.spacing.s),

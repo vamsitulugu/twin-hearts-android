@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.music.ui
 
+import com.twinhearts.app.core.common.rememberCameraGate
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -421,12 +422,13 @@ internal fun rememberVideoCapture(onCaptured: (File, Int) -> Unit): () -> Unit {
             file?.delete()
         }
     }
+    val withCamera = rememberCameraGate()
     return {
         val dir = File(context.cacheDir, "music_capture").apply { mkdirs() }
         val file = File(dir, "video_${System.currentTimeMillis()}.mp4")
         target = file
         val uri: Uri = FileProvider.getUriForFile(context, "${context.packageName}.chatfiles", file)
-        launcher.launch(uri)
+        withCamera { launcher.launch(uri) }
     }
 }
 

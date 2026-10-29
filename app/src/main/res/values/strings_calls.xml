@@ -17,4 +17,13 @@
     <string name="calls_speaker">Speaker</string>
     <string name="calls_camera">Camera</string>
     <string name="calls_flip">Flip</string>
+    <string name="calls_banner_return">Tap to return to call</string>
+    <string name="calls_banner_calling">Calling %1$s · tap to return</string>
+    <string name="calls_banner_incoming">Incoming call · tap to open</string>
+    <string name="calls_banner_connecting">Connecting · tap to return</string>
+    <string name="calls_log_voice">Voice call</string>
+    <string name="calls_log_video">Video call</string>
+    <string name="calls_log_missed">Missed</string>
+    <string name="calls_log_declined">Declined</string>
+    <string name="calls_log_answered">Answered</string>
 </resources>

@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -106,6 +105,9 @@ import kotlin.math.roundToInt
 private val SharedCell = 4.dp
 private val SwatchSize = 56.dp
 private val PreviewHeight = 220.dp
+
+/** Empty space kept under the wallpaper buttons (on top of the system bar) so they are never cut off. */
+private val SheetBottomGap = 28.dp
 private const val SHARED_COLUMNS = 3
 private const val DOUBLE_TAP_ZOOM = 2.5f
 private const val MAX_ZOOM = 4f
@@ -272,7 +274,7 @@ private fun SharedRow(icon: String, title: String, subtitle: String, onClick: ()
         modifier = Modifier
             .fillMaxWidth()
             .clip(TwinTheme.shapes.small)
-            .background(colors.glass)
+            .background(ChatStyle.Glass)
             .border(1.dp, colors.lineSoft, TwinTheme.shapes.small)
             .clickable(onClick = onClick)
             .padding(TwinTheme.spacing.m),
@@ -375,8 +377,9 @@ internal fun WallpaperScreen(
                 },
             )
         } else {
+            Column(Modifier.fillMaxSize()) {
             Column(
-                modifier = Modifier.fillMaxSize().navigationBarsPadding().verticalScroll(rememberScrollState())
+                modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
                     .padding(horizontal = TwinTheme.spacing.screenEdge),
                 verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
             ) {
@@ -397,7 +400,7 @@ internal fun WallpaperScreen(
                                 stringResource(R.string.chat_wallpaper_sample_mine),
                                 color = colors.ink,
                                 style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.clip(TwinTheme.shapes.small).background(colors.primaryBrush).padding(TwinTheme.spacing.s),
+                                modifier = Modifier.clip(TwinTheme.shapes.small).background(ChatStyle.SentBubble).padding(TwinTheme.spacing.s),
                             )
                         }
                     }
@@ -436,6 +439,14 @@ internal fun WallpaperScreen(
                     Text(stringResource(R.string.chat_wallpaper_shared), style = MaterialTheme.typography.bodyLarge, color = colors.ink, modifier = Modifier.weight(1f))
                     PillSwitch(checked = both, onCheckedChange = { both = it })
                 }
+            }
+            // Save and Reset stay pinned at the bottom (they used to scroll away under the screen edge).
+            Column(
+                modifier = Modifier.fillMaxWidth()
+                    .padding(horizontal = TwinTheme.spacing.screenEdge)
+                    .padding(top = TwinTheme.spacing.s, bottom = SheetBottomGap),
+                verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
+            ) {
                 GlassButton(
                     text = stringResource(R.string.chat_wallpaper_save),
                     onClick = {
@@ -453,6 +464,7 @@ internal fun WallpaperScreen(
                     style = GlassButtonStyle.Ghost,
                     modifier = Modifier.fillMaxWidth(),
                 )
+            }
             }
         }
     }
@@ -505,7 +517,10 @@ private fun WallpaperCutter(
         }
     }
     val density = LocalDensity.current
-    Column(Modifier.fillMaxSize().navigationBarsPadding().padding(TwinTheme.spacing.screenEdge), verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m)) {
+    Column(
+        Modifier.fillMaxSize().padding(start = TwinTheme.spacing.screenEdge, end = TwinTheme.spacing.screenEdge, top = TwinTheme.spacing.screenEdge),
+        verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
+    ) {
         Text(stringResource(R.string.chat_wallpaper_crop_hint), style = MaterialTheme.typography.bodyMedium, color = colors.inkMuted)
         Box(
             Modifier
@@ -539,7 +554,11 @@ private fun WallpaperCutter(
                 )
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
+        Row(
+            // Extra gap under the buttons so the gesture bar / screen edge never covers them.
+            modifier = Modifier.padding(bottom = SheetBottomGap),
+            horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
+        ) {
             GlassButton(
                 text = stringResource(R.string.chat_cancel),
                 onClick = { onDone(null) },

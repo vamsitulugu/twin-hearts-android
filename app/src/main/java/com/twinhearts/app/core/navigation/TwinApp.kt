@@ -37,6 +37,7 @@ import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.twinhearts.app.R
+import com.twinhearts.app.feature.calls.ui.CallBannerHost
 import com.twinhearts.app.feature.calls.ui.IncomingCallWatcher
 import com.twinhearts.app.core.design.BottomBarItem
 import com.twinhearts.app.core.common.LocalReduceMotionSetting
@@ -182,6 +183,13 @@ private fun TwinNavigation(startDestination: Any, session: com.twinhearts.app.co
                 // it here too would leave an empty gap under the typing bar.
                 val ownsBottomInset = selectedItem?.key == Routes.Chat
                 val insets = if (showBottomBar || ownsBottomInset) Modifier else Modifier.navigationBarsPadding()
+                CallBannerHost(
+                    onCallScreen = destination?.hasRoute<Routes.Call>() == true,
+                    onOpen = { video ->
+                        // incoming = true: the call is already running, this page must not start another.
+                        navController.navigate(Routes.Call(video = video, incoming = true)) { launchSingleTop = true }
+                    },
+                ) {
                 androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
                     AppNavHost(
                         navController = navController,
@@ -198,6 +206,7 @@ private fun TwinNavigation(startDestination: Any, session: com.twinhearts.app.co
                             modifier = Modifier.align(Alignment.BottomCenter),
                         )
                     }
+                }
                 }
             }
         }

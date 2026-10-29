@@ -86,16 +86,26 @@ fun TwinBottomBar(
                 // children to the bar shape, which cut the top of the orb.
                 // Web .glass-nav: dark tint (rgba(18,8,14,.42) + backdrop blur) so content never shows
                 // through as clear; no blur here (R-55), so the tint is stronger. Then the white sheen.
-                .background(Color(0xFF12080E).copy(alpha = 0.78f), barShape)
+                .background(Color(0xFF12080E).copy(alpha = 0.92f), barShape)
+                // Glass sheen: bright at the top edge, fading down, with a faint lift at the bottom
+                // so the pill reads as a curved pane of glass.
                 .background(
                     Brush.verticalGradient(
-                        listOf(Color.White.copy(alpha = 0.16f), Color.White.copy(alpha = 0.05f), Color.White.copy(alpha = 0.02f)),
+                        0.00f to Color.White.copy(alpha = 0.26f),
+                        0.35f to Color.White.copy(alpha = 0.09f),
+                        0.70f to Color.White.copy(alpha = 0.03f),
+                        1.00f to Color.White.copy(alpha = 0.10f),
                     ),
                     barShape,
                 )
+                // Specular rim: strong light on the top edge, soft on the bottom edge.
                 .border(
                     1.dp,
-                    Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.22f), Color.White.copy(alpha = 0.10f))),
+                    Brush.verticalGradient(
+                        0.00f to Color.White.copy(alpha = 0.45f),
+                        0.50f to Color.White.copy(alpha = 0.10f),
+                        1.00f to Color.White.copy(alpha = 0.22f),
+                    ),
                     barShape,
                 )
                 .padding(horizontal = 6.dp),

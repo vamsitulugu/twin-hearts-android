@@ -401,6 +401,8 @@ class ChatViewModel @Inject constructor(
                     is AppResult.Success -> {
                         retries.remove(local.clientId)
                         _state.update { it.copy(messages = mergeMessages(it.messages, listOf(result.data))) }
+                        // Ask for the fresh tick state now instead of waiting for the next poll.
+                        poll(full = true)
                     }
                     is AppResult.Failure -> {
                         setDelivery(local.clientId, DeliveryState.Failed)
