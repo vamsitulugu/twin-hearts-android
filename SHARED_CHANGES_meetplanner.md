@@ -7,7 +7,7 @@ None. (Uses Coil, Hilt, Retrofit, Compose already in the catalog.)
 ## Manifest entries
 None. INTERNET and location permissions already exist.
 
-## AppNavHost line
+## AppNavHost line (YOU add these 3 lines by hand — v2 zip does NOT overwrite these files)
 `core/navigation/FeatureGraphs.kt`: `meetPlannerGraph(navController) // 4.x Meet Planner` + import.
 `core/navigation/Routes.kt`: `@Serializable data object MeetPlanner`.
 `feature/home/HomeRoute.kt`: `HomeShortcut.MeetPlanner -> navController.navigate(Routes.MeetPlanner)`.

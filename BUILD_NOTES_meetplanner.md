@@ -14,3 +14,11 @@ Not compiled by Claude. Please build it first.
 3. Saved → open it → countdown shows; tick a checklist item, reopen: still ticked.
 4. Long-press a card → select → delete → confirm → toast "Deleted".
 5. Past-dated plan → Mark Complete with a photo → "Saved to Memory Globe!" → View Photos.
+
+## Add these 3 lines by hand (v2 does not touch your shared files)
+1. `core/navigation/Routes.kt`, inside `object Routes { ... }`:
+   `@Serializable data object MeetPlanner`
+2. Where your nav graphs are registered (FeatureGraphs.kt or TwinApp.kt), add:
+   `meetPlannerGraph(navController)` and `import com.twinhearts.app.feature.meetplanner.ui.meetPlannerGraph`
+3. `feature/home/HomeRoute.kt`, in the `when (shortcut)`:
+   `HomeShortcut.MeetPlanner -> navController.navigate(Routes.MeetPlanner)`
