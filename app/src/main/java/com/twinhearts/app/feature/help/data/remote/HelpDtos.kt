@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /*
- * Shapes of the old server's `/api/support/*` answers (routes/support.js, lib/supportStore.js).
+ * Shapes of the old server's `/api/support/...` answers (routes/support.js, lib/supportStore.js).
  * Every field has a default so one missing or null value never fails the whole screen.
  * Request fields that must always be sent have NO default: the app's Json does not write defaults.
  */

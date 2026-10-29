@@ -307,7 +307,7 @@ private fun GameCard(
             Text(stringResource(info.title), style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(stringResource(info.description), style = MaterialTheme.typography.bodySmall, color = colors.inkMuted, maxLines = 4, overflow = TextOverflow.Ellipsis)
             Text(
-                info.tags.joinToString(" · ") { stringResource(it) },
+                info.tags.map { stringResource(it) }.joinToString(" · "),
                 style = MaterialTheme.typography.labelSmall,
                 color = colors.inkFaint,
             )

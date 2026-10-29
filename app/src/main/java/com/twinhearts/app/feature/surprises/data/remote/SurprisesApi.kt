@@ -33,7 +33,7 @@ interface SurprisesApi {
         @Part("coupleId") coupleId: RequestBody,
     ): MediaUploadResponse
 
-    /** Voice notes and other audio (any `audio/*`, up to 15 MB). Answer: `{url, path, ...}`. */
+    /** Voice notes and other audio (any `audio/...`, up to 15 MB). Answer: `{url, path, ...}`. */
     @Multipart
     @POST("api/media/upload-voice")
     suspend fun uploadVoice(
