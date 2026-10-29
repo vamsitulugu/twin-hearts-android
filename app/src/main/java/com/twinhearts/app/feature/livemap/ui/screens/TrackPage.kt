@@ -39,6 +39,7 @@ import com.twinhearts.app.core.design.SectionHeader
 import com.twinhearts.app.core.design.SegmentedTabs
 import com.twinhearts.app.core.design.StatTile
 import com.twinhearts.app.core.design.TwinFilterChip
+import com.twinhearts.app.core.design.DarkTwinColors
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.core.common.asText
 import com.twinhearts.app.feature.livemap.domain.LiveMapFormat
@@ -138,8 +139,8 @@ private fun DayContent(
 ) {
     val colors = TwinTheme.colors
     val mapColors = remember(colors) {
-        MapColors(colors.accent.toArgb(), colors.pinkSoft.toArgb(), colors.orchid.toArgb(), colors.success.toArgb(), colors.inkMuted.toArgb(),
-            colors.error.toArgb(), colors.pinkSoft.toArgb(), colors.ink.toArgb(), colors.background.toArgb(), Color.White.toArgb())
+        MapColors(DarkTwinColors.accent.toArgb(), DarkTwinColors.pinkSoft.toArgb(), colors.orchid.toArgb(), colors.success.toArgb(), colors.inkMuted.toArgb(),
+            colors.error.toArgb(), DarkTwinColors.pinkSoft.toArgb(), colors.ink.toArgb(), colors.background.toArgb(), Color.White.toArgb())
     }
     val points = remember(day) { day.day.points.map { MapPoint(it.lat, it.lng) } }
     val index = state.playback.index.coerceIn(0, (points.size - 1).coerceAtLeast(0))

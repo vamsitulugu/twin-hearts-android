@@ -20,6 +20,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.background
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -45,6 +46,8 @@ import com.twinhearts.app.R
 import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.rememberReduceMotion
 import com.twinhearts.app.core.design.TwinTopBar
+import com.twinhearts.app.feature.settings.ui.components.NeutralSettingsColors
+import com.twinhearts.app.feature.settings.ui.components.SettingsStyle
 import com.twinhearts.app.feature.settings.domain.model.SettingsPage
 import com.twinhearts.app.feature.settings.ui.components.SettingsConfirmDialog
 import kotlinx.coroutines.delay
@@ -153,10 +156,11 @@ fun SettingsScreen(
 
     BackHandler(enabled = state.page != null, onBack = viewModel::onBack)
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    NeutralSettingsColors {
+    Column(modifier = Modifier.fillMaxSize().background(SettingsStyle.Base)) {
         TwinTopBar(
             title = stringResource(R.string.settings_title),
-            showLogo = true,
+            showSidebarButton = true,
             onSearchClick = if (state.page == null) {
                 { searchFocus.requestFocus() }
             } else {
@@ -224,6 +228,7 @@ fun SettingsScreen(
             },
             onDismiss = { showRationale = false },
         )
+    }
     }
 }
 

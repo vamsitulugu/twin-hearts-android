@@ -96,8 +96,8 @@ fun TwinBubble(
             Column(
                 modifier = Modifier
                     .clip(RoundedCornerShape(4.dp, 18.dp, 18.dp, 18.dp))
-                    .background(if (failed) colors.error.copy(alpha = 0.14f) else colors.glass)
-                    .border(1.dp, if (failed) colors.error.copy(alpha = 0.4f) else colors.lineSoft, RoundedCornerShape(4.dp, 18.dp, 18.dp, 18.dp))
+                    .background(if (failed) colors.error.copy(alpha = 0.14f) else TwinAiStyle.GlassFill)
+                    .border(1.dp, if (failed) colors.error.copy(alpha = 0.4f) else TwinAiStyle.GlassBorder, RoundedCornerShape(4.dp, 18.dp, 18.dp, 18.dp))
                     .padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.m),
             ) {
                 when {
@@ -135,7 +135,7 @@ private fun ToolbarLink(text: String, onClick: () -> Unit) {
         color = colors.inkMuted,
         modifier = Modifier
             .clip(TwinTheme.shapes.pill)
-            .background(colors.glass)
+            .background(TwinAiStyle.GlassFill)
             .clickable(onClick = onClick)
             .padding(horizontal = TwinTheme.spacing.m, vertical = TwinTheme.spacing.s),
     )

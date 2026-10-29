@@ -21,6 +21,12 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -34,6 +40,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,16 +76,28 @@ fun TwinBottomBar(
     selectedKey: Any?,
     onItemClick: (BottomBarItem) -> Unit,
     modifier: Modifier = Modifier,
+    /** Fills the whole bar slot (also the strip beside the orb). Leave transparent unless the page behind is a flat colour. */
+    slotFill: Color = Color.Transparent,
 ) {
     val colors = TwinTheme.colors
-    val barShape = RoundedCornerShape(30.dp)
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = 14.dp)
-            .padding(top = 28.dp, bottom = TwinTheme.spacing.s),
-    ) {
+    // The bar's top edge dips in a U around the orb, so the orb stands in its own cradle.
+    val barShape = remember { NotchedBarShape() }
+    Box(modifier = modifier.fillMaxWidth().background(slotFill)) {
+        // Black backing plate: hides whatever scrolls behind the bar and the gesture area, keeps a
+        // small gap around the bar, and its two top corners curve up to match the bar's curve.
+        Box(
+            Modifier
+                .matchParentSize()
+                .padding(top = PlateTopOffset)
+                .background(Color.Black, RoundedCornerShape(topStart = PlateCorner, topEnd = PlateCorner)),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 14.dp)
+                .padding(top = 28.dp, bottom = TwinTheme.spacing.s),
+        ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -123,8 +143,48 @@ fun TwinBottomBar(
                 )
             }
         }
+        }
     }
 }
+
+private val PlateTopOffset = 22.dp // 6 dp above the bar's top edge (the bar starts 28 dp down)
+private val PlateCorner = 40.dp
+
+/**
+ * The bar pill (62 dp tall, 30 dp corners) with a U-shaped dip in the top edge, centred on the orb.
+ * The orb's centre sits about 8 dp below the bar's top edge, so the U is a half circle of radius
+ * [NotchRadius] around that point, with soft shoulders where it meets the top edge.
+ */
+private class NotchedBarShape : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline = with(density) {
+        val w = size.width
+        val h = size.height
+        val r = 30.dp.toPx()
+        val cx = w / 2f
+        val nr = NotchRadius.toPx()
+        val cy = NotchCenterY.toPx()
+        val shoulder = 12.dp.toPx()
+        Path().apply {
+            moveTo(r, 0f)
+            lineTo(cx - nr - shoulder, 0f)
+            cubicTo(cx - nr - shoulder * 0.35f, 0f, cx - nr, cy * 0.25f, cx - nr, cy)
+            arcTo(Rect(cx - nr, cy - nr, cx + nr, cy + nr), 180f, -180f, false)
+            cubicTo(cx + nr, cy * 0.25f, cx + nr + shoulder * 0.35f, 0f, cx + nr + shoulder, 0f)
+            lineTo(w - r, 0f)
+            arcTo(Rect(w - 2 * r, 0f, w, 2 * r), -90f, 90f, false)
+            lineTo(w, h - r)
+            arcTo(Rect(w - 2 * r, h - 2 * r, w, h), 0f, 90f, false)
+            lineTo(r, h)
+            arcTo(Rect(0f, h - 2 * r, 2 * r, h), 90f, 90f, false)
+            lineTo(0f, r)
+            arcTo(Rect(0f, 0f, 2 * r, 2 * r), 180f, 90f, false)
+            close()
+        }.let { Outline.Generic(it) }
+    }
+}
+
+private val NotchRadius = 42.dp
+private val NotchCenterY = 8.dp
 
 @Composable
 private fun BarItem(

@@ -49,7 +49,7 @@ import com.twinhearts.app.core.common.rememberReduceMotion
 import com.twinhearts.app.core.design.TwinTheme
 
 /*
- * Why this file exists: the Twin page's own top bar. The shared TwinTopBar has no second line
+ * Why this file exists: the Twin page's own top bar (menu on the left, title, then search and sync; no logo or back arrow). The shared TwinTopBar has no second line
  * ("Your Personal AI"), so this private copy adds it. A Change Request in SHARED_CHANGES.md
  * proposes adding a `subtitle` to TwinTopBar so this can be dropped later (R-31).
  */
@@ -57,7 +57,6 @@ import com.twinhearts.app.core.design.TwinTheme
 fun TwinAiHeader(
     syncing: Boolean,
     subtitle: String,
-    onBack: () -> Unit,
     onMenu: () -> Unit,
     onSearch: () -> Unit,
     onSync: () -> Unit,
@@ -75,27 +74,12 @@ fun TwinAiHeader(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
     ) {
-        Icon(
-            Icons.AutoMirrored.Rounded.ArrowBack,
-            contentDescription = stringResource(R.string.core_back),
-            tint = colors.ink,
-            modifier = Modifier
-                .size(TwinTheme.shapes.minTouch)
-                .clip(TwinTheme.shapes.circle)
-                .clickable(role = Role.Button, onClick = onBack)
-                .padding(12.dp),
-        )
-        Image(
-            painter = painterResource(R.drawable.core_logo),
-            contentDescription = stringResource(R.string.core_logo),
-            modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)),
-        )
         Box {
             SquareButton(Icons.Rounded.Menu, stringResource(R.string.core_menu), onMenu)
             DropdownMenu(
                 expanded = menuExpanded,
                 onDismissRequest = onMenuDismiss,
-                containerColor = colors.card,
+                containerColor = TwinAiStyle.Menu,
                 content = menuContent,
             )
         }
@@ -118,8 +102,8 @@ fun TwinAiHeader(
             Modifier
                 .size(TwinTheme.shapes.minTouch)
                 .clip(TwinTheme.shapes.circle)
-                .background(colors.glass)
-                .border(1.dp, colors.lineSoft, TwinTheme.shapes.circle)
+                .background(TwinAiStyle.GlassFill)
+                .border(1.dp, TwinAiStyle.GlassBorder, TwinTheme.shapes.circle)
                 .clickable(role = Role.Button, onClick = onSearch),
             contentAlignment = Alignment.Center,
         ) {
@@ -135,9 +119,7 @@ private fun SquareButton(icon: ImageVector, description: String, onClick: () -> 
     Box(
         Modifier
             .size(TwinTheme.shapes.minTouch)
-            .clip(TwinTheme.shapes.small)
-            .background(colors.glass)
-            .border(1.dp, colors.lineSoft, TwinTheme.shapes.small)
+            .clip(TwinTheme.shapes.circle)
             .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -160,8 +142,8 @@ private fun SyncButton(syncing: Boolean, onClick: () -> Unit) {
         Modifier
             .heightIn(min = TwinTheme.shapes.minTouch)
             .clip(TwinTheme.shapes.pill)
-            .background(colors.glass)
-            .border(1.dp, colors.lineSoft, TwinTheme.shapes.pill)
+            .background(TwinAiStyle.GlassFill)
+            .border(1.dp, TwinAiStyle.GlassBorder, TwinTheme.shapes.pill)
             .clickable(enabled = !syncing, role = Role.Button, onClick = onClick)
             .padding(horizontal = TwinTheme.spacing.m),
         verticalAlignment = Alignment.CenterVertically,
@@ -175,7 +157,7 @@ private fun SyncButton(syncing: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** YOU / BOTH switch. The chosen side is burgundy, as in the reference screenshot. */
+/** YOU / BOTH switch: grey glass track across the full width, the chosen side is burgundy. */
 @Composable
 fun TwinModeTabs(
     options: List<String>,
@@ -188,8 +170,8 @@ fun TwinModeTabs(
     Row(
         modifier = modifier
             .clip(pill)
-            .background(colors.glass)
-            .border(1.dp, colors.lineSoft, pill)
+            .background(TwinAiStyle.GlassFill)
+            .border(1.dp, TwinAiStyle.GlassBorder, pill)
             .padding(4.dp),
     ) {
         options.forEachIndexed { index, label ->
@@ -197,9 +179,9 @@ fun TwinModeTabs(
             Box(
                 Modifier
                     .weight(1f)
-                    .heightIn(min = 44.dp)
+                    .heightIn(min = 46.dp)
                     .clip(pill)
-                    .then(if (selected) Modifier.background(colors.primaryBrush) else Modifier)
+                    .then(if (selected) Modifier.background(TwinAiStyle.Burgundy) else Modifier)
                     .clickable(role = Role.Tab, onClick = { onSelect(index) })
                     .semantics { this.selected = selected },
                 contentAlignment = Alignment.Center,
@@ -207,7 +189,7 @@ fun TwinModeTabs(
                 Text(
                     label,
                     style = MaterialTheme.typography.titleSmall,
-                    color = if (selected) colors.ink else colors.inkFaint,
+                    color = if (selected) colors.ink else colors.inkMuted,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
                 )

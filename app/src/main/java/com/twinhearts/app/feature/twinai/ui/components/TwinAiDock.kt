@@ -46,7 +46,7 @@ fun QuickPrompt.labelRes(): Int = when (this) {
 }
 
 /**
- * Why this file exists: the bottom input bar of the YOU tab: "+" (quick prompts), the text pill with
+ * Why this file exists: the bottom input bar of the YOU tab: "+" (quick prompts), the grey-glass text pill with
  * the mic, the send button, and the Twin orb that sits in a notch on top of it.
  */
 @Composable
@@ -70,8 +70,8 @@ fun TwinAiDock(
                     .fillMaxWidth()
                     .padding(bottom = TwinTheme.spacing.s)
                     .clip(TwinTheme.shapes.card)
-                    .background(colors.card)
-                    .border(1.dp, colors.line, TwinTheme.shapes.card)
+                    .background(TwinAiStyle.Menu)
+                    .border(1.dp, TwinAiStyle.GlassBorder, TwinTheme.shapes.card)
                     .padding(TwinTheme.spacing.m),
                 verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.xs),
             ) {
@@ -103,8 +103,8 @@ fun TwinAiDock(
                     .fillMaxWidth()
                     .padding(top = 28.dp, bottom = TwinTheme.spacing.s)
                     .clip(TwinTheme.shapes.pill)
-                    .background(colors.glass)
-                    .border(1.dp, colors.line, TwinTheme.shapes.pill)
+                    .background(TwinAiStyle.BarBrush)
+                    .border(1.dp, TwinAiStyle.BarBorder, TwinTheme.shapes.pill)
                     .padding(TwinTheme.spacing.s),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
@@ -113,6 +113,7 @@ fun TwinAiDock(
                     description = stringResource(R.string.twinai_plus),
                     onClick = onTogglePlus,
                     modifier = Modifier.graphicsLayer { rotationZ = if (quickOpen) 45f else 0f },
+                    neutral = true,
                 ) { Icon(Icons.Rounded.Add, null, tint = colors.ink, modifier = Modifier.size(26.dp)) }
                 Box(Modifier.weight(1f)) {
                     GlassTextArea(
@@ -156,15 +157,16 @@ private fun RoundAction(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    neutral: Boolean = false,
     icon: @Composable () -> Unit,
 ) {
     val colors = TwinTheme.colors
     Box(
         modifier
             .size(TwinTheme.shapes.minTouch)
-            .alpha(if (enabled) 1f else 0.5f)
+            .alpha(if (enabled) 1f else 0.7f)
             .clip(TwinTheme.shapes.circle)
-            .background(colors.primaryBrush)
+            .then(if (neutral) Modifier.background(TwinAiStyle.GlassFill).border(1.dp, TwinAiStyle.GlassBorder, TwinTheme.shapes.circle) else Modifier.background(colors.brand))
             .clickable(enabled = enabled, role = Role.Button, onClickLabel = description, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { icon() }

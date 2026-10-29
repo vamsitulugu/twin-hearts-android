@@ -174,6 +174,8 @@ private fun TwinNavigation(startDestination: Any, session: com.twinhearts.app.co
                             items = bottomBarItems,
                             selectedKey = selectedItem?.key,
                             onItemClick = onBarClick,
+                            // Settings and Live Map paint their page flat near-black, so the bar slot matches it.
+                            slotFill = if (selectedItem?.key == Routes.Settings || selectedItem?.key == Routes.LiveMap) Color(0xFF0A0A0C) else Color.Transparent,
                         )
                     }
                 },
@@ -181,7 +183,7 @@ private fun TwinNavigation(startDestination: Any, session: com.twinhearts.app.co
                 // Without the bottom bar, the screen itself must stay above the gesture bar. Chat is the
                 // exception: its typing bar already handles the gesture bar and the keyboard, so adding
                 // it here too would leave an empty gap under the typing bar.
-                val ownsBottomInset = selectedItem?.key == Routes.Chat
+                val ownsBottomInset = selectedItem?.key == Routes.Chat || selectedItem?.key == Routes.TwinAi
                 val insets = if (showBottomBar || ownsBottomInset) Modifier else Modifier.navigationBarsPadding()
                 CallBannerHost(
                     onCallScreen = destination?.hasRoute<Routes.Call>() == true,

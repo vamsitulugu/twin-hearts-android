@@ -48,7 +48,6 @@ import com.twinhearts.app.core.common.asText
 import com.twinhearts.app.core.design.ErrorState
 import com.twinhearts.app.core.design.GlassButton
 import com.twinhearts.app.core.design.GlassButtonStyle
-import com.twinhearts.app.core.design.GlassCard
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.feature.twinai.domain.model.BothResult
 import com.twinhearts.app.feature.twinai.domain.model.BothRound
@@ -114,7 +113,7 @@ fun BothContent(state: BothUiState, actions: BothActions, modifier: Modifier = M
             dismissButton = {
                 TextButton(onClick = actions.onCancelDelete) { Text(stringResource(R.string.twinai_both_cancel)) }
             },
-            containerColor = TwinTheme.colors.card,
+            containerColor = TwinAiStyle.Menu,
             titleContentColor = TwinTheme.colors.ink,
         )
     }
@@ -129,7 +128,7 @@ private fun BothHome(state: BothUiState, actions: BothActions, modifier: Modifie
         verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
     ) {
         item {
-            GlassCard(Modifier.fillMaxWidth()) {
+            TwinAiCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         TwinRobot(Modifier.width(96.dp))
@@ -151,18 +150,18 @@ private fun BothHome(state: BothUiState, actions: BothActions, modifier: Modifie
                         color = colors.inkMuted,
                         textAlign = TextAlign.Center,
                     )
-                    GlassButton(
+                    TwinBrandButton(
                         text = stringResource(R.string.twinai_both_start),
                         onClick = actions.onStart,
                         modifier = Modifier.fillMaxWidth().padding(top = TwinTheme.spacing.s),
                         loading = state.starting,
-                        leadingIcon = Icons.Rounded.PlayArrow,
+                        trailingIcon = Icons.Rounded.PlayArrow,
                     )
                 }
             }
         }
         item {
-            GlassCard(Modifier.fillMaxWidth()) {
+            TwinAiCard(Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.twinai_both_how_title), style = MaterialTheme.typography.titleMedium, color = colors.ink, fontWeight = FontWeight.Bold)
                 HowRow(1, Icons.Rounded.Edit, R.string.twinai_both_how_1)
                 HowRow(2, Icons.Rounded.Psychology, R.string.twinai_both_how_2)
@@ -200,8 +199,10 @@ private fun HowRow(number: Int, icon: ImageVector, @StringRes text: Int) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
     ) {
-        Text(number.toString(), style = MaterialTheme.typography.titleMedium, color = colors.accent, fontWeight = FontWeight.Bold)
-        Icon(icon, null, tint = colors.pinkSoft, modifier = Modifier.size(24.dp))
+        Box(Modifier.size(30.dp).clip(TwinTheme.shapes.circle).background(TwinAiStyle.Badge), contentAlignment = Alignment.Center) {
+            Text(number.toString(), style = MaterialTheme.typography.titleSmall, color = colors.ink, fontWeight = FontWeight.Bold)
+        }
+        Icon(icon, null, tint = colors.inkMuted, modifier = Modifier.size(24.dp))
         Text(stringResource(text), style = MaterialTheme.typography.bodyMedium, color = colors.ink)
     }
 }
@@ -209,7 +210,7 @@ private fun HowRow(number: Int, icon: ImageVector, @StringRes text: Int) {
 @Composable
 private fun HistoryRow(session: BothSession, opening: Boolean, onOpen: () -> Unit, onDelete: () -> Unit) {
     val colors = TwinTheme.colors
-    GlassCard(Modifier.fillMaxWidth(), contentPadding = TwinTheme.spacing.m) {
+    TwinAiCard(Modifier.fillMaxWidth(), contentPadding = TwinTheme.spacing.m) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(
                 Modifier.weight(1f).clickable(enabled = !opening, onClick = onOpen).padding(vertical = TwinTheme.spacing.xs),
@@ -318,7 +319,7 @@ private fun RoundBody(round: BothRound, state: BothUiState, actions: BothActions
             CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp, color = colors.accent)
             Text(stringResource(R.string.twinai_both_analyzing), style = MaterialTheme.typography.bodyLarge, color = colors.ink, textAlign = TextAlign.Center)
         }
-        round.youSubmitted && state.editing -> GlassCard(Modifier.fillMaxWidth()) {
+        round.youSubmitted && state.editing -> TwinAiCard(Modifier.fillMaxWidth()) {
             GlassTextArea(value = state.draft, onValueChange = actions.onDraft, hint = stringResource(R.string.twinai_both_edit), minHeight = 120.dp, maxLines = 8, trailing = micButton)
             Row(Modifier.fillMaxWidth().padding(top = TwinTheme.spacing.m), horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
                 GlassButton(stringResource(R.string.twinai_both_cancel), actions.onCancelEdit, Modifier.weight(1f), GlassButtonStyle.Ghost)
@@ -333,17 +334,17 @@ private fun RoundBody(round: BothRound, state: BothUiState, actions: BothActions
             Text(stringResource(R.string.twinai_both_submitted), style = MaterialTheme.typography.bodyLarge, color = colors.ink, textAlign = TextAlign.Center)
             Text(stringResource(R.string.twinai_both_waiting, partner), style = MaterialTheme.typography.bodyMedium, color = colors.inkMuted, textAlign = TextAlign.Center)
             Row(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = actions.onBeginEdit) { Text(stringResource(R.string.twinai_both_edit), color = colors.pinkSoft) }
+                TextButton(onClick = actions.onBeginEdit) { Text(stringResource(R.string.twinai_both_edit), color = colors.ink) }
                 Text("·", color = colors.inkFaint)
                 TextButton(onClick = actions.onNudge, enabled = !state.reminded) {
                     Text(
                         stringResource(if (state.reminded) R.string.twinai_both_reminded else R.string.twinai_both_remind, partner),
-                        color = colors.pinkSoft,
+                        color = colors.ink,
                     )
                 }
             }
         }
-        else -> GlassCard(Modifier.fillMaxWidth()) {
+        else -> TwinAiCard(Modifier.fillMaxWidth()) {
             GlassTextArea(
                 value = state.draft,
                 onValueChange = actions.onDraft,
@@ -352,7 +353,7 @@ private fun RoundBody(round: BothRound, state: BothUiState, actions: BothActions
                 maxLines = 8,
                 trailing = micButton,
             )
-            GlassButton(
+            TwinBrandButton(
                 text = stringResource(R.string.twinai_both_submit),
                 onClick = actions.onSubmit,
                 modifier = Modifier.fillMaxWidth().padding(top = TwinTheme.spacing.m),
@@ -373,7 +374,7 @@ private fun RoundBody(round: BothRound, state: BothUiState, actions: BothActions
 
 @Composable
 private fun StatusCard(content: @Composable () -> Unit) {
-    GlassCard(Modifier.fillMaxWidth()) {
+    TwinAiCard(Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
             content()
         }
@@ -384,7 +385,7 @@ private fun StatusCard(content: @Composable () -> Unit) {
 private fun ResultCard(result: BothResult, onContinue: (() -> Unit)?) {
     val colors = TwinTheme.colors
     if (result.safety) {
-        GlassCard(Modifier.fillMaxWidth()) {
+        TwinAiCard(Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.twinai_both_safety_title), style = MaterialTheme.typography.titleMedium, color = colors.ink, fontWeight = FontWeight.Bold)
             result.sections.forEach {
                 Text(
@@ -404,14 +405,14 @@ private fun ResultCard(result: BothResult, onContinue: (() -> Unit)?) {
         }
         return
     }
-    GlassCard(Modifier.fillMaxWidth()) {
-        Text(stringResource(intentLabel(result.intent)), style = MaterialTheme.typography.titleSmall, color = colors.pinkSoft, fontWeight = FontWeight.Bold)
+    TwinAiCard(Modifier.fillMaxWidth()) {
+        Text(stringResource(intentLabel(result.intent)), style = MaterialTheme.typography.titleSmall, color = colors.ink, fontWeight = FontWeight.Bold)
         result.sections.forEach { section ->
             Text(section.title, style = MaterialTheme.typography.titleSmall, color = colors.ink, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = TwinTheme.spacing.m))
             Text(section.content, style = MaterialTheme.typography.bodyMedium, color = colors.inkMuted, modifier = Modifier.padding(top = TwinTheme.spacing.xs))
         }
         if (onContinue != null) {
-            GlassButton(
+            TwinBrandButton(
                 stringResource(R.string.twinai_both_continue), onContinue,
                 Modifier.fillMaxWidth().padding(top = TwinTheme.spacing.l),
             )
@@ -442,7 +443,7 @@ private fun Initial(name: String) {
             Modifier
                 .size(44.dp)
                 .clip(TwinTheme.shapes.circle)
-                .background(colors.primaryBrush),
+                .background(TwinAiStyle.Burgundy),
             contentAlignment = Alignment.Center,
         ) {
             Text(name.trim().take(1).uppercase().ifEmpty { "?" }, style = MaterialTheme.typography.titleMedium, color = colors.ink, fontWeight = FontWeight.Bold)

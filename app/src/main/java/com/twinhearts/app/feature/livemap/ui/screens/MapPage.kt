@@ -48,6 +48,7 @@ import com.twinhearts.app.core.design.GlassButtonStyle
 import com.twinhearts.app.core.design.GlassCard
 import com.twinhearts.app.core.design.PillSwitch
 import com.twinhearts.app.core.design.TwinTextField
+import com.twinhearts.app.core.design.DarkTwinColors
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.feature.livemap.domain.GeoMath
 import com.twinhearts.app.feature.livemap.domain.LiveMapFormat
@@ -84,13 +85,13 @@ fun MapPage(
 
     val mapColors = remember(colors) {
         MapColors(
-            me = colors.accent.toArgb(),
-            partner = colors.pinkSoft.toArgb(),
+            me = DarkTwinColors.accent.toArgb(),
+            partner = DarkTwinColors.pinkSoft.toArgb(),
             route = colors.orchid.toArgb(),
             place = colors.success.toArgb(),
             stop = colors.inkMuted.toArgb(),
             destination = colors.error.toArgb(),
-            note = colors.pinkSoft.toArgb(),
+            note = DarkTwinColors.pinkSoft.toArgb(),
             label = colors.ink.toArgb(),
             labelHalo = colors.background.toArgb(),
             outline = Color.White.toArgb(),

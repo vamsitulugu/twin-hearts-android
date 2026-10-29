@@ -11,6 +11,7 @@ import android.Manifest
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
@@ -37,6 +38,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -54,6 +56,7 @@ import com.twinhearts.app.feature.twinai.ui.components.BothActions
 import com.twinhearts.app.feature.twinai.ui.components.BothContent
 import com.twinhearts.app.feature.twinai.ui.components.TwinAiDock
 import com.twinhearts.app.feature.twinai.ui.components.TwinAiHeader
+import com.twinhearts.app.feature.twinai.ui.components.TwinAiStyle
 import com.twinhearts.app.feature.twinai.ui.components.TwinModeTabs
 import com.twinhearts.app.feature.twinai.ui.components.YouContent
 import com.twinhearts.app.feature.twinai.ui.components.rememberSpeaker
@@ -151,6 +154,8 @@ fun TwinAiScreen(
         proViewModel.messages.collect { toast(it) }
     }
 
+    // No back arrow in the header any more: the system back leaves the page (to Home).
+    BackHandler { onBack() }
     // Back closes an open discussion first; only then does it leave the page.
     BackHandler(enabled = state.voiceOpen) { endVoice() }
     BackHandler(enabled = state.tab == TwinTab.Both && both.open != null) { bothViewModel.close() }
@@ -167,12 +172,11 @@ fun TwinAiScreen(
         )
     }
 
-    Box(modifier.fillMaxSize().onGloballyPositioned { rootOrigin = it.positionInWindow() }) {
-    Column(Modifier.fillMaxSize().imePadding()) {
+    Box(modifier.fillMaxSize().background(TwinAiStyle.Base).onGloballyPositioned { rootOrigin = it.positionInWindow() }) {
+    Column(Modifier.fillMaxSize().imePadding().navigationBarsPadding()) {
         TwinAiHeader(
             syncing = state.syncing,
             subtitle = stringResource(if (state.tab == TwinTab.Both) R.string.twinai_subtitle_both else R.string.twinai_subtitle),
-            onBack = onBack,
             onMenu = { viewModel.setMenu(true) },
             onSearch = viewModel::toggleSearch,
             menuExpanded = state.menuOpen,
@@ -224,7 +228,7 @@ fun TwinAiScreen(
                 },
                 modifier = Modifier
                     .padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.s)
-                    .fillMaxWidth(0.62f),
+                    .fillMaxWidth(),
             )
         }
         if (state.searchOpen) {

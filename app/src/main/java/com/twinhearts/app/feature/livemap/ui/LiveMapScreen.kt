@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -31,7 +32,8 @@ import com.twinhearts.app.core.common.asText
 import com.twinhearts.app.core.design.ErrorState
 import com.twinhearts.app.core.design.LoadingSkeleton
 import com.twinhearts.app.core.design.SegmentedTabs
-import com.twinhearts.app.core.design.TwinBackground
+import com.twinhearts.app.feature.livemap.ui.components.LiveMapStyle
+import com.twinhearts.app.feature.livemap.ui.components.NeutralLiveMapColors
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.core.design.TwinTopBar
 import com.twinhearts.app.feature.livemap.ui.screens.AlertsPage
@@ -111,7 +113,8 @@ fun LiveMapScreen(
     BackHandler(enabled = state.stack.size > 1) { vm.back() }
 
     val screen = state.screen
-    TwinBackground {
+    NeutralLiveMapColors {
+    Box(Modifier.fillMaxSize().background(LiveMapStyle.Base)) {
         Column(Modifier.fillMaxSize()) {
             TwinTopBar(
                 title = stringResource(R.string.livemap_title),
@@ -163,5 +166,6 @@ fun LiveMapScreen(
                 }
             }
         }
+    }
     }
 }

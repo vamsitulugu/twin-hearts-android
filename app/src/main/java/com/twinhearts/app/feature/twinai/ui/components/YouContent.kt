@@ -39,7 +39,6 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.twinhearts.app.R
-import com.twinhearts.app.core.design.GlassCard
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.feature.twinai.domain.model.AiAuthor
 import com.twinhearts.app.feature.twinai.domain.model.AiMessage
@@ -110,19 +109,7 @@ fun YouContent(
 @Composable
 private fun TwinHero(name: String, compact: Boolean, onRobotPositioned: (Offset) -> Unit) {
     val colors = TwinTheme.colors
-    val glow = colors.accent
-    GlassCard(
-        Modifier.fillMaxWidth().drawBehind {
-            drawRect(
-                Brush.radialGradient(
-                    listOf(glow.copy(alpha = 0.22f), Color.Transparent),
-                    center = Offset(size.width * 0.78f, size.height * 0.45f),
-                    radius = size.width * 0.65f,
-                ),
-            )
-        },
-        contentPadding = TwinTheme.spacing.l,
-    ) {
+    TwinAiCard(Modifier.fillMaxWidth(), contentPadding = TwinTheme.spacing.l) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
                 Text(
@@ -198,8 +185,8 @@ private fun PromptChips(onPrompt: (QuickPrompt) -> Unit) {
             Row(
                 Modifier
                     .clip(TwinTheme.shapes.pill)
-                    .background(colors.glass)
-                    .border(1.dp, colors.lineSoft, TwinTheme.shapes.pill)
+                    .background(TwinAiStyle.GlassFill)
+                    .border(1.dp, TwinAiStyle.GlassBorder, TwinTheme.shapes.pill)
                     .clickable(role = Role.Button) { onPrompt(p) }
                     .padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.m),
                 verticalAlignment = Alignment.CenterVertically,

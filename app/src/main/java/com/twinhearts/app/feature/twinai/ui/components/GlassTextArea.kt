@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.twinhearts.app.core.design.TwinTheme
 
-/** Why this file exists: a multi-line glass text box (hint, grows up to [maxLines]) used by the dock and BOTH answers. */
+/** Why this file exists: a multi-line grey-glass text box (hint, grows up to [maxLines]) used by the dock and BOTH answers. */
 @Composable
 fun GlassTextArea(
     value: String,
@@ -48,8 +48,8 @@ fun GlassTextArea(
             .fillMaxWidth()
             .heightIn(min = minHeight)
             .clip(shape)
-            .background(colors.glass)
-            .border(1.dp, colors.lineSoft, shape),
+            .background(TwinAiStyle.FieldBrush)
+            .border(1.dp, TwinAiStyle.GlassBorder, shape),
         contentAlignment = Alignment.CenterStart,
     ) {
         BasicTextField(

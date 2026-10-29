@@ -86,12 +86,12 @@ private fun CodeBlock(block: MdBlock.Code) {
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(colors.background.copy(alpha = 0.6f)),
+            .background(TwinAiStyle.Base.copy(alpha = 0.6f)),
     ) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .background(colors.glass)
+                .background(TwinAiStyle.GlassFill)
                 .padding(horizontal = TwinTheme.spacing.m, vertical = TwinTheme.spacing.xs),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -99,7 +99,7 @@ private fun CodeBlock(block: MdBlock.Code) {
             Text(
                 text = stringResource(if (copied) R.string.twinai_copied else R.string.twinai_copy),
                 style = MaterialTheme.typography.labelSmall,
-                color = colors.pinkSoft,
+                color = colors.ink,
                 modifier = Modifier.clickable {
                     clipboard.setText(AnnotatedString(block.code)); copied = true
                 },
@@ -119,7 +119,7 @@ private fun CodeBlock(block: MdBlock.Code) {
 
 @Composable
 private fun styled(spans: List<MdSpan>): AnnotatedString {
-    val codeBg = TwinTheme.colors.glass
+    val codeBg = TwinAiStyle.GlassFill
     return buildAnnotatedString {
         spans.forEach { span ->
             val style = SpanStyle(
