@@ -1,18 +1,35 @@
 package com.twinhearts.app.core.navigation
 
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Place
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -22,33 +39,43 @@ import androidx.navigation.compose.rememberNavController
 import com.twinhearts.app.R
 import com.twinhearts.app.feature.calls.ui.IncomingCallWatcher
 import com.twinhearts.app.core.design.BottomBarItem
+import com.twinhearts.app.core.design.LocalOpenSidebar
 import com.twinhearts.app.core.design.TwinBackground
 import com.twinhearts.app.core.design.TwinBottomBar
 import com.twinhearts.app.core.design.TwinOrbIcon
+import kotlinx.coroutines.launch
 
 /** The five bottom-bar tabs, left to right (R-52). The centre one is the Twin orb. */
 private val bottomBarItems = listOf(
-    BottomBarItem(Routes.Home, R.string.core_nav_home, Icons.Rounded.Home),
-    BottomBarItem(Routes.Chat, R.string.core_nav_chat, Icons.Rounded.ChatBubble),
+    BottomBarItem(Routes.Home, R.string.core_nav_home, Icons.Outlined.Home, selectedIcon = Icons.Rounded.Home),
+    BottomBarItem(Routes.Chat, R.string.core_nav_chat, Icons.Outlined.ChatBubbleOutline, selectedIcon = Icons.Rounded.ChatBubble),
     BottomBarItem(Routes.TwinAi, R.string.core_nav_twin, TwinOrbIcon, isOrb = true),
-    BottomBarItem(Routes.LiveMap, R.string.core_nav_map, Icons.Rounded.Place),
-    BottomBarItem(Routes.Settings, R.string.core_nav_settings, Icons.Rounded.Settings),
+    BottomBarItem(Routes.LiveMap, R.string.core_nav_map, Icons.Outlined.Place, selectedIcon = Icons.Rounded.Place),
+    BottomBarItem(Routes.Settings, R.string.core_nav_settings, Icons.Outlined.Settings, selectedIcon = Icons.Rounded.Settings),
 )
 
-/** Root composable: background, bottom bar (only on the five tab screens) and the nav graph. */
+/** The tab routes: moving between them keeps each tab's state (same rule the bottom bar uses). */
+private val tabRoutes: List<Any> = bottomBarItems.map { it.key }
+
+/** Root composable: background, side menu, bottom bar (only on the five tab screens) and the nav graph. */
 @Composable
 fun TwinApp(viewModel: AppViewModel = hiltViewModel()) {
     val startRoute by viewModel.startRoute.collectAsStateWithLifecycle()
+    val session by viewModel.session.collectAsStateWithLifecycle()
     TwinBackground {
         // Until the start screen is known we show only the background (a few milliseconds).
-        startRoute?.let { start -> TwinNavigation(startDestination = start) }
+        startRoute?.let { start -> TwinNavigation(startDestination = start, session = session) }
     }
 }
 
 @Composable
-private fun TwinNavigation(startDestination: Any) {
+private fun TwinNavigation(startDestination: Any, session: com.twinhearts.app.core.data.Session?) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
+    val context = LocalContext.current
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    val openSidebar: () -> Unit = remember(drawerState) { { scope.launch { drawerState.open() } } }
 
     // A call from my partner opens the call page on any screen (the app must be open).
     IncomingCallWatcher(
@@ -62,6 +89,10 @@ private fun TwinNavigation(startDestination: Any) {
     val selectedItem = bottomBarItems.firstOrNull { item ->
         destination?.hierarchy?.any { it.hasRoute(item.key::class) } == true
     }
+    // Which side-menu row is active: the first menu route the current screen belongs to.
+    val sidebarKey = sidebarRouteKeys.firstOrNull { key ->
+        destination?.hierarchy?.any { it.hasRoute(key::class) } == true
+    }
     // Twin has its own input dock with the orb, and Chat gives the whole bottom to the typing bar
     // (like WhatsApp), so the bar is hidden on both. Leave Chat with the back arrow.
     // Fight Log keeps the bottom bar (as in the web reference), with no tab highlighted.
@@ -70,37 +101,82 @@ private fun TwinNavigation(startDestination: Any) {
         selectedItem.key != Routes.TwinAi &&
         selectedItem.key != Routes.Chat) || onFights
 
-    Scaffold(
-        containerColor = Color.Transparent,
-        // Bars and screens handle their own insets (see TwinTopBar and TwinBottomBar).
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        bottomBar = {
-            if (showBottomBar) {
-                TwinBottomBar(
-                    items = bottomBarItems,
-                    selectedKey = selectedItem?.key,
-                    onItemClick = { item ->
-                        navController.navigate(item.key) {
-                            popUpTo<Routes.Home> { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
+    // Back closes the menu first.
+    BackHandler(enabled = drawerState.isOpen) { scope.launch { drawerState.close() } }
+
+    CompositionLocalProvider(LocalOpenSidebar provides openSidebar) {
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            // Opened with the hamburger / Home grid button; the swipe is only for closing, so it
+            // never fights the map, chat lists or sliders.
+            gesturesEnabled = drawerState.isOpen,
+            scrimColor = Color.Black.copy(alpha = 0.55f),
+            drawerContent = {
+                ModalDrawerSheet(
+                    modifier = Modifier.width(300.dp),
+                    drawerShape = RoundedCornerShape(topEnd = 28.dp, bottomEnd = 28.dp),
+                    drawerContainerColor = Color.Transparent,
+                    windowInsets = WindowInsets(0, 0, 0, 0),
+                ) {
+                    TwinSidebar(
+                        session = session,
+                        selectedKey = sidebarKey,
+                        onNavigate = { entry ->
+                            scope.launch { drawerState.close() }
+                            val key = entry.key
+                            if (key == null) {
+                                Toast.makeText(context, R.string.core_pending_message, Toast.LENGTH_SHORT).show()
+                            } else if (key in tabRoutes) {
+                                navController.navigate(key) {
+                                    popUpTo<Routes.Home> { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            } else {
+                                navController.navigate(key) { launchSingleTop = true }
+                            }
+                        },
+                        onOpenProfile = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate(Routes.Profile) { launchSingleTop = true }
+                        },
+                    )
+                }
+            },
+        ) {
+            Scaffold(
+                containerColor = Color.Transparent,
+                // Bars and screens handle their own insets (see TwinTopBar and TwinBottomBar).
+                contentWindowInsets = WindowInsets(0, 0, 0, 0),
+                bottomBar = {
+                    if (showBottomBar) {
+                        TwinBottomBar(
+                            items = bottomBarItems,
+                            selectedKey = selectedItem?.key,
+                            onItemClick = { item ->
+                                navController.navigate(item.key) {
+                                    popUpTo<Routes.Home> { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                        )
+                    }
+                },
+            ) { innerPadding ->
+                // Without the bottom bar, the screen itself must stay above the gesture bar. Chat is the
+                // exception: its typing bar already handles the gesture bar and the keyboard, so adding
+                // it here too would leave an empty gap under the typing bar.
+                val ownsBottomInset = selectedItem?.key == Routes.Chat
+                val insets = if (showBottomBar || ownsBottomInset) Modifier else Modifier.navigationBarsPadding()
+                AppNavHost(
+                    navController = navController,
+                    startDestination = startDestination,
+                    modifier = Modifier
+                        .padding(innerPadding)
+                        .then(insets),
                 )
             }
-        },
-    ) { innerPadding ->
-        // Without the bottom bar, the screen itself must stay above the gesture bar. Chat is the
-        // exception: its typing bar already handles the gesture bar and the keyboard, so adding
-        // it here too would leave an empty gap under the typing bar.
-        val ownsBottomInset = selectedItem?.key == Routes.Chat
-        val insets = if (showBottomBar || ownsBottomInset) Modifier else Modifier.navigationBarsPadding()
-        AppNavHost(
-            navController = navController,
-            startDestination = startDestination,
-            modifier = Modifier
-                .padding(innerPadding)
-                .then(insets),
-        )
+        }
     }
 }

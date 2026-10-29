@@ -27,6 +27,13 @@ fun TwinBackground(
             .background(colors.background)
             .drawBehind {
                 drawRect(
+                    Brush.verticalGradient(
+                        0f to colors.burgundy.copy(alpha = 0.92f),
+                        0.30f to colors.backgroundGlow.copy(alpha = 0.55f),
+                        0.62f to Color.Transparent,
+                    ),
+                )
+                drawRect(
                     Brush.radialGradient(
                         colors = listOf(colors.backgroundGlow, Color.Transparent),
                         center = Offset(size.width / 2f, 0f),

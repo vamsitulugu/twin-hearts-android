@@ -667,7 +667,7 @@ internal fun ChatContent(
             Box(Modifier.fillMaxSize()) {
                 WallpaperLayer(state.wallpaper, Modifier.fillMaxSize())
                 Column(Modifier.fillMaxSize().imePadding()) {
-                    TwinTopBar(title = stringResource(R.string.chat_title), showLogo = true, onSearchClick = actions.onOpenSearch, onSyncClick = actions.onSync)
+                    TwinTopBar(title = stringResource(R.string.chat_title), showLogo = true, showSidebarButton = true, onSearchClick = actions.onOpenSearch, onSyncClick = actions.onSync)
                     if (state.selected.isNotEmpty()) {
                         SelectionBar(state, actions)
                     } else {

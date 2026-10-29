@@ -47,8 +47,8 @@ fun GlassButton(
             .background(colors.primaryBrush)
             .border(1.dp, Color.White.copy(alpha = 0.18f), shapes.pill)
         GlassButtonStyle.Secondary -> base
-            .background(colors.neutralGlass.copy(alpha = 0.35f))
-            .border(1.dp, colors.lineSoft, shapes.pill)
+            .background(colors.glass)
+            .border(1.dp, colors.line2, shapes.pill)
         GlassButtonStyle.Ghost -> base.border(1.dp, colors.line, shapes.pill)
     }
     Row(
@@ -88,7 +88,7 @@ fun GlassIconButton(
             .size(shapes.minTouch)
             .clip(shapes.circle)
             .background(colors.glass)
-            .border(1.dp, colors.lineSoft, shapes.circle)
+            .border(1.dp, colors.line2, shapes.circle)
             .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {

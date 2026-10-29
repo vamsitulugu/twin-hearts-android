@@ -6,6 +6,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import com.twinhearts.app.R
+import com.twinhearts.app.core.design.LocalOpenSidebar
 import com.twinhearts.app.core.navigation.Routes
 import com.twinhearts.app.feature.home.ui.HomeScreen
 import com.twinhearts.app.feature.home.ui.HomeShortcut
@@ -18,9 +19,11 @@ import com.twinhearts.app.feature.home.ui.HomeShortcut
 fun NavGraphBuilder.homeGraph(navController: NavHostController) {
     composable<Routes.Home> {
         val context = LocalContext.current
+        val openSidebar = LocalOpenSidebar.current
         HomeScreen(
             onShortcut = { shortcut ->
                 when (shortcut) {
+                    HomeShortcut.Menu -> openSidebar()
                     HomeShortcut.OurProfile -> navController.navigate(Routes.Profile)
                     HomeShortcut.Movie -> navController.navigate(Routes.Movie)
                     HomeShortcut.MeetPlanner -> navController.navigate(Routes.MeetPlanner)

@@ -38,6 +38,16 @@ data class TwinColors(
     val knobStart: Color,
     val knobEnd: Color,
     val scrim: Color,
+    // Web-matched navigation chrome (bottom bar + sidebar)
+    val burgundy: Color = Color(0xFF6B093A),
+    val navGlass: Color = Color(0xFF1B1417),
+    val navBorder: Color = Color.White.copy(alpha = 0.12f),
+    val navActive: Color = Color.White.copy(alpha = 0.11f),
+    val sidebarTop: Color = Color(0xFF220515),
+    val sidebarBottom: Color = Color(0xFF14030E),
+    val orbHot: Color = Color(0xFFFF4FB0),
+    /** Web --border2: stronger magenta outline for glass buttons and focused cards. */
+    val line2: Color = Color(0xFFC21A8B).copy(alpha = 0.30f),
 ) {
     /** Burgundy gradient used by primary buttons and the Twin orb. */
     val primaryBrush: Brush get() = Brush.linearGradient(listOf(primaryStart, primaryEnd))
@@ -45,17 +55,17 @@ data class TwinColors(
 
 val DarkTwinColors = TwinColors(
     background = Color(0xFF14030E),
-    backgroundGlow = Color(0xFF3A0A27),
-    card = Color(0xFF400E2A),
-    glass = Color.White.copy(alpha = 0.07f),
+    backgroundGlow = Color(0xFF3A0425),
+    card = Color(0xFF2B061D),
+    glass = Color(0xFFC21A8B).copy(alpha = 0.09f),
     accent = Color(0xFFC21A8B),
     primaryStart = Color(0xFFB0127A),
-    primaryEnd = Color(0xFF8A0E5F),
+    primaryEnd = Color(0xFF7C0A57),
     brand = Color(0xFF6B093A),
     ink = Color(0xFFFEF4FA),
-    inkMuted = Color.White.copy(alpha = 0.74f),
+    inkMuted = Color(0xFFF5C8E2).copy(alpha = 0.78f),
     inkFaint = Color.White.copy(alpha = 0.52f),
-    line = Color(0xFFC21A8B).copy(alpha = 0.20f),
+    line = Color(0xFFC21A8B).copy(alpha = 0.18f),
     lineSoft = Color.White.copy(alpha = 0.13f),
     neutralGlass = Color(0xFF8A8A92),
     error = Color(0xFFFF8FAE),

@@ -1,0 +1,1081 @@
+diff --git a/Builded md files/BUILD_NOTES_sidebar_nav.md b/Builded md files/BUILD_NOTES_sidebar_nav.md
+new file mode 100644
+index 0000000..06373f1
+--- /dev/null
++++ b/Builded md files/BUILD_NOTES_sidebar_nav.md	
+@@ -0,0 +1,22 @@
++# Build notes - Side menu + glass bottom bar (web UI match)
++
++Changed (all under app/src/main/java/com/twinhearts/app/):
++- core/design/TwinBottomBar.kt - glass dark pill, line icons (filled + soft highlight when active), raised Twin orb with ring.
++- core/navigation/TwinSidebar.kt (NEW) - side menu: logo, couple widget + sync state, grouped pages, Settings at bottom.
++- core/navigation/TwinApp.kt - ModalNavigationDrawer; back closes the menu; rows without a screen show the "later step" note.
++- core/navigation/AppViewModel.kt - exposes `session` for the couple widget.
++- core/design/SidebarLocal.kt (NEW) - `LocalOpenSidebar`.
++- core/design/TwinTopBar.kt - order is now back, logo, hamburger, title (like web); new `showSidebarButton`.
++- core/design/TwinColors.kt / TwinBackground.kt - nav tokens; burgundy header fading to dark body.
++- feature/chat/ui/ChatScreen.kt, core/navigation/PendingFeatureScreen.kt - hamburger on.
++- feature/home/HomeRoute.kt - Home grid button opens the side menu.
++- res/values/strings_sidebar.xml (NEW).
++
++Open the menu: hamburger in the top bar (Chat, Settings, Profile) or the grid button next to Home search.
++Not compiled here (no Android SDK) - Sync Gradle and Run in Android Studio.
++Still placeholders: Settings, Profile screens (they open the "later step" page with the new top bar).
++
++## Colour match (web theme-tokens.css dark)
++TwinColors: glass = magenta 9%, line 18% + new line2 30%, card = web surface #2B061D, primaryEnd = brand-d #7C0A57,
++inkMuted = web text2, backgroundGlow = #3A0425. GlassButton Secondary/GlassIconButton use glass + line2 (web btn-glass).
++Home: burgundy hero + black rounded sheet (HomeScreen.kt).
+diff --git a/app/src/main/java/com/twinhearts/app/core/design/GlassButton.kt b/app/src/main/java/com/twinhearts/app/core/design/GlassButton.kt
+index 7f32ef1..5045ea2 100644
+--- a/app/src/main/java/com/twinhearts/app/core/design/GlassButton.kt
++++ b/app/src/main/java/com/twinhearts/app/core/design/GlassButton.kt
+@@ -47,8 +47,8 @@ fun GlassButton(
+             .background(colors.primaryBrush)
+             .border(1.dp, Color.White.copy(alpha = 0.18f), shapes.pill)
+         GlassButtonStyle.Secondary -> base
+-            .background(colors.neutralGlass.copy(alpha = 0.35f))
+-            .border(1.dp, colors.lineSoft, shapes.pill)
++            .background(colors.glass)
++            .border(1.dp, colors.line2, shapes.pill)
+         GlassButtonStyle.Ghost -> base.border(1.dp, colors.line, shapes.pill)
+     }
+     Row(
+@@ -88,7 +88,7 @@ fun GlassIconButton(
+             .size(shapes.minTouch)
+             .clip(shapes.circle)
+             .background(colors.glass)
+-            .border(1.dp, colors.lineSoft, shapes.circle)
++            .border(1.dp, colors.line2, shapes.circle)
+             .clickable(role = Role.Button, onClick = onClick),
+         contentAlignment = Alignment.Center,
+     ) {
+diff --git a/app/src/main/java/com/twinhearts/app/core/design/SidebarLocal.kt b/app/src/main/java/com/twinhearts/app/core/design/SidebarLocal.kt
+new file mode 100644
+index 0000000..0d9dc3c
+--- /dev/null
++++ b/app/src/main/java/com/twinhearts/app/core/design/SidebarLocal.kt
+@@ -0,0 +1,9 @@
++package com.twinhearts.app.core.design
++
++import androidx.compose.runtime.staticCompositionLocalOf
++
++/**
++ * Opens the side menu (the web hamburger drawer). Provided once by TwinApp; screens never
++ * touch the drawer state. The default does nothing, so previews and the debug gallery are safe.
++ */
++val LocalOpenSidebar = staticCompositionLocalOf<() -> Unit> { {} }
+diff --git a/app/src/main/java/com/twinhearts/app/core/design/TwinBackground.kt b/app/src/main/java/com/twinhearts/app/core/design/TwinBackground.kt
+index d258408..20c4a6a 100644
+--- a/app/src/main/java/com/twinhearts/app/core/design/TwinBackground.kt
++++ b/app/src/main/java/com/twinhearts/app/core/design/TwinBackground.kt
+@@ -26,6 +26,13 @@ fun TwinBackground(
+             .fillMaxSize()
+             .background(colors.background)
+             .drawBehind {
++                drawRect(
++                    Brush.verticalGradient(
++                        0f to colors.burgundy.copy(alpha = 0.92f),
++                        0.30f to colors.backgroundGlow.copy(alpha = 0.55f),
++                        0.62f to Color.Transparent,
++                    ),
++                )
+                 drawRect(
+                     Brush.radialGradient(
+                         colors = listOf(colors.backgroundGlow, Color.Transparent),
+diff --git a/app/src/main/java/com/twinhearts/app/core/design/TwinBottomBar.kt b/app/src/main/java/com/twinhearts/app/core/design/TwinBottomBar.kt
+index d1a81d9..ceabcf5 100644
+--- a/app/src/main/java/com/twinhearts/app/core/design/TwinBottomBar.kt
++++ b/app/src/main/java/com/twinhearts/app/core/design/TwinBottomBar.kt
+@@ -18,8 +18,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
+ import androidx.compose.foundation.layout.height
+ import androidx.compose.foundation.layout.navigationBarsPadding
+ import androidx.compose.foundation.layout.offset
++import androidx.compose.foundation.layout.wrapContentSize
++import androidx.compose.ui.draw.shadow
++import androidx.compose.ui.graphics.Brush
++import androidx.compose.ui.text.font.FontWeight
+ import androidx.compose.foundation.layout.padding
+ import androidx.compose.foundation.layout.size
++import androidx.compose.foundation.layout.width
+ import androidx.compose.foundation.selection.selectable
+ import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.material.icons.Icons
+@@ -38,6 +43,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
+ import androidx.compose.ui.res.stringResource
+ import androidx.compose.ui.semantics.Role
+ import androidx.compose.ui.unit.dp
++import androidx.compose.ui.unit.sp
+ import com.twinhearts.app.core.common.rememberReduceMotion
+ 
+ /** One bottom-bar entry. [key] is whatever the navigation layer uses to identify the tab. */
+@@ -47,10 +53,13 @@ data class BottomBarItem(
+     @StringRes val labelRes: Int,
+     val icon: ImageVector,
+     val isOrb: Boolean = false,
++    /** Filled icon shown while the tab is selected (the web bar uses line icons, filled when active). */
++    val selectedIcon: ImageVector = icon,
+ )
+ 
+ /**
+- * Floating bottom bar: Home, Chat, centre "Twin" orb, Map, Settings.
++ * Floating glass bottom bar, matched to the web app: dark translucent pill, light border,
++ * line icons (filled + soft highlight when active) and the raised "Twin" orb in the middle.
+  * Translucent fill + border instead of blur (R-55). Pads itself for the gesture bar.
+  */
+ @Composable
+@@ -61,19 +70,25 @@ fun TwinBottomBar(
+     modifier: Modifier = Modifier,
+ ) {
+     val colors = TwinTheme.colors
+-    val barShape = RoundedCornerShape(32.dp)
++    val barShape = RoundedCornerShape(30.dp)
+     Box(
+         modifier = modifier
+             .fillMaxWidth()
+             .navigationBarsPadding()
+-            .padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.s),
++            .padding(horizontal = 14.dp)
++            .padding(top = 22.dp, bottom = TwinTheme.spacing.s),
+     ) {
+         Row(
+             modifier = Modifier
+                 .fillMaxWidth()
+-                .height(64.dp)
+-                .background(colors.card.copy(alpha = 0.94f), barShape)
+-                .border(1.dp, colors.line, barShape),
++                .height(62.dp)
++                .shadow(14.dp, barShape, ambientColor = Color.Black, spotColor = Color.Black)
++                .background(
++                    Brush.verticalGradient(listOf(colors.navGlass.copy(alpha = 0.90f), Color(0xFF0F0A0C).copy(alpha = 0.94f))),
++                    barShape,
++                )
++                .border(1.dp, colors.navBorder, barShape)
++                .padding(horizontal = 6.dp),
+             horizontalArrangement = Arrangement.SpaceAround,
+             verticalAlignment = Alignment.CenterVertically,
+         ) {
+@@ -99,28 +114,56 @@ private fun BarItem(
+     modifier: Modifier = Modifier,
+ ) {
+     val colors = TwinTheme.colors
+-    val tint = if (selected) colors.pinkSoft else colors.inkFaint
++    val tint = if (selected) Color.White else Color.White.copy(alpha = 0.58f)
+     Column(
+         modifier = modifier.selectable(selected = selected, role = Role.Tab, onClick = onClick),
+         horizontalAlignment = Alignment.CenterHorizontally,
+         verticalArrangement = Arrangement.Center,
+     ) {
+         if (item.isOrb) {
+-            TwinOrb(icon = item.icon)
++            // Same 24 dp slot as the other icons; the orb floats above the bar from inside it.
++            Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) {
++                TwinOrb(
++                    icon = item.icon,
++                    selected = selected,
++                    modifier = Modifier
++                        .wrapContentSize(unbounded = true)
++                        .offset(y = (-14).dp),
++                )
++            }
+         } else {
+-            Icon(item.icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
++            Box(
++                modifier = Modifier
++                    .height(30.dp)
++                    .width(46.dp)
++                    .clip(RoundedCornerShape(15.dp))
++                    .background(if (selected) colors.navActive else Color.Transparent),
++                contentAlignment = Alignment.Center,
++            ) {
++                Icon(
++                    imageVector = if (selected) item.selectedIcon else item.icon,
++                    contentDescription = null,
++                    tint = tint,
++                    modifier = Modifier.size(22.dp),
++                )
++            }
+         }
+         Text(
+             text = stringResource(item.labelRes),
+-            style = MaterialTheme.typography.labelMedium,
++            style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp),
++            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+             color = tint,
++            modifier = Modifier.padding(top = if (item.isOrb) 2.dp else 1.dp),
+         )
+     }
+ }
+ 
+-/** The raised centre button. It breathes slowly, unless the phone asks for no animations (R-55). */
++/**
++ * The raised centre button: dark glass ring + magenta-burgundy energy sphere, like the web orb.
++ * It breathes slowly, unless the phone asks for no animations (R-55).
++ */
+ @Composable
+-private fun TwinOrb(icon: ImageVector) {
++private fun TwinOrb(icon: ImageVector, selected: Boolean, modifier: Modifier = Modifier) {
+     val colors = TwinTheme.colors
+     val reduceMotion = rememberReduceMotion()
+     val pulse = if (reduceMotion) {
+@@ -128,26 +171,36 @@ private fun TwinOrb(icon: ImageVector) {
+     } else {
+         rememberInfiniteTransition(label = "twinOrb").animateFloat(
+             initialValue = 1f,
+-            targetValue = 1.07f,
++            targetValue = 1.06f,
+             animationSpec = infiniteRepeatable(tween(2200, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+             label = "twinOrbScale",
+         )
+     }
+     Box(
+-        modifier = Modifier
+-            .offset(y = (-10).dp)
+-            .size(44.dp)
++        modifier = modifier
++            .size(60.dp)
+             .graphicsLayer {
+                 val scale = pulse?.value ?: 1f
+                 scaleX = scale
+                 scaleY = scale
+             }
++            .shadow(12.dp, TwinTheme.shapes.circle, ambientColor = colors.accent, spotColor = colors.accent)
++            .clip(TwinTheme.shapes.circle)
++            .background(Color(0xFF120A0E))
++            .border(1.dp, Color.White.copy(alpha = if (selected) 0.40f else 0.22f), TwinTheme.shapes.circle)
++            .padding(5.dp)
+             .clip(TwinTheme.shapes.circle)
+-            .background(colors.primaryBrush)
+-            .border(1.dp, Color.White.copy(alpha = 0.25f), TwinTheme.shapes.circle),
++            .background(
++                Brush.radialGradient(
++                    0f to colors.orbHot,
++                    0.45f to colors.primaryStart,
++                    1f to Color(0xFF2A0618),
++                ),
++            )
++            .border(1.dp, Color.White.copy(alpha = 0.18f), TwinTheme.shapes.circle),
+         contentAlignment = Alignment.Center,
+     ) {
+-        Icon(icon, contentDescription = null, tint = colors.ink, modifier = Modifier.size(24.dp))
++        Icon(icon, contentDescription = null, tint = Color.White.copy(alpha = 0.92f), modifier = Modifier.size(22.dp))
+     }
+ }
+ 
+diff --git a/app/src/main/java/com/twinhearts/app/core/design/TwinColors.kt b/app/src/main/java/com/twinhearts/app/core/design/TwinColors.kt
+index 4cb6c59..445c8c2 100644
+--- a/app/src/main/java/com/twinhearts/app/core/design/TwinColors.kt
++++ b/app/src/main/java/com/twinhearts/app/core/design/TwinColors.kt
+@@ -38,6 +38,16 @@ data class TwinColors(
+     val knobStart: Color,
+     val knobEnd: Color,
+     val scrim: Color,
++    // Web-matched navigation chrome (bottom bar + sidebar)
++    val burgundy: Color = Color(0xFF6B093A),
++    val navGlass: Color = Color(0xFF1B1417),
++    val navBorder: Color = Color.White.copy(alpha = 0.12f),
++    val navActive: Color = Color.White.copy(alpha = 0.11f),
++    val sidebarTop: Color = Color(0xFF220515),
++    val sidebarBottom: Color = Color(0xFF14030E),
++    val orbHot: Color = Color(0xFFFF4FB0),
++    /** Web --border2: stronger magenta outline for glass buttons and focused cards. */
++    val line2: Color = Color(0xFFC21A8B).copy(alpha = 0.30f),
+ ) {
+     /** Burgundy gradient used by primary buttons and the Twin orb. */
+     val primaryBrush: Brush get() = Brush.linearGradient(listOf(primaryStart, primaryEnd))
+@@ -45,17 +55,17 @@ data class TwinColors(
+ 
+ val DarkTwinColors = TwinColors(
+     background = Color(0xFF14030E),
+-    backgroundGlow = Color(0xFF3A0A27),
+-    card = Color(0xFF400E2A),
+-    glass = Color.White.copy(alpha = 0.07f),
++    backgroundGlow = Color(0xFF3A0425),
++    card = Color(0xFF2B061D),
++    glass = Color(0xFFC21A8B).copy(alpha = 0.09f),
+     accent = Color(0xFFC21A8B),
+     primaryStart = Color(0xFFB0127A),
+-    primaryEnd = Color(0xFF8A0E5F),
++    primaryEnd = Color(0xFF7C0A57),
+     brand = Color(0xFF6B093A),
+     ink = Color(0xFFFEF4FA),
+-    inkMuted = Color.White.copy(alpha = 0.74f),
++    inkMuted = Color(0xFFF5C8E2).copy(alpha = 0.78f),
+     inkFaint = Color.White.copy(alpha = 0.52f),
+-    line = Color(0xFFC21A8B).copy(alpha = 0.20f),
++    line = Color(0xFFC21A8B).copy(alpha = 0.18f),
+     lineSoft = Color.White.copy(alpha = 0.13f),
+     neutralGlass = Color(0xFF8A8A92),
+     error = Color(0xFFFF8FAE),
+diff --git a/app/src/main/java/com/twinhearts/app/core/design/TwinTopBar.kt b/app/src/main/java/com/twinhearts/app/core/design/TwinTopBar.kt
+index 8d5aafb..bb37a8a 100644
+--- a/app/src/main/java/com/twinhearts/app/core/design/TwinTopBar.kt
++++ b/app/src/main/java/com/twinhearts/app/core/design/TwinTopBar.kt
+@@ -41,10 +41,13 @@ fun TwinTopBar(
+     showLogo: Boolean = false,
+     onBackClick: (() -> Unit)? = null,
+     onMenuClick: (() -> Unit)? = null,
++    /** Show the web-style hamburger that opens the side menu (when [onMenuClick] is not given). */
++    showSidebarButton: Boolean = false,
+     onSearchClick: (() -> Unit)? = null,
+     onSyncClick: (() -> Unit)? = null,
+ ) {
+     val colors = TwinTheme.colors
++    val openSidebar = LocalOpenSidebar.current
+     Row(
+         modifier = modifier
+             .fillMaxWidth()
+@@ -55,9 +58,6 @@ fun TwinTopBar(
+         if (onBackClick != null) {
+             BarIcon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.core_back), onBackClick)
+         }
+-        if (onMenuClick != null) {
+-            BarIcon(Icons.Rounded.Menu, stringResource(R.string.core_menu), onMenuClick)
+-        }
+         if (showLogo) {
+             Image(
+                 painter = painterResource(R.drawable.core_logo),
+@@ -68,6 +68,11 @@ fun TwinTopBar(
+                     .clip(RoundedCornerShape(10.dp)),
+             )
+         }
++        if (onMenuClick != null) {
++            BarIcon(Icons.Rounded.Menu, stringResource(R.string.core_menu), onMenuClick)
++        } else if (showSidebarButton) {
++            BarIcon(Icons.Rounded.Menu, stringResource(R.string.core_menu), openSidebar)
++        }
+         if (title != null) {
+             Text(
+                 text = title,
+diff --git a/app/src/main/java/com/twinhearts/app/core/navigation/AppViewModel.kt b/app/src/main/java/com/twinhearts/app/core/navigation/AppViewModel.kt
+index 5c3c64c..bbf8978 100644
+--- a/app/src/main/java/com/twinhearts/app/core/navigation/AppViewModel.kt
++++ b/app/src/main/java/com/twinhearts/app/core/navigation/AppViewModel.kt
+@@ -2,12 +2,15 @@ package com.twinhearts.app.core.navigation
+ 
+ import androidx.lifecycle.ViewModel
+ import androidx.lifecycle.viewModelScope
++import com.twinhearts.app.core.data.Session
+ import com.twinhearts.app.core.data.SessionStore
+ import dagger.hilt.android.lifecycle.HiltViewModel
+ import kotlinx.coroutines.flow.MutableStateFlow
++import kotlinx.coroutines.flow.SharingStarted
+ import kotlinx.coroutines.flow.StateFlow
+ import kotlinx.coroutines.flow.asStateFlow
+ import kotlinx.coroutines.flow.first
++import kotlinx.coroutines.flow.stateIn
+ import kotlinx.coroutines.launch
+ import javax.inject.Inject
+ 
+@@ -21,6 +24,10 @@ class AppViewModel @Inject constructor(
+     sessionStore: SessionStore,
+ ) : ViewModel() {
+ 
++    /** Who is signed in, for the side menu's couple widget. Null until known / after sign out. */
++    val session: StateFlow<Session?> = sessionStore.session
++        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
++
+     private val _startRoute = MutableStateFlow<Any?>(null)
+     val startRoute: StateFlow<Any?> = _startRoute.asStateFlow()
+ 
+diff --git a/app/src/main/java/com/twinhearts/app/core/navigation/PendingFeatureScreen.kt b/app/src/main/java/com/twinhearts/app/core/navigation/PendingFeatureScreen.kt
+index 994398e..bd0c23b 100644
+--- a/app/src/main/java/com/twinhearts/app/core/navigation/PendingFeatureScreen.kt
++++ b/app/src/main/java/com/twinhearts/app/core/navigation/PendingFeatureScreen.kt
+@@ -20,7 +20,7 @@ internal fun PendingFeatureScreen(
+     modifier: Modifier = Modifier,
+ ) {
+     Column(modifier = modifier.fillMaxSize()) {
+-        TwinTopBar(title = title, showLogo = true)
++        TwinTopBar(title = title, showLogo = true, showSidebarButton = true)
+         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+             EmptyState(
+                 title = title,
+diff --git a/app/src/main/java/com/twinhearts/app/core/navigation/TwinApp.kt b/app/src/main/java/com/twinhearts/app/core/navigation/TwinApp.kt
+index c29ae92..c8da770 100644
+--- a/app/src/main/java/com/twinhearts/app/core/navigation/TwinApp.kt
++++ b/app/src/main/java/com/twinhearts/app/core/navigation/TwinApp.kt
+@@ -1,18 +1,35 @@
+ package com.twinhearts.app.core.navigation
+ 
++import android.widget.Toast
++import androidx.activity.compose.BackHandler
+ import androidx.compose.foundation.layout.WindowInsets
+ import androidx.compose.foundation.layout.navigationBarsPadding
+ import androidx.compose.foundation.layout.padding
++import androidx.compose.foundation.layout.width
++import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.material.icons.Icons
++import androidx.compose.material.icons.outlined.ChatBubbleOutline
++import androidx.compose.material.icons.outlined.Home
++import androidx.compose.material.icons.outlined.Place
++import androidx.compose.material.icons.outlined.Settings
+ import androidx.compose.material.icons.rounded.ChatBubble
+ import androidx.compose.material.icons.rounded.Home
+ import androidx.compose.material.icons.rounded.Place
+ import androidx.compose.material.icons.rounded.Settings
++import androidx.compose.material3.DrawerValue
++import androidx.compose.material3.ModalDrawerSheet
++import androidx.compose.material3.ModalNavigationDrawer
+ import androidx.compose.material3.Scaffold
++import androidx.compose.material3.rememberDrawerState
+ import androidx.compose.runtime.Composable
++import androidx.compose.runtime.CompositionLocalProvider
+ import androidx.compose.runtime.getValue
++import androidx.compose.runtime.remember
++import androidx.compose.runtime.rememberCoroutineScope
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.graphics.Color
++import androidx.compose.ui.platform.LocalContext
++import androidx.compose.ui.unit.dp
+ import androidx.hilt.navigation.compose.hiltViewModel
+ import androidx.lifecycle.compose.collectAsStateWithLifecycle
+ import androidx.navigation.NavDestination.Companion.hierarchy
+@@ -22,33 +39,43 @@ import androidx.navigation.compose.rememberNavController
+ import com.twinhearts.app.R
+ import com.twinhearts.app.feature.calls.ui.IncomingCallWatcher
+ import com.twinhearts.app.core.design.BottomBarItem
++import com.twinhearts.app.core.design.LocalOpenSidebar
+ import com.twinhearts.app.core.design.TwinBackground
+ import com.twinhearts.app.core.design.TwinBottomBar
+ import com.twinhearts.app.core.design.TwinOrbIcon
++import kotlinx.coroutines.launch
+ 
+ /** The five bottom-bar tabs, left to right (R-52). The centre one is the Twin orb. */
+ private val bottomBarItems = listOf(
+-    BottomBarItem(Routes.Home, R.string.core_nav_home, Icons.Rounded.Home),
+-    BottomBarItem(Routes.Chat, R.string.core_nav_chat, Icons.Rounded.ChatBubble),
++    BottomBarItem(Routes.Home, R.string.core_nav_home, Icons.Outlined.Home, selectedIcon = Icons.Rounded.Home),
++    BottomBarItem(Routes.Chat, R.string.core_nav_chat, Icons.Outlined.ChatBubbleOutline, selectedIcon = Icons.Rounded.ChatBubble),
+     BottomBarItem(Routes.TwinAi, R.string.core_nav_twin, TwinOrbIcon, isOrb = true),
+-    BottomBarItem(Routes.LiveMap, R.string.core_nav_map, Icons.Rounded.Place),
+-    BottomBarItem(Routes.Settings, R.string.core_nav_settings, Icons.Rounded.Settings),
++    BottomBarItem(Routes.LiveMap, R.string.core_nav_map, Icons.Outlined.Place, selectedIcon = Icons.Rounded.Place),
++    BottomBarItem(Routes.Settings, R.string.core_nav_settings, Icons.Outlined.Settings, selectedIcon = Icons.Rounded.Settings),
+ )
+ 
+-/** Root composable: background, bottom bar (only on the five tab screens) and the nav graph. */
++/** The tab routes: moving between them keeps each tab's state (same rule the bottom bar uses). */
++private val tabRoutes: List<Any> = bottomBarItems.map { it.key }
++
++/** Root composable: background, side menu, bottom bar (only on the five tab screens) and the nav graph. */
+ @Composable
+ fun TwinApp(viewModel: AppViewModel = hiltViewModel()) {
+     val startRoute by viewModel.startRoute.collectAsStateWithLifecycle()
++    val session by viewModel.session.collectAsStateWithLifecycle()
+     TwinBackground {
+         // Until the start screen is known we show only the background (a few milliseconds).
+-        startRoute?.let { start -> TwinNavigation(startDestination = start) }
++        startRoute?.let { start -> TwinNavigation(startDestination = start, session = session) }
+     }
+ }
+ 
+ @Composable
+-private fun TwinNavigation(startDestination: Any) {
++private fun TwinNavigation(startDestination: Any, session: com.twinhearts.app.core.data.Session?) {
+     val navController = rememberNavController()
+     val backStackEntry by navController.currentBackStackEntryAsState()
++    val context = LocalContext.current
++    val drawerState = rememberDrawerState(DrawerValue.Closed)
++    val scope = rememberCoroutineScope()
++    val openSidebar: () -> Unit = remember(drawerState) { { scope.launch { drawerState.open() } } }
+ 
+     // A call from my partner opens the call page on any screen (the app must be open).
+     IncomingCallWatcher(
+@@ -62,6 +89,10 @@ private fun TwinNavigation(startDestination: Any) {
+     val selectedItem = bottomBarItems.firstOrNull { item ->
+         destination?.hierarchy?.any { it.hasRoute(item.key::class) } == true
+     }
++    // Which side-menu row is active: the first menu route the current screen belongs to.
++    val sidebarKey = sidebarRouteKeys.firstOrNull { key ->
++        destination?.hierarchy?.any { it.hasRoute(key::class) } == true
++    }
+     // Twin has its own input dock with the orb, and Chat gives the whole bottom to the typing bar
+     // (like WhatsApp), so the bar is hidden on both. Leave Chat with the back arrow.
+     // Fight Log keeps the bottom bar (as in the web reference), with no tab highlighted.
+@@ -70,37 +101,82 @@ private fun TwinNavigation(startDestination: Any) {
+         selectedItem.key != Routes.TwinAi &&
+         selectedItem.key != Routes.Chat) || onFights
+ 
+-    Scaffold(
+-        containerColor = Color.Transparent,
+-        // Bars and screens handle their own insets (see TwinTopBar and TwinBottomBar).
+-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+-        bottomBar = {
+-            if (showBottomBar) {
+-                TwinBottomBar(
+-                    items = bottomBarItems,
+-                    selectedKey = selectedItem?.key,
+-                    onItemClick = { item ->
+-                        navController.navigate(item.key) {
+-                            popUpTo<Routes.Home> { saveState = true }
+-                            launchSingleTop = true
+-                            restoreState = true
+-                        }
+-                    },
++    // Back closes the menu first.
++    BackHandler(enabled = drawerState.isOpen) { scope.launch { drawerState.close() } }
++
++    CompositionLocalProvider(LocalOpenSidebar provides openSidebar) {
++        ModalNavigationDrawer(
++            drawerState = drawerState,
++            // Opened with the hamburger / Home grid button; the swipe is only for closing, so it
++            // never fights the map, chat lists or sliders.
++            gesturesEnabled = drawerState.isOpen,
++            scrimColor = Color.Black.copy(alpha = 0.55f),
++            drawerContent = {
++                ModalDrawerSheet(
++                    modifier = Modifier.width(300.dp),
++                    drawerShape = RoundedCornerShape(topEnd = 28.dp, bottomEnd = 28.dp),
++                    drawerContainerColor = Color.Transparent,
++                    windowInsets = WindowInsets(0, 0, 0, 0),
++                ) {
++                    TwinSidebar(
++                        session = session,
++                        selectedKey = sidebarKey,
++                        onNavigate = { entry ->
++                            scope.launch { drawerState.close() }
++                            val key = entry.key
++                            if (key == null) {
++                                Toast.makeText(context, R.string.core_pending_message, Toast.LENGTH_SHORT).show()
++                            } else if (key in tabRoutes) {
++                                navController.navigate(key) {
++                                    popUpTo<Routes.Home> { saveState = true }
++                                    launchSingleTop = true
++                                    restoreState = true
++                                }
++                            } else {
++                                navController.navigate(key) { launchSingleTop = true }
++                            }
++                        },
++                        onOpenProfile = {
++                            scope.launch { drawerState.close() }
++                            navController.navigate(Routes.Profile) { launchSingleTop = true }
++                        },
++                    )
++                }
++            },
++        ) {
++            Scaffold(
++                containerColor = Color.Transparent,
++                // Bars and screens handle their own insets (see TwinTopBar and TwinBottomBar).
++                contentWindowInsets = WindowInsets(0, 0, 0, 0),
++                bottomBar = {
++                    if (showBottomBar) {
++                        TwinBottomBar(
++                            items = bottomBarItems,
++                            selectedKey = selectedItem?.key,
++                            onItemClick = { item ->
++                                navController.navigate(item.key) {
++                                    popUpTo<Routes.Home> { saveState = true }
++                                    launchSingleTop = true
++                                    restoreState = true
++                                }
++                            },
++                        )
++                    }
++                },
++            ) { innerPadding ->
++                // Without the bottom bar, the screen itself must stay above the gesture bar. Chat is the
++                // exception: its typing bar already handles the gesture bar and the keyboard, so adding
++                // it here too would leave an empty gap under the typing bar.
++                val ownsBottomInset = selectedItem?.key == Routes.Chat
++                val insets = if (showBottomBar || ownsBottomInset) Modifier else Modifier.navigationBarsPadding()
++                AppNavHost(
++                    navController = navController,
++                    startDestination = startDestination,
++                    modifier = Modifier
++                        .padding(innerPadding)
++                        .then(insets),
+                 )
+             }
+-        },
+-    ) { innerPadding ->
+-        // Without the bottom bar, the screen itself must stay above the gesture bar. Chat is the
+-        // exception: its typing bar already handles the gesture bar and the keyboard, so adding
+-        // it here too would leave an empty gap under the typing bar.
+-        val ownsBottomInset = selectedItem?.key == Routes.Chat
+-        val insets = if (showBottomBar || ownsBottomInset) Modifier else Modifier.navigationBarsPadding()
+-        AppNavHost(
+-            navController = navController,
+-            startDestination = startDestination,
+-            modifier = Modifier
+-                .padding(innerPadding)
+-                .then(insets),
+-        )
++        }
+     }
+ }
+diff --git a/app/src/main/java/com/twinhearts/app/core/navigation/TwinSidebar.kt b/app/src/main/java/com/twinhearts/app/core/navigation/TwinSidebar.kt
+new file mode 100644
+index 0000000..8267678
+--- /dev/null
++++ b/app/src/main/java/com/twinhearts/app/core/navigation/TwinSidebar.kt
+@@ -0,0 +1,346 @@
++package com.twinhearts.app.core.navigation
++
++import androidx.annotation.StringRes
++import androidx.compose.foundation.background
++import androidx.compose.foundation.border
++import androidx.compose.foundation.clickable
++import androidx.compose.foundation.Image
++import androidx.compose.foundation.layout.Arrangement
++import androidx.compose.foundation.layout.Box
++import androidx.compose.foundation.layout.Column
++import androidx.compose.foundation.layout.Row
++import androidx.compose.foundation.layout.Spacer
++import androidx.compose.foundation.layout.fillMaxHeight
++import androidx.compose.foundation.layout.fillMaxSize
++import androidx.compose.foundation.layout.fillMaxWidth
++import androidx.compose.foundation.layout.height
++import androidx.compose.foundation.layout.navigationBarsPadding
++import androidx.compose.foundation.layout.padding
++import androidx.compose.foundation.layout.size
++import androidx.compose.foundation.layout.statusBarsPadding
++import androidx.compose.foundation.layout.width
++import androidx.compose.foundation.rememberScrollState
++import androidx.compose.foundation.shape.CircleShape
++import androidx.compose.foundation.shape.RoundedCornerShape
++import androidx.compose.foundation.verticalScroll
++import androidx.compose.material.icons.Icons
++import androidx.compose.material.icons.outlined.AccountBalanceWallet
++import androidx.compose.material.icons.outlined.CalendarMonth
++import androidx.compose.material.icons.outlined.CardGiftcard
++import androidx.compose.material.icons.outlined.ChatBubbleOutline
++import androidx.compose.material.icons.outlined.Celebration
++import androidx.compose.material.icons.outlined.Checklist
++import androidx.compose.material.icons.outlined.EmojiEvents
++import androidx.compose.material.icons.outlined.FavoriteBorder
++import androidx.compose.material.icons.outlined.Gavel
++import androidx.compose.material.icons.outlined.Group
++import androidx.compose.material.icons.outlined.HelpOutline
++import androidx.compose.material.icons.outlined.Home
++import androidx.compose.material.icons.outlined.LocalFlorist
++import androidx.compose.material.icons.outlined.Lock
++import androidx.compose.material.icons.outlined.MenuBook
++import androidx.compose.material.icons.outlined.MovieCreation
++import androidx.compose.material.icons.outlined.MusicNote
++import androidx.compose.material.icons.outlined.Navigation
++import androidx.compose.material.icons.outlined.Place
++import androidx.compose.material.icons.outlined.Public
++import androidx.compose.material.icons.outlined.Settings
++import androidx.compose.material.icons.outlined.SportsEsports
++import androidx.compose.material.icons.outlined.TrackChanges
++import androidx.compose.material.icons.outlined.WaterDrop
++import androidx.compose.material.icons.outlined.WbSunny
++import androidx.compose.material.icons.rounded.AutoAwesome
++import androidx.compose.material3.Icon
++import androidx.compose.material3.MaterialTheme
++import androidx.compose.material3.Text
++import androidx.compose.runtime.Composable
++import androidx.compose.runtime.Immutable
++import androidx.compose.runtime.remember
++import androidx.compose.ui.Alignment
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.draw.clip
++import androidx.compose.ui.graphics.Brush
++import androidx.compose.ui.graphics.Color
++import androidx.compose.ui.graphics.vector.ImageVector
++import androidx.compose.ui.res.painterResource
++import androidx.compose.ui.res.stringResource
++import androidx.compose.ui.semantics.Role
++import androidx.compose.ui.text.font.FontWeight
++import androidx.compose.ui.text.style.TextOverflow
++import androidx.compose.ui.unit.dp
++import androidx.compose.ui.unit.sp
++import com.twinhearts.app.R
++import com.twinhearts.app.core.data.Session
++import com.twinhearts.app.core.design.SerifFamily
++import com.twinhearts.app.core.design.TwinTheme
++
++/** One row of the side menu. A null [key] means the page is not built yet (a short note shows). */
++@Immutable
++internal data class SidebarEntry(
++    val key: Any?,
++    @StringRes val labelRes: Int,
++    val icon: ImageVector,
++)
++
++@Immutable
++internal data class SidebarGroup(@StringRes val titleRes: Int, val entries: List<SidebarEntry>)
++
++/** Same order and names as the web sidebar + the "all pages" groups on Home. */
++internal val sidebarGroups = listOf(
++    SidebarGroup(
++        R.string.side_group_home,
++        listOf(SidebarEntry(Routes.Home, R.string.core_nav_home, Icons.Outlined.Home)),
++    ),
++    SidebarGroup(
++        R.string.side_group_main,
++        listOf(
++            SidebarEntry(Routes.Chat, R.string.core_nav_chat, Icons.Outlined.ChatBubbleOutline),
++            SidebarEntry(Routes.LiveMap, R.string.side_live_map, Icons.Outlined.Place),
++            SidebarEntry(Routes.TwinAi, R.string.core_nav_twin, Icons.Rounded.AutoAwesome),
++        ),
++    ),
++    SidebarGroup(
++        R.string.side_group_together,
++        listOf(
++            SidebarEntry(Routes.Music, R.string.home_chip_music, Icons.Outlined.MusicNote),
++            SidebarEntry(Routes.Movie, R.string.home_chip_movie, Icons.Outlined.MovieCreation),
++            SidebarEntry(Routes.MeetPlanner, R.string.home_chip_meet_planner, Icons.Outlined.Navigation),
++            SidebarEntry(null, R.string.home_chip_daily_routine, Icons.Outlined.WbSunny),
++        ),
++    ),
++    SidebarGroup(
++        R.string.home_group_us,
++        listOf(
++            SidebarEntry(Routes.Profile, R.string.home_page_profile, Icons.Outlined.Group),
++            SidebarEntry(Routes.Us, R.string.home_page_love_counter, Icons.Outlined.FavoriteBorder),
++            SidebarEntry(Routes.Level, R.string.home_page_level, Icons.Outlined.EmojiEvents),
++            SidebarEntry(Routes.Fights, R.string.home_page_fights, Icons.Outlined.Gavel),
++            SidebarEntry(null, R.string.home_page_dream_goals, Icons.Outlined.TrackChanges),
++        ),
++    ),
++    SidebarGroup(
++        R.string.home_group_explore,
++        listOf(
++            SidebarEntry(null, R.string.home_page_globe, Icons.Outlined.Public),
++            SidebarEntry(null, R.string.home_page_places, Icons.Outlined.Place),
++            SidebarEntry(Routes.Collection, R.string.home_page_collection, Icons.Outlined.CardGiftcard),
++            SidebarEntry(null, R.string.home_page_games, Icons.Outlined.SportsEsports),
++            SidebarEntry(Routes.Study, R.string.home_page_study, Icons.Outlined.MenuBook),
++        ),
++    ),
++    SidebarGroup(
++        R.string.home_group_my_space,
++        listOf(
++            SidebarEntry(null, R.string.home_page_my_space, Icons.Outlined.LocalFlorist),
++            SidebarEntry(null, R.string.home_page_period, Icons.Outlined.WaterDrop),
++            SidebarEntry(null, R.string.home_page_vault, Icons.Outlined.Lock),
++            SidebarEntry(null, R.string.home_page_help, Icons.Outlined.HelpOutline),
++        ),
++    ),
++    SidebarGroup(
++        R.string.home_group_plans,
++        listOf(
++            SidebarEntry(null, R.string.home_page_surprises, Icons.Outlined.Celebration),
++            SidebarEntry(Routes.Money, R.string.home_page_money, Icons.Outlined.AccountBalanceWallet),
++            SidebarEntry(Routes.Calendar, R.string.home_page_calendar, Icons.Outlined.CalendarMonth),
++            SidebarEntry(null, R.string.home_page_bucket_list, Icons.Outlined.Checklist),
++        ),
++    ),
++)
++
++private val settingsEntry = SidebarEntry(Routes.Settings, R.string.core_nav_settings, Icons.Outlined.Settings)
++
++/** Every route that has a row in the side menu, so TwinApp can tell which row is active. */
++internal val sidebarRouteKeys: List<Any> =
++    (sidebarGroups.flatMap { it.entries } + settingsEntry).mapNotNull { it.key }
++
++/**
++ * The slide-in side menu (web: `aside.sidebar`): logo, couple widget with sync state, grouped page
++ * rows, Settings pinned at the bottom. Dark burgundy gradient like `dashboard-burgundy.css`.
++ */
++@Composable
++internal fun TwinSidebar(
++    session: Session?,
++    selectedKey: Any?,
++    onNavigate: (SidebarEntry) -> Unit,
++    onOpenProfile: () -> Unit,
++    modifier: Modifier = Modifier,
++) {
++    val colors = TwinTheme.colors
++    // Several rows can share one route (Love Counter / Dream Goals -> Us): light up only the first.
++    val activeLabel = remember(selectedKey) {
++        (sidebarGroups.flatMap { it.entries } + settingsEntry).firstOrNull { it.key != null && it.key == selectedKey }?.labelRes
++    }
++    Column(
++        modifier = modifier
++            .fillMaxHeight()
++            .background(Brush.verticalGradient(listOf(colors.sidebarTop, colors.sidebarBottom)))
++            .statusBarsPadding(),
++    ) {
++        Column(
++            modifier = Modifier
++                .weight(1f)
++                .verticalScroll(rememberScrollState())
++                .padding(horizontal = 14.dp),
++        ) {
++            SidebarHeader()
++            Spacer(Modifier.height(14.dp))
++            CoupleWidget(session = session, onClick = onOpenProfile)
++            sidebarGroups.forEach { group ->
++                Text(
++                    text = stringResource(group.titleRes).uppercase(),
++                    style = MaterialTheme.typography.labelSmall,
++                    color = colors.inkFaint,
++                    modifier = Modifier.padding(start = 12.dp, top = 18.dp, bottom = 6.dp),
++                )
++                group.entries.forEach { entry ->
++                    SidebarRow(entry, active = entry.labelRes == activeLabel, onClick = { onNavigate(entry) })
++                }
++            }
++            Spacer(Modifier.height(12.dp))
++        }
++        Box(
++            modifier = Modifier
++                .fillMaxWidth()
++                .height(1.dp)
++                .background(colors.lineSoft),
++        )
++        Box(
++            modifier = Modifier
++                .padding(horizontal = 14.dp, vertical = 10.dp)
++                .navigationBarsPadding(),
++        ) {
++            SidebarRow(settingsEntry, active = settingsEntry.labelRes == activeLabel, onClick = { onNavigate(settingsEntry) })
++        }
++    }
++}
++
++@Composable
++private fun SidebarHeader() {
++    val colors = TwinTheme.colors
++    Column(modifier = Modifier.padding(start = 2.dp, top = 14.dp)) {
++        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
++            Image(
++                painter = painterResource(R.drawable.core_logo),
++                contentDescription = stringResource(R.string.core_logo),
++                modifier = Modifier
++                    .size(38.dp)
++                    .clip(RoundedCornerShape(10.dp)),
++            )
++            Text(
++                text = stringResource(R.string.app_name),
++                style = MaterialTheme.typography.titleLarge.copy(fontFamily = SerifFamily),
++                color = colors.ink,
++                maxLines = 1,
++                overflow = TextOverflow.Ellipsis,
++            )
++        }
++        Text(
++            text = stringResource(R.string.side_tagline).uppercase(),
++            style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp, letterSpacing = 2.sp),
++            fontWeight = FontWeight.Bold,
++            color = colors.pinkSoft,
++            modifier = Modifier.padding(start = 2.dp, top = 4.dp),
++        )
++    }
++}
++
++@Composable
++private fun CoupleWidget(session: Session?, onClick: () -> Unit) {
++    val colors = TwinTheme.colors
++    val shape = RoundedCornerShape(16.dp)
++    val me = session?.myName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.side_you)
++    val partner = session?.partnerName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.side_partner)
++    val paired = session?.paired == true
++    Column(
++        modifier = Modifier
++            .fillMaxWidth()
++            .clip(shape)
++            .background(colors.glass)
++            .border(1.dp, colors.line, shape)
++            .clickable(role = Role.Button, onClick = onClick)
++            .padding(12.dp),
++    ) {
++        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
++            Avatar(me)
++            Text("♥", color = colors.inkFaint, fontSize = 13.sp)
++            Avatar(partner)
++            Text(
++                text = "$me & $partner",
++                style = MaterialTheme.typography.titleSmall,
++                color = colors.ink,
++                maxLines = 1,
++                overflow = TextOverflow.Ellipsis,
++                modifier = Modifier.weight(1f),
++            )
++        }
++        Row(
++            modifier = Modifier.padding(top = 10.dp),
++            verticalAlignment = Alignment.CenterVertically,
++            horizontalArrangement = Arrangement.spacedBy(6.dp),
++        ) {
++            val dot = if (paired) colors.success else colors.error
++            Box(Modifier.size(7.dp).clip(CircleShape).background(dot))
++            Text(
++                text = stringResource(if (paired) R.string.side_synced else R.string.side_waiting_partner),
++                style = MaterialTheme.typography.labelMedium,
++                color = dot,
++            )
++        }
++    }
++}
++
++@Composable
++private fun Avatar(name: String) {
++    Box(
++        modifier = Modifier
++            .size(34.dp)
++            .clip(CircleShape)
++            .background(TwinTheme.colors.primaryBrush)
++            .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape),
++        contentAlignment = Alignment.Center,
++    ) {
++        Text(
++            text = name.firstOrNull()?.uppercase() ?: "?",
++            style = MaterialTheme.typography.titleSmall,
++            color = Color.White,
++        )
++    }
++}
++
++@Composable
++private fun SidebarRow(entry: SidebarEntry, active: Boolean, onClick: () -> Unit) {
++    val colors = TwinTheme.colors
++    val shape = RoundedCornerShape(14.dp)
++    Row(
++        modifier = Modifier
++            .fillMaxWidth()
++            .height(46.dp)
++            .clip(shape)
++            .background(if (active) colors.burgundy.copy(alpha = 0.30f) else Color.Transparent)
++            .then(if (active) Modifier.border(1.dp, colors.line, shape) else Modifier)
++            .clickable(role = Role.Button, onClick = onClick)
++            .padding(horizontal = 12.dp),
++        verticalAlignment = Alignment.CenterVertically,
++        horizontalArrangement = Arrangement.spacedBy(14.dp),
++    ) {
++        Icon(
++            imageVector = entry.icon,
++            contentDescription = null,
++            tint = if (active) colors.pinkSoft else colors.inkMuted,
++            modifier = Modifier.size(21.dp),
++        )
++        Text(
++            text = stringResource(entry.labelRes),
++            style = MaterialTheme.typography.bodyMedium,
++            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
++            color = if (active) colors.ink else colors.inkMuted,
++            maxLines = 1,
++            overflow = TextOverflow.Ellipsis,
++            modifier = Modifier.weight(1f),
++        )
++        if (active) {
++            Box(Modifier.width(3.dp).height(18.dp).clip(RoundedCornerShape(2.dp)).background(colors.accent))
++        }
++    }
++}
+diff --git a/app/src/main/java/com/twinhearts/app/feature/chat/ui/ChatScreen.kt b/app/src/main/java/com/twinhearts/app/feature/chat/ui/ChatScreen.kt
+index eb7cd6e..0bba0c7 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/chat/ui/ChatScreen.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/chat/ui/ChatScreen.kt
+@@ -667,7 +667,7 @@ internal fun ChatContent(
+             Box(Modifier.fillMaxSize()) {
+                 WallpaperLayer(state.wallpaper, Modifier.fillMaxSize())
+                 Column(Modifier.fillMaxSize().imePadding()) {
+-                    TwinTopBar(title = stringResource(R.string.chat_title), showLogo = true, onSearchClick = actions.onOpenSearch, onSyncClick = actions.onSync)
++                    TwinTopBar(title = stringResource(R.string.chat_title), showLogo = true, showSidebarButton = true, onSearchClick = actions.onOpenSearch, onSyncClick = actions.onSync)
+                     if (state.selected.isNotEmpty()) {
+                         SelectionBar(state, actions)
+                     } else {
+diff --git a/app/src/main/java/com/twinhearts/app/feature/home/HomeRoute.kt b/app/src/main/java/com/twinhearts/app/feature/home/HomeRoute.kt
+index fce3f48..5e3dbd3 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/home/HomeRoute.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/home/HomeRoute.kt
+@@ -6,6 +6,7 @@ import androidx.navigation.NavGraphBuilder
+ import androidx.navigation.NavHostController
+ import androidx.navigation.compose.composable
+ import com.twinhearts.app.R
++import com.twinhearts.app.core.design.LocalOpenSidebar
+ import com.twinhearts.app.core.navigation.Routes
+ import com.twinhearts.app.feature.home.ui.HomeScreen
+ import com.twinhearts.app.feature.home.ui.HomeShortcut
+@@ -18,9 +19,11 @@ import com.twinhearts.app.feature.home.ui.HomeShortcut
+ fun NavGraphBuilder.homeGraph(navController: NavHostController) {
+     composable<Routes.Home> {
+         val context = LocalContext.current
++        val openSidebar = LocalOpenSidebar.current
+         HomeScreen(
+             onShortcut = { shortcut ->
+                 when (shortcut) {
++                    HomeShortcut.Menu -> openSidebar()
+                     HomeShortcut.OurProfile -> navController.navigate(Routes.Profile)
+                     HomeShortcut.Movie -> navController.navigate(Routes.Movie)
+                     HomeShortcut.MeetPlanner -> navController.navigate(Routes.MeetPlanner)
+diff --git a/app/src/main/java/com/twinhearts/app/feature/home/ui/HomeScreen.kt b/app/src/main/java/com/twinhearts/app/feature/home/ui/HomeScreen.kt
+index edf5ea4..e81878d 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/home/ui/HomeScreen.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/home/ui/HomeScreen.kt
+@@ -1,5 +1,11 @@
+ package com.twinhearts.app.feature.home.ui
+ 
++import androidx.compose.foundation.layout.fillMaxWidth
++import androidx.compose.ui.graphics.Color
++import androidx.compose.ui.graphics.Brush
++import androidx.compose.ui.draw.clip
++import androidx.compose.foundation.shape.RoundedCornerShape
++import androidx.compose.foundation.background
+ import androidx.compose.foundation.layout.Arrangement
+ import androidx.compose.foundation.layout.Column
+ import androidx.compose.foundation.layout.Spacer
+@@ -121,14 +127,34 @@ internal fun HomeContent(
+     Column(
+         modifier = modifier
+             .fillMaxSize()
+-            .verticalScroll(rememberScrollState()),
+-        verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.l),
++            .verticalScroll(rememberScrollState())
++            .background(TwinTheme.colors.burgundy),
+     ) {
+-        HomeHeader(myName = myName, onProfileClick = { onShortcut(HomeShortcut.OurProfile) })
+-        HomeHero(myName = myName, nowMillis = nowMillis)
+-        HomeSearchRow(onShortcut)
+-        HomeChips(onShortcut)
+-
++        // Pink/burgundy hero on top (web: .dh), black rounded sheet below it.
++        Column(
++            modifier = Modifier
++                .fillMaxWidth()
++                .background(
++                    Brush.verticalGradient(
++                        listOf(TwinTheme.colors.burgundy, Color(0xFF52072F)),
++                    ),
++                ),
++            verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.l),
++        ) {
++            HomeHeader(myName = myName, onProfileClick = { onShortcut(HomeShortcut.OurProfile) })
++            HomeHero(myName = myName, nowMillis = nowMillis)
++            HomeSearchRow(onShortcut)
++            HomeChips(onShortcut)
++            Spacer(Modifier.height(TwinTheme.spacing.s))
++        }
++        Column(
++            modifier = Modifier
++                .fillMaxWidth()
++                .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
++                .background(Color(0xFF0F0B0D))
++                .padding(top = TwinTheme.spacing.xl),
++            verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.l),
++        ) {
+         Column(
+             modifier = Modifier.padding(horizontal = TwinTheme.spacing.screenEdge),
+             verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
+@@ -174,6 +200,7 @@ internal fun HomeContent(
+         HomeAllPages(onShortcut)
+         HomeFooterQuote(nowMillis)
+         Spacer(Modifier.height(TwinTheme.spacing.xxl))
++        }
+     }
+ 
+     if (photoEditorSlot != NO_EDITOR) {
+diff --git a/app/src/main/res/values/strings_sidebar.xml b/app/src/main/res/values/strings_sidebar.xml
+new file mode 100644
+index 0000000..a58d17b
+--- /dev/null
++++ b/app/src/main/res/values/strings_sidebar.xml
+@@ -0,0 +1,12 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <string name="side_tagline">Everything Together</string>
++    <string name="side_group_home">Home</string>
++    <string name="side_group_main">Main</string>
++    <string name="side_group_together">Together</string>
++    <string name="side_live_map">Live Map</string>
++    <string name="side_you">You</string>
++    <string name="side_partner">Partner</string>
++    <string name="side_synced">Synced</string>
++    <string name="side_waiting_partner">Waiting for partner</string>
++</resources>

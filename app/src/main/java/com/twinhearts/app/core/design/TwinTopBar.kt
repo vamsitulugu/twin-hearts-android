@@ -41,10 +41,13 @@ fun TwinTopBar(
     showLogo: Boolean = false,
     onBackClick: (() -> Unit)? = null,
     onMenuClick: (() -> Unit)? = null,
+    /** Show the web-style hamburger that opens the side menu (when [onMenuClick] is not given). */
+    showSidebarButton: Boolean = false,
     onSearchClick: (() -> Unit)? = null,
     onSyncClick: (() -> Unit)? = null,
 ) {
     val colors = TwinTheme.colors
+    val openSidebar = LocalOpenSidebar.current
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -55,9 +58,6 @@ fun TwinTopBar(
         if (onBackClick != null) {
             BarIcon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.core_back), onBackClick)
         }
-        if (onMenuClick != null) {
-            BarIcon(Icons.Rounded.Menu, stringResource(R.string.core_menu), onMenuClick)
-        }
         if (showLogo) {
             Image(
                 painter = painterResource(R.drawable.core_logo),
@@ -67,6 +67,11 @@ fun TwinTopBar(
                     .size(36.dp)
                     .clip(RoundedCornerShape(10.dp)),
             )
+        }
+        if (onMenuClick != null) {
+            BarIcon(Icons.Rounded.Menu, stringResource(R.string.core_menu), onMenuClick)
+        } else if (showSidebarButton) {
+            BarIcon(Icons.Rounded.Menu, stringResource(R.string.core_menu), openSidebar)
         }
         if (title != null) {
             Text(

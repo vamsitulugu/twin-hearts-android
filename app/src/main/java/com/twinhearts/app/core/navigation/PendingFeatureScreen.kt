@@ -20,7 +20,7 @@ internal fun PendingFeatureScreen(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
-        TwinTopBar(title = title, showLogo = true)
+        TwinTopBar(title = title, showLogo = true, showSidebarButton = true)
         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
             EmptyState(
                 title = title,

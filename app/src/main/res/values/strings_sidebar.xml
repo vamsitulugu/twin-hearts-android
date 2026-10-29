@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="side_tagline">Everything Together</string>
+    <string name="side_group_home">Home</string>
+    <string name="side_group_main">Main</string>
+    <string name="side_group_together">Together</string>
+    <string name="side_live_map">Live Map</string>
+    <string name="side_you">You</string>
+    <string name="side_partner">Partner</string>
+    <string name="side_synced">Synced</string>
+    <string name="side_waiting_partner">Waiting for partner</string>
+</resources>
