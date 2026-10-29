@@ -103,8 +103,8 @@ internal fun NotificationsPage(
             )
         }
         SettingsSection(title = stringResource(R.string.settings_quiet_hours)) {
-            SettingsValueRow(stringResource(R.string.settings_from), state.prefs.quietStart.asSettingsText()) { editing = QuietField.From }
-            SettingsValueRow(stringResource(R.string.settings_to), state.prefs.quietEnd.asSettingsText()) { editing = QuietField.To }
+            SettingsValueRow(stringResource(R.string.settings_from), state.prefs.quietStart.asSettingsText(), onClick = { editing = QuietField.From })
+            SettingsValueRow(stringResource(R.string.settings_to), state.prefs.quietEnd.asSettingsText(), onClick = { editing = QuietField.To })
         }
     }
     when (editing) {

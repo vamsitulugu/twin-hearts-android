@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -335,7 +336,7 @@ private fun DateField(label: String, value: String, onChange: (String) -> Unit, 
         val pickerState = rememberDatePickerState(initialSelectedDateMillis = isoToMillis(value))
         DatePickerDialog(
             onDismissRequest = { open = false },
-            containerColor = colors.card,
+            colors = DatePickerDefaults.colors(containerColor = colors.card),
             confirmButton = {
                 TextButton(onClick = {
                     pickerState.selectedDateMillis?.let { onChange(millisToIso(it)) }

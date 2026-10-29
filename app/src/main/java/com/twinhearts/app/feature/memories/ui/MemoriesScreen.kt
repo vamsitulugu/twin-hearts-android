@@ -359,6 +359,7 @@ private fun androidx.compose.foundation.lazy.grid.LazyGridScope.itemsIndexedComp
     items(count = list.size, key = { list[it].id }) { index -> content(index, list[index]) }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AddTile(onClick: () -> Unit) {
     val colors = TwinTheme.colors

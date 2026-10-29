@@ -142,9 +142,9 @@ internal fun ProfilePage(
                 }
 
                 SettingsSection(title = stringResource(R.string.settings_important_dates)) {
-                    SettingsValueRow(stringResource(R.string.settings_together_since), form.anniversary.asText()) { editing = DateField.Anniversary }
-                    SettingsValueRow(stringResource(R.string.settings_your_birthday), form.myBirthday.asText()) { editing = DateField.MyBirthday }
-                    SettingsValueRow(stringResource(R.string.settings_partner_birthday), form.partnerBirthday.asText()) { editing = DateField.PartnerBirthday }
+                    SettingsValueRow(stringResource(R.string.settings_together_since), form.anniversary.asText(), onClick = { editing = DateField.Anniversary })
+                    SettingsValueRow(stringResource(R.string.settings_your_birthday), form.myBirthday.asText(), onClick = { editing = DateField.MyBirthday })
+                    SettingsValueRow(stringResource(R.string.settings_partner_birthday), form.partnerBirthday.asText(), onClick = { editing = DateField.PartnerBirthday })
                 }
 
                 GlassButton(
