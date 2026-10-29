@@ -43,6 +43,18 @@ object Routes {
     @Serializable data object Level
     @Serializable data object Places
 
+    // Pages merged from the Phase 2-6 feature zips
+    @Serializable data object Memories
+    @Serializable data object BucketList
+    @Serializable data object PeriodTracker
+    @Serializable data object Help
+    @Serializable data object MySpace
+    @Serializable data object Vault
+    @Serializable data object Surprises
+    @Serializable data object Globe
+    @Serializable data object Games
+    @Serializable data object DailyRoutine
+
     /** The call page. [incoming] is true when my partner is calling me. */
     @Serializable data class Call(val video: Boolean = false, val incoming: Boolean = false)
 

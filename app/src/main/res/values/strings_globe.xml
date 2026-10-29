@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Memory Globe screens. Wording copied from the web app's globe.html (R-53). -->
+<resources>
+    <string name="globe_title">Memory Globe</string>
+    <string name="globe_loading_sub">Preparing your world of memories...</string>
+    <string name="globe_back">Back</string>
+    <string name="globe_close">Close</string>
+    <string name="globe_search">Search</string>
+    <string name="globe_live_location">Live Location</string>
+    <string name="globe_statistics">Statistics</string>
+    <string name="globe_filter">Filter</string>
+    <string name="globe_reset_view">Reset view</string>
+
+    <string name="globe_tab_globe">🌍 Globe</string>
+    <string name="globe_tab_map">🗺 Map</string>
+    <string name="globe_tab_timeline">📅 Timeline</string>
+
+    <string name="globe_filter_all">All</string>
+    <string name="globe_filter_happy">😊 Happy</string>
+    <string name="globe_filter_romantic">🥰 Romantic</string>
+    <string name="globe_filter_excited">🤩 Excited</string>
+
+    <string name="globe_chip_cities">cities</string>
+    <string name="globe_chip_countries">countries</string>
+    <string name="globe_chip_memories">memories</string>
+    <string name="globe_chip_spent">spent</string>
+    <string name="globe_pin_memory">📍 Pin a Memory</string>
+
+    <string name="globe_empty_title">Your world awaits</string>
+    <string name="globe_empty_sub">Add your first memory to see it on the globe</string>
+    <string name="globe_street_badge">🗺️ Street level — real roads &amp; buildings</string>
+
+    <string name="globe_search_hint">Search country, city, landmark...</string>
+    <string name="globe_go_to_coordinates">Go to coordinates</string>
+    <string name="globe_coordinates_title">📍 %1$s, %2$s</string>
+
+    <!-- Toasts -->
+    <string name="globe_toast_reset">View reset 🎯</string>
+    <string name="globe_toast_live_on">📡 Live location on</string>
+    <string name="globe_toast_live_off">Live location off</string>
+    <string name="globe_toast_place">📍 %1$s</string>
+    <string name="globe_toast_pro">Memory Globe is a Pro feature</string>
+    <string name="globe_toast_pro_check_failed">Could not check Pro right now. Please try again.</string>
+    <string name="globe_toast_need_location">Please search and select a location first 📍</string>
+    <string name="globe_toast_pinned">Memory pinned to the globe! 🌍</string>
+    <string name="globe_toast_updated">Memory updated! 💕</string>
+    <string name="globe_toast_saved_with_failures">Memory saved, but %1$d attachment(s) could not be uploaded</string>
+    <string name="globe_toast_autofilled">📍 Location + weather auto-filled!</string>
+    <string name="globe_toast_uploading">Uploading… 📤</string>
+    <string name="globe_toast_added">Added! 📸</string>
+    <string name="globe_toast_upload_failed">Upload failed</string>
+    <string name="globe_toast_upload_failed_name">Upload failed for %1$s</string>
+    <string name="globe_toast_photos_added">%1$d photos added! 📸</string>
+    <string name="globe_toast_some_failed">%1$d added, %2$d failed — tap Retry</string>
+    <string name="globe_toast_voice_recorded">Voice note recorded! 🎙️</string>
+    <string name="globe_toast_voice_saved">Voice note saved! 🎙️</string>
+    <string name="globe_toast_voice_failed">Voice upload failed</string>
+    <string name="globe_toast_recording">🎙 Recording... tap Stop when done</string>
+    <string name="globe_toast_no_mic">Microphone access denied</string>
+    <string name="globe_toast_no_location_permission">Location access is needed for live location</string>
+    <string name="globe_toast_journal_saved">Journal saved! 📖</string>
+    <string name="globe_toast_deleted">Deleted</string>
+    <string name="globe_toast_memory_removed">Memory removed from globe</string>
+    <string name="globe_toast_cannot_play">Cannot play audio</string>
+    <string name="globe_toast_error">Something went wrong. Please try again.</string>
+
+    <!-- City panel and memory cards -->
+    <string name="globe_add_memory_here">+ Add Memory Here</string>
+    <string name="globe_no_memories">No memories yet</string>
+    <string name="globe_card_default_title">Memory</string>
+    <string name="globe_view">📖 View</string>
+    <string name="globe_edit">✏️ Edit</string>
+    <string name="globe_delete_icon">🗑️</string>
+    <string name="globe_delete">Delete</string>
+    <string name="globe_tag_voice">🎙️ %1$d voice</string>
+    <string name="globe_tag_journal">📖 journal</string>
+    <plurals name="globe_memory_count">
+        <item quantity="one">%1$d memory</item>
+        <item quantity="other">%1$d memories</item>
+    </plurals>
+    <string name="globe_city_sub">%1$s · %2$s</string>
+
+    <!-- Memory detail -->
+    <string name="globe_section_trip_details">Trip Details</string>
+    <string name="globe_label_from">From</string>
+    <string name="globe_label_to">To</string>
+    <string name="globe_label_cost">Cost</string>
+    <string name="globe_label_weather">Weather</string>
+    <string name="globe_label_mood">Mood</string>
+    <string name="globe_label_location">Location</string>
+    <string name="globe_section_notes">Notes</string>
+    <string name="globe_section_favorite">⭐ Favorite Moment</string>
+    <string name="globe_section_photos">📸 Photos (%1$d)</string>
+    <string name="globe_section_videos">🎬 Videos (%1$d)</string>
+    <string name="globe_section_voice">🎙️ Voice Notes (%1$d)</string>
+    <string name="globe_section_journal">📖 Journal (%1$d)</string>
+    <string name="globe_section_restaurants">🍽️ Restaurants</string>
+    <string name="globe_section_hotels">🏨 Hotels</string>
+    <string name="globe_section_gifts">🎁 Gifts</string>
+    <string name="globe_section_add_more">Add More</string>
+    <string name="globe_add_photo">📸 Photo</string>
+    <string name="globe_add_video">🎬 Video</string>
+    <string name="globe_add_voice">🎙️ Voice</string>
+    <string name="globe_add_journal">📖 Journal</string>
+    <string name="globe_edit_memory">✏️ Edit Memory</string>
+    <string name="globe_delete_memory">🗑️ Delete</string>
+    <string name="globe_no_photos">No photos yet</string>
+    <string name="globe_voice_note_n">Voice note %1$d</string>
+    <string name="globe_play">Play</string>
+    <string name="globe_pause">Pause</string>
+    <string name="globe_delete_media_cd">Delete this media</string>
+    <string name="globe_play_video">Play video</string>
+    <string name="globe_journal_prompt">Write your journal entry:</string>
+    <string name="globe_save">Save</string>
+    <string name="globe_cancel">Cancel</string>
+    <string name="globe_confirm_delete_media">Delete this media?</string>
+    <string name="globe_confirm_delete_memory">Delete this memory? This cannot be undone.</string>
+    <string name="globe_uploading_progress">Uploading %1$d of %2$d</string>
+    <string name="globe_retry">Retry</string>
+
+    <!-- Form -->
+    <string name="globe_form_title_new">📍 Pin a Memory</string>
+    <string name="globe_form_title_edit">✏️ Edit Memory</string>
+    <string name="globe_form_title_city">📍 %1$s</string>
+    <string name="globe_form_location">📍 Location (search city)</string>
+    <string name="globe_form_location_hint">Search city, e.g. Paris...</string>
+    <string name="globe_form_trip_name">✈️ Trip Name</string>
+    <string name="globe_form_trip_name_hint">e.g. Honeymoon in Paris</string>
+    <string name="globe_form_from">📅 From</string>
+    <string name="globe_form_to">📅 To</string>
+    <string name="globe_form_pick_date">Select date</string>
+    <string name="globe_form_mood">💭 Mood</string>
+    <string name="globe_form_weather">☀️ Weather</string>
+    <string name="globe_form_temp">🌡 Temp (°C)</string>
+    <string name="globe_form_temp_hint">25</string>
+    <string name="globe_form_cost">💰 Trip Cost</string>
+    <string name="globe_form_cost_hint">0</string>
+    <string name="globe_form_currency">💱 Currency</string>
+    <string name="globe_form_notes">📝 Notes</string>
+    <string name="globe_form_notes_hint">What made this trip special?</string>
+    <string name="globe_form_favorite">⭐ Favorite Moment</string>
+    <string name="globe_form_favorite_hint">The moment you\'ll never forget...</string>
+    <string name="globe_form_restaurants">🍽️ Restaurants Visited</string>
+    <string name="globe_form_restaurants_hint">Add restaurant name...</string>
+    <string name="globe_form_hotels">🏨 Hotels / Stays</string>
+    <string name="globe_form_hotels_hint">Add hotel name...</string>
+    <string name="globe_form_gifts">🎁 Gifts / Souvenirs</string>
+    <string name="globe_form_gifts_hint">Add gift...</string>
+    <string name="globe_form_media">📸 Photos &amp; Videos</string>
+    <string name="globe_form_photos">📸 Photos</string>
+    <string name="globe_form_video">🎬 Video</string>
+    <string name="globe_form_voice">🎙️ Voice</string>
+    <string name="globe_form_stop">⏹ Stop</string>
+    <string name="globe_form_journal">📖 Journal Entry</string>
+    <string name="globe_form_journal_hint">Write your thoughts about this place...</string>
+    <string name="globe_form_pin">📍 Pin to Globe</string>
+    <string name="globe_form_update">💾 Update Memory</string>
+    <string name="globe_form_add_chip">Add</string>
+    <string name="globe_form_remove_chip">Remove</string>
+
+    <!-- Travel Stats -->
+    <string name="globe_stats_title">📊 Travel Stats</string>
+    <string name="globe_stats_memories">Memories</string>
+    <string name="globe_stats_cities">Cities</string>
+    <string name="globe_stats_countries">Countries</string>
+    <string name="globe_stats_spent">Spent</string>
+    <string name="globe_stats_activity">🗓️ Activity (last 12 months)</string>
+    <string name="globe_stats_activity_cell">%1$s: %2$d</string>
+    <string name="globe_stats_top_cities">🏙️ Most Visited Cities</string>
+    <string name="globe_stats_moods">💭 Mood Distribution</string>
+    <string name="globe_stats_achievements">🏅 Achievements</string>
+    <string name="globe_stats_unlocked">✓ Unlocked</string>
+    <string name="globe_ach_first_memory_name">First Memory</string>
+    <string name="globe_ach_first_memory_desc">Pin your first memory</string>
+    <string name="globe_ach_city_explorer_name">City Explorer</string>
+    <string name="globe_ach_city_explorer_desc">Visit 3+ cities</string>
+    <string name="globe_ach_world_traveler_name">World Traveler</string>
+    <string name="globe_ach_world_traveler_desc">Visit 3+ countries</string>
+    <string name="globe_ach_big_spender_name">Big Spender</string>
+    <string name="globe_ach_big_spender_desc">Log ₹10,000+ in travel</string>
+    <string name="globe_ach_photographer_name">Photographer</string>
+    <string name="globe_ach_photographer_desc">Add 20+ photos</string>
+    <string name="globe_ach_continent_hopper_name">Continent Hopper</string>
+    <string name="globe_ach_continent_hopper_desc">Visit 5+ countries</string>
+    <string name="globe_ach_romantics_name">Romantics</string>
+    <string name="globe_ach_romantics_desc">Log 5+ memories together</string>
+    <string name="globe_ach_globe_masters_name">Globe Masters</string>
+    <string name="globe_ach_globe_masters_desc">Visit 10+ cities</string>
+    <string name="globe_ach_storytellers_name">Storytellers</string>
+    <string name="globe_ach_storytellers_desc">Add 5+ voice notes</string>
+
+    <!-- Live HUD -->
+    <string name="globe_live_you">You: %1$s</string>
+    <string name="globe_live_partner">%1$s: %2$s</string>
+    <string name="globe_live_online">online</string>
+    <string name="globe_live_offline">offline</string>
+    <string name="globe_live_dist_m">%1$d m apart</string>
+    <string name="globe_live_dist_km">%1$s km apart</string>
+    <string name="globe_live_dist_none">—</string>
+
+    <!-- Viewer and permissions -->
+    <string name="globe_viewer_counter">%1$d / %2$d</string>
+    <string name="globe_globe_cd">Globe showing your memories. Drag to turn it, pinch to zoom.</string>
+</resources>

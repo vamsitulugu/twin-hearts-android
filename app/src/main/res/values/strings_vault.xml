@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="vault_title">Secret Vault</string>
+    <string name="vault_sub">Private memories — unlocked with your PIN</string>
+    <string name="vault_setup_title">Set your Vault PIN</string>
+    <string name="vault_setup_sub">Choose a 4-digit PIN. You only set this once — you\'ll use it every time you open the vault.</string>
+    <string name="vault_confirm_title">Confirm your PIN</string>
+    <string name="vault_confirm_sub">Type the same 4 digits again.</string>
+    <string name="vault_forgot">Forgot PIN?</string>
+    <string name="vault_wrong_pin">Wrong PIN ❌ Try again</string>
+    <string name="vault_pin_progress">%1$d of %2$d digits entered</string>
+    <string name="vault_key_delete">Delete last digit</string>
+    <string name="vault_key_ok">Unlock</string>
+
+    <string name="vault_pin_four_digits">PIN must be exactly 4 digits</string>
+    <string name="vault_pin_repeated">Too easy to guess — avoid repeated digits like 1111</string>
+    <string name="vault_pin_sequence">Too easy to guess — avoid sequences like 1234</string>
+    <string name="vault_pin_mismatch">PINs didn\'t match — let\'s start again</string>
+    <string name="vault_pin_set">Vault PIN set 🔐</string>
+    <string name="vault_pin_already_set">A vault PIN is already set — enter it</string>
+    <string name="vault_choose_first">Choose your own vault PIN first</string>
+    <string name="vault_unlocked">Vault unlocked! 🔓</string>
+
+    <string name="vault_reset_title">🔐 Reset Vault PIN</string>
+    <string name="vault_reset_intro">To verify it\'s you, enter the password you use to sign in to Twin Hearts. Then choose a new vault PIN.</string>
+    <string name="vault_reset_password">Your app password</string>
+    <string name="vault_reset_new_pin">New vault PIN (4 digits)</string>
+    <string name="vault_reset_confirm_pin">Confirm new PIN</string>
+    <string name="vault_reset_confirm">Reset PIN 🔐</string>
+    <string name="vault_reset_need_password">Enter your app password</string>
+    <string name="vault_reset_done">Vault PIN reset — now enter your new PIN 🔐</string>
+
+    <string name="vault_card_title">🔐 Vault</string>
+    <string name="vault_card_sub">Private &amp; secure</string>
+    <string name="vault_add_photo">+ Photo</string>
+    <string name="vault_add_video">+ Video</string>
+    <string name="vault_lock">🔒 Lock</string>
+    <string name="vault_working">Uploading to vault…</string>
+    <string name="vault_empty_title">Your vault is empty</string>
+    <string name="vault_empty_hint">Your secret photos &amp; videos appear here</string>
+    <string name="vault_photo">Vault photo</string>
+    <string name="vault_video">Vault video</string>
+    <string name="vault_close">Close</string>
+    <string name="vault_photo_added">Photo added 📷</string>
+    <string name="vault_video_added">Video added 🎬</string>
+    <string name="vault_upload_partial">%1$d added, %2$d could not be uploaded</string>
+
+    <string name="vault_delete">Delete</string>
+    <string name="vault_deleted">Deleted</string>
+    <string name="vault_noun_photo">photo</string>
+    <string name="vault_noun_video">video</string>
+    <string name="vault_delete_title">Delete this %1$s?</string>
+    <string name="vault_delete_message">This %1$s will be permanently deleted from your vault.</string>
+    <string name="vault_delete_confirm">Delete</string>
+</resources>

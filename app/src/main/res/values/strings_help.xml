@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Help & Customer Care (web: public/help.html). Wording is copied from the web page (R-53). -->
+<resources>
+    <string name="help_title">Help &amp; Customer Care</string>
+    <string name="help_status_idle">AI &amp; Support Active</string>
+    <string name="help_status_ai">Twin Care AI Active</string>
+    <string name="help_status_human">Admin Care Connected</string>
+
+    <string name="help_tab_questions">📚 Questions &amp; QA</string>
+    <string name="help_tab_chat">💬 Live Support &amp; AI Chat</string>
+
+    <string name="help_hero_title">Twin Hearts Care Center</string>
+    <string name="help_hero_text">Instant answers to common questions, feature walk-throughs, or connect directly with our care team.</string>
+    <string name="help_search_hint">Search questions (e.g., pairing, vault, music)...</string>
+
+    <string name="help_cat_all">All Topics</string>
+    <string name="help_cat_pairing">Pairing &amp; Account</string>
+    <string name="help_cat_privacy">Privacy &amp; Vault</string>
+    <string name="help_cat_globe">Globe &amp; Live Map</string>
+    <string name="help_cat_music">Music &amp; Movies</string>
+    <string name="help_cat_notifications">Notifications</string>
+    <string name="help_cat_sync">Sync &amp; Offline</string>
+
+    <string name="help_faq_expanded">Expanded</string>
+    <string name="help_faq_collapsed">Collapsed</string>
+    <string name="help_faq_ask_ai">🤖 Ask AI for more details</string>
+    <string name="help_faq_message_support">💬 Message Support</string>
+    <string name="help_faq_empty">No questions matched your search.</string>
+    <string name="help_faq_empty_ask">Ask Twin Care AI about \"%1$s\"</string>
+    <!-- Sent to the care team when someone taps "Message Support" on a question. -->
+    <string name="help_about_question">I have a question about: \"%1$s\"</string>
+
+    <string name="help_banner_title">Still have a question or need personalized help?</string>
+    <string name="help_banner_text">Chat with our AI companion for fast solutions, or chat manually with our human support team. Every message goes directly to our admin team.</string>
+    <string name="help_banner_cta">💬 Start Chat with Care Team</string>
+
+    <string name="help_mode_ai">🤖 Twin Care AI</string>
+    <string name="help_mode_human">👤 Live Agent</string>
+    <string name="help_default_user">Valued User</string>
+
+    <string name="help_welcome_title">Welcome to Twin Hearts Care!</string>
+    <string name="help_welcome_text">Ask our AI assistant for immediate answers, or switch to Live Agent to chat manually with our support team.</string>
+    <string name="help_chip_pairing">Partner Pairing</string>
+    <string name="help_chip_vault">Secret Vault PIN</string>
+    <string name="help_chip_notifications">Notifications</string>
+    <string name="help_chip_human">Talk to Human Support</string>
+    <!-- What each quick chip sends (same sentences as the web). -->
+    <string name="help_q_pairing">How do I pair with my partner?</string>
+    <string name="help_q_vault">How does the Secret Vault PIN work?</string>
+    <string name="help_q_notifications">Why am I not receiving notifications?</string>
+    <string name="help_q_human">I want to speak with a human support agent.</string>
+
+    <string name="help_sender_ai">Twin Care AI</string>
+    <string name="help_sender_admin">Support Agent</string>
+    <string name="help_sender_user">User</string>
+    <string name="help_badge_ai">AI Response</string>
+    <string name="help_badge_admin">Care Agent</string>
+
+    <string name="help_typing_ai">Twin Care AI is drafting an answer...</string>
+    <string name="help_typing_human">Routing message to Admin Dashboard...</string>
+    <string name="help_input_ai">Ask Twin Care AI anything...</string>
+    <string name="help_input_human">Chat manually with support care team...</string>
+    <string name="help_send">Send</string>
+
+    <string name="help_toast_sent">Message sent to customer support team!</string>
+    <string name="help_toast_connect_failed">Unable to connect to support service</string>
+    <string name="help_toast_send_failed">Message delivery failed. Please retry.</string>
+    <!-- Same sentence the server uses when its AI cannot answer. -->
+    <string name="help_toast_ai_unavailable">Could not generate an AI response right now. Please switch to Live Agent chat.</string>
+</resources>

@@ -1,0 +1,10 @@
+TWIN HEARTS - MERGED PAGES (overlay zip)
+Unzip over your project root (say yes to replace). It only contains NEW files and the files that had to change.
+Built on repo commit b05b57f. Not compiled (no Android SDK in my sandbox): run one Gradle build before pushing.
+
+Pages added: Profile, Settings, Memories, Bucket List, Period Tracker, Help, My Space, Vault, Surprises, Globe, Games, Daily Routine.
+Level was already in your repo.
+
+Modified files (hand-merged, your Level/Places/Sidebar/Calls/Fights code is kept):
+ core/navigation/Routes.kt, FeatureGraphs.kt, TwinApp.kt, AppViewModel.kt, core/common/ReduceMotion.kt,
+ feature/home/HomeRoute.kt, feature/settings/SettingsRoute.kt (Help now opens Routes.Help) (AndroidManifest.xml already has POST_NOTIFICATIONS, unchanged).

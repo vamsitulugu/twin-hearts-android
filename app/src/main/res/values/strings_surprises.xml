@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Surprises + Love Capsule screen. Wording copied from index.html (#page-surprise, #surpriseModal)
+     and from the reference screenshot "Surprises". -->
+<resources>
+    <string name="surprises_title">Surprises</string>
+    <string name="surprises_tab_surprises">Surprises</string>
+    <string name="surprises_tab_capsule">Love Capsule</string>
+
+    <!-- Surprises tab -->
+    <string name="surprises_create_title">Create a Surprise</string>
+    <string name="surprises_new">+ New</string>
+    <string name="surprises_create_hint">Hidden until the unlock date — your partner won\'t see it until then 💕</string>
+    <string name="surprises_list_title">Surprises</string>
+    <string name="surprises_empty_title">No surprises yet</string>
+    <string name="surprises_empty_message">Hide a message, photo, or note for a future date — they’ll only see it once it unlocks.</string>
+    <string name="surprises_empty_action">New Surprise</string>
+    <string name="surprises_status_locked">Locked</string>
+    <string name="surprises_status_locked_yours">Locked (yours)</string>
+    <string name="surprises_status_unlocked">Unlocked</string>
+    <string name="surprises_status_unlockable">Unlockable</string>
+    <string name="surprises_partner_locked">A surprise is waiting for you! Opens %1$s 🎉</string>
+    <string name="surprises_opens">Opens %1$s</string>
+
+    <!-- New Surprise form -->
+    <string name="surprises_form_title">🎁 New Surprise</string>
+    <string name="surprises_form_type">Type</string>
+    <string name="surprises_form_name">Title</string>
+    <string name="surprises_form_name_hint">e.g. Birthday surprise</string>
+    <string name="surprises_form_message">Message (optional)</string>
+    <string name="surprises_form_message_hint">Write something...</string>
+    <string name="surprises_form_attach">Attach Photo/Video/Audio (optional)</string>
+    <string name="surprises_form_attach_photo_video">Photo or video</string>
+    <string name="surprises_form_attach_audio">Audio</string>
+    <string name="surprises_form_remove_attachment">Remove attachment</string>
+    <string name="surprises_form_date">Unlock Date</string>
+    <string name="surprises_form_date_none">Pick a date</string>
+    <string name="surprises_form_save">Hide it Away 🎁</string>
+    <string name="surprises_kind_gift">Gift idea</string>
+    <string name="surprises_kind_letter">Letter</string>
+    <string name="surprises_kind_photo">Photo</string>
+    <string name="surprises_kind_video">Video</string>
+    <string name="surprises_kind_voice">Voice note</string>
+    <string name="surprises_picker_ok">OK</string>
+
+    <!-- Love Capsule tab -->
+    <string name="surprises_capsule_create_title">Create a Love Capsule</string>
+    <string name="surprises_capsule_message">Your Message</string>
+    <string name="surprises_capsule_message_hint">Write something for the future...</string>
+    <string name="surprises_capsule_date">Unlock Date</string>
+    <string name="surprises_capsule_seal">Seal Capsule 🔒</string>
+    <string name="surprises_capsule_list_title">Our Capsules</string>
+    <string name="surprises_capsule_empty_title">No capsules yet</string>
+    <string name="surprises_capsule_empty_message">Write a message today, pick a future date, and it stays sealed until then — a little surprise waiting on the calendar.</string>
+    <string name="surprises_capsule_empty_action">Create Capsule</string>
+    <string name="surprises_capsule_sealed_text">A sealed message is waiting...</string>
+    <string name="surprises_capsule_tap_to_open">Tap to open your unlocked capsule!</string>
+    <string name="surprises_capsule_open">Open</string>
+
+    <!-- Delete -->
+    <string name="surprises_delete_surprise_title">Delete this surprise?</string>
+    <string name="surprises_delete_surprise_message">This surprise will be permanently deleted.</string>
+    <string name="surprises_delete_capsule_title">Delete this capsule?</string>
+    <string name="surprises_delete_capsule_message">This time capsule will be permanently deleted.</string>
+    <string name="surprises_delete">Delete</string>
+
+    <!-- One-off messages (toasts) -->
+    <string name="surprises_toast_hidden">Surprise hidden! 🎁</string>
+    <string name="surprises_toast_sealed">Capsule sealed! 🔒</string>
+    <string name="surprises_toast_surprise_deleted">Surprise deleted</string>
+    <string name="surprises_toast_capsule_deleted">Capsule deleted</string>
+    <string name="surprises_toast_need_title_date">Title and unlock date required</string>
+    <string name="surprises_toast_need_message_date">Write a message and pick a date</string>
+    <string name="surprises_toast_still_locked">🔒 Still locked until %1$s</string>
+    <string name="surprises_toast_file_too_big">That file is too large. Videos can be up to %1$d MB and audio up to %2$d MB.</string>
+    <string name="surprises_toast_file_unsupported">That file type isn\'t supported — please choose a photo, video or audio file.</string>
+    <string name="surprises_toast_file_unreadable">Couldn\'t read that file. Please pick another one.</string>
+
+    <!-- Media (accessibility + labels) -->
+    <string name="surprises_media_photo">Photo attached to this surprise</string>
+    <string name="surprises_media_play_video">Play video</string>
+    <string name="surprises_media_play_voice">Play voice note</string>
+    <string name="surprises_media_close_photo">Close photo</string>
+    <string name="surprises_a11y_delete">Delete</string>
+</resources>

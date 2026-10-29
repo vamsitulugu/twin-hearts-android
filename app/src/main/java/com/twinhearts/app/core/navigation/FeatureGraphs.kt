@@ -25,6 +25,18 @@ import com.twinhearts.app.feature.study.studyGraph
 import com.twinhearts.app.feature.twinai.twinAiGraph
 import com.twinhearts.app.feature.places.ui.placesGraph
 import com.twinhearts.app.feature.level.levelGraph
+import com.twinhearts.app.feature.profile.profileGraph
+import com.twinhearts.app.feature.settings.settingsGraph
+import com.twinhearts.app.feature.memories.memoriesGraph
+import com.twinhearts.app.feature.bucket.bucketGraph
+import com.twinhearts.app.feature.period.periodGraph
+import com.twinhearts.app.feature.help.helpGraph
+import com.twinhearts.app.feature.myspace.mySpaceGraph
+import com.twinhearts.app.feature.vault.vaultGraph
+import com.twinhearts.app.feature.surprises.surprisesGraph
+import com.twinhearts.app.feature.globe.globeGraph
+import com.twinhearts.app.feature.games.gamesGraph
+import com.twinhearts.app.feature.dailyroutine.dailyRoutineGraph
 import com.twinhearts.app.feature.us.UsRoute.usGraph
 
 /**
@@ -52,6 +64,18 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
     usGraph(navController) // 3.1 Us
     levelGraph(navController) // 3.2 Couple Level
     placesGraph(navController) // Places
+    profileGraph(navController) // 2.6 Our Profile
+    settingsGraph(navController) // 2.5 Settings
+    memoriesGraph(navController) // Memories
+    bucketGraph(navController) // 4.x Bucket List
+    periodGraph(navController) // 4.x Period Tracker
+    helpGraph(navController) // 4.x Help & Customer Care
+    mySpaceGraph(navController) // My Space
+    vaultGraph(navController) // Secret Vault
+    surprisesGraph(navController) // Surprises + Love Capsule
+    globeGraph(navController) // 6.x Memory Globe
+    gamesGraph(navController) // Games
+    dailyRoutineGraph(navController) // 4.x Daily Routine
 }
 
 /**
@@ -61,8 +85,6 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
  */
 internal fun NavGraphBuilder.pendingGraphs(navController: NavHostController) {
     val openGallery = { navController.navigate(Routes.DesignGallery) }
-    pending<Routes.Settings>(R.string.core_nav_settings, openGallery)
-    pending<Routes.Profile>(R.string.app_name, openGallery)
 }
 
 private inline fun <reified T : Any> NavGraphBuilder.pending(

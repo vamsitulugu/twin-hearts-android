@@ -39,6 +39,7 @@ import androidx.navigation.compose.rememberNavController
 import com.twinhearts.app.R
 import com.twinhearts.app.feature.calls.ui.IncomingCallWatcher
 import com.twinhearts.app.core.design.BottomBarItem
+import com.twinhearts.app.core.common.LocalReduceMotionSetting
 import com.twinhearts.app.core.design.LocalOpenSidebar
 import com.twinhearts.app.core.design.TwinBackground
 import com.twinhearts.app.core.design.TwinBottomBar
@@ -62,9 +63,12 @@ private val tabRoutes: List<Any> = bottomBarItems.map { it.key }
 fun TwinApp(viewModel: AppViewModel = hiltViewModel()) {
     val startRoute by viewModel.startRoute.collectAsStateWithLifecycle()
     val session by viewModel.session.collectAsStateWithLifecycle()
-    TwinBackground {
-        // Until the start screen is known we show only the background (a few milliseconds).
-        startRoute?.let { start -> TwinNavigation(startDestination = start, session = session) }
+    val reduceMotion by viewModel.reduceMotion.collectAsStateWithLifecycle()
+    CompositionLocalProvider(LocalReduceMotionSetting provides reduceMotion) {
+        TwinBackground {
+            // Until the start screen is known we show only the background (a few milliseconds).
+            startRoute?.let { start -> TwinNavigation(startDestination = start, session = session) }
+        }
     }
 }
 
@@ -97,9 +101,12 @@ private fun TwinNavigation(startDestination: Any, session: com.twinhearts.app.co
     // (like WhatsApp), so the bar is hidden on both. Leave Chat with the back arrow.
     // Fight Log keeps the bottom bar (as in the web reference), with no tab highlighted.
     val onFights = destination?.hasRoute<Routes.Fights>() == true
+    // My Space and the Secret Vault also keep the bottom bar, as in the reference screens.
+    val onMySpace = destination?.hasRoute<Routes.MySpace>() == true
+    val onVault = destination?.hasRoute<Routes.Vault>() == true
     val showBottomBar = (selectedItem != null &&
         selectedItem.key != Routes.TwinAi &&
-        selectedItem.key != Routes.Chat) || onFights
+        selectedItem.key != Routes.Chat) || onFights || onMySpace || onVault
 
     // Back closes the menu first.
     BackHandler(enabled = drawerState.isOpen) { scope.launch { drawerState.close() } }

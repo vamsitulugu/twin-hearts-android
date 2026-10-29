@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bucket List (web: page-bucket). Wording copied from the web app. -->
+<resources>
+    <string name="bucket_title">Bucket List</string>
+    <string name="bucket_card_title">Our Bucket List</string>
+    <string name="bucket_add_dream">Add Dream</string>
+    <string name="bucket_add_dream_plus">+ Add Dream</string>
+    <string name="bucket_empty_title">Nothing on the list yet</string>
+    <string name="bucket_empty_hint">Add your first dream together — a trip, an experience, anything you want to chase as a team.</string>
+    <string name="bucket_added">Dream added! 🌟</string>
+    <string name="bucket_ok">OK</string>
+
+    <string name="bucket_form_title">🌟 Add a Dream</string>
+    <string name="bucket_form_name">Dream / Goal</string>
+    <string name="bucket_form_name_hint">e.g. Travel to Paris together</string>
+    <string name="bucket_form_category">Category</string>
+    <string name="bucket_form_date">Target Date (optional)</string>
+    <string name="bucket_form_date_none">No date</string>
+    <string name="bucket_form_date_clear">Clear</string>
+    <string name="bucket_form_visibility">Who can see this?</string>
+    <string name="bucket_form_save">Add Dream ✨</string>
+
+    <string name="bucket_cat_travel">Travel</string>
+    <string name="bucket_cat_experience">Experience</string>
+    <string name="bucket_cat_achievement">Achievement</string>
+    <string name="bucket_cat_home">Home</string>
+    <string name="bucket_cat_romance">Romance</string>
+    <string name="bucket_cat_adventure">Adventure</string>
+    <string name="bucket_cat_other">Other</string>
+
+    <string name="bucket_vis_both">👥 Both</string>
+    <string name="bucket_vis_self">🙋 Only Me</string>
+    <string name="bucket_vis_partner">💌 Partner Only</string>
+    <string name="bucket_vis_both_form">👥 Both of us</string>
+    <string name="bucket_vis_self_form">🙋 Only Me (private)</string>
+
+    <string name="bucket_mark_done">Mark %1$s as done</string>
+    <string name="bucket_mark_not_done">Mark %1$s as not done</string>
+    <string name="bucket_delete_one">Delete dream</string>
+    <string name="bucket_delete_title">Delete this dream?</string>
+    <string name="bucket_delete_message">\"%1$s\" will be permanently deleted.</string>
+    <string name="bucket_delete_confirm">Delete</string>
+    <string name="bucket_selected_count">%1$d selected</string>
+    <string name="bucket_exit_selection">Exit selection</string>
+    <string name="bucket_delete_selected">Delete selected</string>
+    <plurals name="bucket_delete_many_title">
+        <item quantity="one">Delete %1$d selected dream?</item>
+        <item quantity="other">Delete %1$d selected dreams?</item>
+    </plurals>
+    <string name="bucket_delete_many_message">These dreams will be permanently deleted.</string>
+</resources>

@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Games page text. Wording copied from the web app (games.html). -->
+<resources>
+    <string name="games_title">Couple Games</string>
+    <string name="games_hero_title">🎮 Couple Games</string>
+    <string name="games_hero_sub">Play together, face to face, in real time 💕</string>
+    <string name="games_section_games">🎮 Games</string>
+    <string name="games_you_suffix">%1$s (You)</string>
+    <string name="games_level_xp">Level %1$d · %2$d XP</string>
+    <string name="games_stat_coins">🪙 %1$d</string>
+    <string name="games_stat_wins">🏆 %1$d wins</string>
+    <string name="games_stat_streak">🔥 %1$dd streak</string>
+    <string name="games_vs">VS</string>
+    <string name="games_playing_now">Playing %1$s</string>
+    <string name="games_partner_is_playing">%1$s is playing</string>
+    <string name="games_play_now">▶ Play Now</string>
+    <string name="games_continue">▶ Continue</string>
+    <string name="games_badge_new">New</string>
+    <string name="games_badge_trending">🔥 Trending</string>
+    <string name="games_fav_add">Add to favourites</string>
+    <string name="games_fav_remove">Remove from favourites</string>
+    <string name="games_soon">Coming in the next update</string>
+    <string name="games_soon_badge">Soon</string>
+    <string name="games_lv">Lv %1$d</string>
+    <string name="games_sync_problem">Connection problem. Trying again…</string>
+    <string name="games_prize_level_up">Level Up!</string>
+    <string name="games_prize_continue">Awesome!</string>
+    <string name="games_prize_xp">+%1$d XP</string>
+    <string name="games_prize_coins">+%1$d 🪙</string>
+    <string name="games_prize_level">Level %1$d</string>
+    <string name="games_prize_final">Final: %1$d - %2$d</string>
+    <string name="games_tod_title">Truth or Dare</string>
+    <string name="games_tod_emoji">🔥</string>
+    <string name="games_tod_desc">Spin the wheel — real-time synced truths &amp; dares, streaks, reactions &amp; voice reading.</string>
+    <string name="games_tod_tag1">🎡 Party</string>
+    <string name="games_tod_tag2">⏱ 10m+</string>
+    <string name="games_tod_tag3">✨ 10 XP/round</string>
+    <string name="games_mindreader_title">Mind Reader</string>
+    <string name="games_mindreader_emoji">🔮</string>
+    <string name="games_mindreader_desc">Answer secretly, flip together — see how well you really know each other with live compatibility scoring.</string>
+    <string name="games_mindreader_tag1">🧠 Compat</string>
+    <string name="games_mindreader_tag2">⏱ 5-15m</string>
+    <string name="games_mindreader_tag3">✨ 12 XP/round</string>
+    <string name="games_ludo_title">Real Ludo</string>
+    <string name="games_ludo_emoji">🎲</string>
+    <string name="games_ludo_desc">Classic 2-player Ludo — real dice, safe cells, capturing &amp; home stretch, synced live.</string>
+    <string name="games_ludo_tag1">🎲 Board</string>
+    <string name="games_ludo_tag2">⏱ 15-25m</string>
+    <string name="games_ludo_tag3">✨ 15 XP/win</string>
+    <string name="games_ttt_title">Tic Tac Toe</string>
+    <string name="games_ttt_emoji">❌⭕</string>
+    <string name="games_ttt_desc">Quick classic — perfectly synced moves, best-of streak scoring.</string>
+    <string name="games_ttt_tag1">⚡ Quick</string>
+    <string name="games_ttt_tag2">⏱ 2-5m</string>
+    <string name="games_ttt_tag3">✨ 8 XP/win</string>
+    <string name="games_draw_title">Draw &amp; Guess</string>
+    <string name="games_draw_emoji">🎨</string>
+    <string name="games_draw_desc">One of you draws a secret word, the other guesses in real time — swap roles each round.</string>
+    <string name="games_draw_tag1">🖌 Creative</string>
+    <string name="games_draw_tag2">⏱ 5-20m</string>
+    <string name="games_draw_tag3">✨ 20 XP/round</string>
+    <string name="games_memory_title">Memory Match</string>
+    <string name="games_memory_emoji">🧠</string>
+    <string name="games_memory_desc">Flip cards together to find matching pairs — turns sync instantly between you two.</string>
+    <string name="games_memory_tag1">🧩 Classic</string>
+    <string name="games_memory_tag2">⏱ 5-10m</string>
+    <string name="games_memory_tag3">✨ 6 XP/pair</string>
+    <string name="games_bomb_title">Don\'t Touch The Bomb</string>
+    <string name="games_bomb_emoji">💣</string>
+    <string name="games_bomb_desc">One of you sees the bombs, the other must cross the field blind — guide them with voice, chat &amp; emoji.</string>
+    <string name="games_bomb_tag1">💣 Co-op</string>
+    <string name="games_bomb_tag2">⏱ 3-8m</string>
+    <string name="games_bomb_tag3">✨ 25 XP/win</string>
+    <string name="games_puzzle_title">Picture Puzzle</string>
+    <string name="games_puzzle_emoji">🧩</string>
+    <string name="games_puzzle_desc">Pick a real photo from your phone — you each get half the pieces and must talk your way to the full picture.</string>
+    <string name="games_puzzle_tag1">🧩 Co-op</string>
+    <string name="games_puzzle_tag2">⏱ 5-15m</string>
+    <string name="games_puzzle_tag3">✨ 30 XP/win</string>
+    <string name="games_turn_yours">✨ Your turn</string>
+    <string name="games_turn_theirs">%1$s is playing…</string>
+    <string name="games_turn_theirs_ttt">%1$s’s turn…</string>
+    <string name="games_you_won">🎉 You won!</string>
+    <string name="games_partner_won">%1$s won!</string>
+    <string name="games_draw">🤝 It is a draw!</string>
+    <string name="games_tie">🤝 It is a tie!</string>
+    <string name="games_play_again">🔄 Play Again</string>
+    <string name="games_rematch">🔄 Rematch</string>
+    <string name="games_ttt_prize_won">You won this round!</string>
+    <string name="games_ttt_player_line">%1$s (%2$s)</string>
+    <string name="games_memory_your_turn">✨ Your turn — flip 2 cards</string>
+    <string name="games_memory_prize_done">All pairs matched!</string>
+    <string name="games_ludo_your_turn">✨ Your turn — roll the dice</string>
+    <string name="games_ludo_you_won">👑 You won!</string>
+    <string name="games_ludo_partner_won">%1$s won this game</string>
+    <string name="games_ludo_legend">🔴 %1$s · 🟢 %2$s — roll a 6 to leave base, land exactly on 57 to get home</string>
+    <string name="games_ludo_captured">🎯 Captured %1$s\'s token!</string>
+    <string name="games_ludo_time_up">⏱️ Time\'s up — turn skipped</string>
+    <string name="games_ludo_prize_won">Ludo Champion!</string>
+    <string name="games_ludo_hist_moved">You moved token %1$d (%2$d)</string>
+    <string name="games_ludo_hist_moved_other">%1$s moved token %2$d (%3$d)</string>
+    <string name="games_ludo_hist_captured">🎯 Token %1$d was captured</string>
+    <string name="games_ludo_hist_nomove">%1$s rolled %2$d — no move</string>
+    <string name="games_ludo_hist_timeout">⏱️ %1$s ran out of time</string>
+    <string name="games_tod_streak">🔥 Streak: %1$d</string>
+    <string name="games_tod_idle_mine">✨ Your turn to spin</string>
+    <string name="games_tod_idle_theirs">%1$s\'s turn…</string>
+    <string name="games_tod_spinning">🌀 Spinning…</string>
+    <string name="games_tod_choose_mine">Pick Truth or Dare</string>
+    <string name="games_tod_choose_theirs">%1$s is choosing…</string>
+    <string name="games_tod_compose_mine">Write it for %1$s</string>
+    <string name="games_tod_compose_theirs">%1$s is writing…</string>
+    <string name="games_tod_respond">Your turn to respond</string>
+    <string name="games_tod_waiting">Waiting for %1$s…</string>
+    <string name="games_tod_spin_btn">SPIN THE BOTTLE 🌀</string>
+    <string name="games_tod_spinning_btn">SPINNING…</string>
+    <string name="games_tod_hint_mine">Flick, drag, or tap Spin</string>
+    <string name="games_tod_history_show">📜 Show history</string>
+    <string name="games_tod_history_hide">📜 Hide history</string>
+    <string name="games_tod_history_empty">No rounds played yet</string>
+    <string name="games_tod_truth">Truth</string>
+    <string name="games_tod_dare">Dare</string>
+    <string name="games_tod_truth_up">💬 TRUTH</string>
+    <string name="games_tod_dare_up">⚡ DARE</string>
+    <string name="games_tod_truth_emoji">💬</string>
+    <string name="games_tod_dare_emoji">⚡</string>
+    <string name="games_tod_picking">%1$s is picking Truth or Dare…</string>
+    <string name="games_tod_writing_truth">%1$s is writing your truth…</string>
+    <string name="games_tod_writing_dare">%1$s is writing your dare…</string>
+    <string name="games_tod_compose_label_truth">💬 Ask your partner a question</string>
+    <string name="games_tod_compose_label_dare">⚡ Give your partner a dare</string>
+    <string name="games_tod_placeholder_truth">Type your question…</string>
+    <string name="games_tod_placeholder_dare">Type your dare…</string>
+    <string name="games_tod_write_first">Write something first ✍️</string>
+    <string name="games_tod_voice">🎙️ Voice</string>
+    <string name="games_tod_send">Send ➤</string>
+    <string name="games_tod_read">🔊 Read</string>
+    <string name="games_tod_answered">%1$s answered</string>
+    <string name="games_tod_you">You</string>
+    <string name="games_tod_answer_hint">Type your answer…</string>
+    <string name="games_tod_skip">😅 Skip</string>
+    <string name="games_tod_submit">Submit ✅</string>
+    <string name="games_tod_completed">✅ Completed</string>
+    <string name="games_tod_done_label">✅ Completed</string>
+    <string name="games_tod_skipped_label">⏭️ Skipped</string>
+    <string name="games_tod_prize_done">Great answer!</string>
+    <string name="games_tod_prize_penalty">Penalty Time!</string>
+    <string name="games_tod_no_voice">Voice input is not available on this phone</string>
+    <string name="games_tod_cat_romantic">💕 Romantic</string>
+    <string name="games_tod_cat_cute">🥰 Cute</string>
+    <string name="games_tod_cat_funny">😂 Funny</string>
+    <string name="games_tod_cat_deep">💭 Deep</string>
+    <string name="games_tod_cat_hot">🔥 Hot</string>
+    <string name="games_tod_cat_adventure">🗺️ Adventure</string>
+    <string-array name="games_tod_romantic_truths">
+        <item>What made you fall for me?</item>
+        <item>What\'s your favorite memory of us?</item>
+        <item>When did you know I was the one?</item>
+    </string-array>
+    <string-array name="games_tod_romantic_dares">
+        <item>Give a 20-second compliment</item>
+        <item>Send a voice note saying why you love me</item>
+        <item>Recreate our first date moment</item>
+    </string-array>
+    <string-array name="games_tod_cute_truths">
+        <item>What\'s my most adorable habit?</item>
+        <item>What nickname would you give me?</item>
+        <item>What\'s a tiny thing I do that makes you smile?</item>
+    </string-array>
+    <string-array name="games_tod_cute_dares">
+        <item>Do your best impression of me</item>
+        <item>Send the last selfie you took</item>
+        <item>Draw me in 30 seconds</item>
+    </string-array>
+    <string-array name="games_tod_funny_truths">
+        <item>Weirdest dream you\'ve had about me?</item>
+        <item>Funniest thing that happened on a date?</item>
+        <item>What\'s my most annoying habit?</item>
+    </string-array>
+    <string-array name="games_tod_funny_dares">
+        <item>Talk in an accent for 2 minutes</item>
+        <item>Do 10 jumping jacks right now</item>
+        <item>Sing our song badly on purpose</item>
+    </string-array>
+    <string-array name="games_tod_deep_truths">
+        <item>What\'s a fear you haven\'t told me?</item>
+        <item>What do you want us to work on together?</item>
+        <item>What does forever look like to you?</item>
+    </string-array>
+    <string-array name="games_tod_deep_dares">
+        <item>Share a goal you\'ve been scared to say out loud</item>
+        <item>Write down one thing you appreciate about me</item>
+        <item>Talk about a memory that shaped you</item>
+    </string-array>
+    <string-array name="games_tod_hot_truths">
+        <item>What\'s something you find attractive about me?</item>
+        <item>What outfit of mine do you love most?</item>
+        <item>What\'s a compliment you love hearing?</item>
+    </string-array>
+    <string-array name="games_tod_hot_dares">
+        <item>Send a flirty message</item>
+        <item>Give a slow wink on camera</item>
+        <item>Whisper something sweet</item>
+    </string-array>
+    <string-array name="games_tod_adventure_truths">
+        <item>Dream trip we should take together?</item>
+        <item>Craziest thing you\'d do with me?</item>
+        <item>A bucket-list thing for us?</item>
+    </string-array>
+    <string-array name="games_tod_adventure_dares">
+        <item>Plan a mini adventure for next weekend</item>
+        <item>Suggest a new food to try together</item>
+        <item>Pick our next movie night pick</item>
+    </string-array>
+    <string-array name="games_tod_penalties">
+        <item>Do 10 pushups 💪</item>
+        <item>Send a silly selfie 🤳</item>
+        <item>Sing happy birthday 🎂</item>
+        <item>Speak in a funny voice for 1 min 🗣️</item>
+    </string-array>
+    <string name="games_tod_your_answer">Your answer</string>
+</resources>

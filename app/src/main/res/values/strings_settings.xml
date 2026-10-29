@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Settings. Wording copied from index.html (#page-settings and its scripts). New texts are marked "new". -->
+<resources>
+    <string name="settings_title">Settings</string>
+    <string name="settings_search_hint">Search settings</string>
+    <string name="settings_no_results">No settings found</string>
+    <string name="settings_hero_add_anniversary">Add your anniversary</string>
+    <string name="settings_hero_together_since">Together since %1$s · %2$s</string>
+    <plurals name="settings_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+
+    <!-- Home list -->
+    <string name="settings_sec_account">Account</string>
+    <string name="settings_sec_preferences">Preferences</string>
+    <string name="settings_sec_security">Security</string>
+    <string name="settings_sec_data">Data</string>
+    <string name="settings_sec_support">Support</string>
+    <string name="settings_sec_about">About</string>
+
+    <string name="settings_profile">Profile</string>
+    <string name="settings_profile_sub">Names, photo and important dates</string>
+    <string name="settings_partner">Partner Connection</string>
+    <string name="settings_partner_sub">Link, requests and removal</string>
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_notifications_sub">Push alerts and quiet hours</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_appearance_sub">Theme, motion and animations</string>
+    <string name="settings_chatmedia">Chat &amp; Media</string>
+    <string name="settings_chatmedia_sub">Photos and voice messages</string>
+    <string name="settings_twin">Twin AI</string>
+    <string name="settings_twin_sub">Couple assistant preferences</string>
+    <string name="settings_privacy">Privacy &amp; Security</string>
+    <string name="settings_privacy_sub">App lock and vault PIN</string>
+    <string name="settings_storage">Storage &amp; Data</string>
+    <string name="settings_storage_sub">Storage, backup and cloud sync</string>
+    <string name="settings_help">Customer Care &amp; Help</string>
+    <string name="settings_help_sub">FAQs, Twin Care AI &amp; live agent support</string>
+    <string name="settings_help_about_sub">Questions, Twin Care AI &amp; live support</string>
+    <string name="settings_about">App Info</string>
+    <string name="settings_about_sub">Version and privacy</string>
+    <string name="settings_logout">Log Out</string>
+    <string name="settings_logout_sub">Your cloud data stays safe</string>
+    <string name="settings_logout_confirm">Log out? You can sign back in anytime. Your data stays safe in the cloud.</string>
+
+    <string name="settings_val_connected">Connected</string>
+    <string name="settings_val_pending">Pending</string>
+    <string name="settings_val_not_connected">Not connected</string>
+    <string name="settings_val_on">On</string>
+    <string name="settings_val_off">Off</string>
+    <string name="settings_val_dark">Dark</string>
+
+    <!-- Sub-page headers -->
+    <string name="settings_profile_head">How you appear in the app</string>
+    <string name="settings_partner_head">Link your account with your partner</string>
+    <string name="settings_notifications_head">Stay connected with the moments that matter</string>
+    <string name="settings_appearance_head">Customize your app experience</string>
+    <string name="settings_chatmedia_head">Manage how your media is handled</string>
+    <string name="settings_twin_head">Personalized couple assistant</string>
+    <string name="settings_privacy_head">Your data and memories are safe with us</string>
+    <string name="settings_storage_head">Manage your storage and keep your memories safe</string>
+    <string name="settings_about_head">Version, credits and privacy</string>
+
+    <!-- Profile -->
+    <string name="settings_change_photo">Change photo</string>
+    <string name="settings_names">Names</string>
+    <string name="settings_your_name">Your name</string>
+    <string name="settings_partner_name">Partner\'s name</string>
+    <string name="settings_partner_name_hint">Partner name</string>
+    <string name="settings_i_am">I am</string>
+    <string name="settings_girl">Girl</string>
+    <string name="settings_boy">Boy</string>
+    <string name="settings_important_dates">Important dates</string>
+    <string name="settings_together_since">Together since</string>
+    <string name="settings_your_birthday">Your birthday</string>
+    <string name="settings_partner_birthday">Partner\'s birthday</string>
+    <string name="settings_birthdays">Birthdays</string>
+    <string name="settings_date_not_set">Not set</string>
+    <string name="settings_save_changes">Save changes</string>
+    <string name="settings_saved">Settings saved! 💕</string>
+    <string name="settings_photo_updated">Photo updated! 📸</string>
+
+    <!-- Partner connection -->
+    <string name="settings_status">Status</string>
+    <string name="settings_status_not_connected">Not Connected</string>
+    <string name="settings_status_connected">Connected ❤️</string>
+    <string name="settings_status_waiting">Waiting for Partner ❤️</string>
+    <string name="settings_partner_phone">Partner\'s phone</string>
+    <string name="settings_phone_hint">10-digit number</string>
+    <string name="settings_send_request">Send connection request</string>
+    <string name="settings_err_enter_phone">Enter your partner\'s phone number</string>
+    <string name="settings_invite_sent">Invitation sent ❤️ Waiting for your partner to accept.</string>
+    <string name="settings_waiting_title">Waiting for partner...</string>
+    <string name="settings_request_sent_to">Request sent to</string>
+    <string name="settings_cancel_request">Cancel Request</string>
+    <string name="settings_request_cancelled">Request cancelled</string>
+    <string name="settings_requests_received">Requests received</string>
+    <string name="settings_requests_empty">No pending partner requests.</string>
+    <string name="settings_accept">Accept ❤️</string>
+    <string name="settings_decline">Decline</string>
+    <string name="settings_invite_declined">Invitation declined</string>
+    <string name="settings_connected_with">Connected with %1$s! 💕</string>
+    <string name="settings_remove_partner">Remove partner</string>
+    <string name="settings_remove_partner_sub">Unlink from your partner</string>
+    <string name="settings_remove_confirm_1">Remove %1$s from this space?\n\nThis only removes the connection — all chats, photos, memories and history stay safe. You can both pair with someone new afterward.</string>
+    <string name="settings_remove_confirm_2">Are you absolutely sure? This cannot be undone.</string>
+    <string name="settings_partner_removed">💔 Partner removed. Your data is safe — you can pair again anytime.</string>
+    <string name="settings_partner_fallback">your partner</string>
+    <string name="settings_sent_just_now">Sent just now</string>
+    <plurals name="settings_sent_minutes">
+        <item quantity="one">Sent %d min ago</item>
+        <item quantity="other">Sent %d mins ago</item>
+    </plurals>
+    <plurals name="settings_sent_hours">
+        <item quantity="one">Sent %d hour ago</item>
+        <item quantity="other">Sent %d hours ago</item>
+    </plurals>
+    <plurals name="settings_sent_days">
+        <item quantity="one">Sent %d day ago</item>
+        <item quantity="other">Sent %d days ago</item>
+    </plurals>
+
+    <!-- Notifications -->
+    <string name="settings_push">Push notifications</string>
+    <string name="settings_notif_enabled">✅ Enabled</string>
+    <string name="settings_notif_blocked">❌ Blocked — enable in phone settings</string>
+    <string name="settings_notif_tap">Tap to enable</string>
+    <string name="settings_notif_enabled_toast">Notifications enabled! 🔔</string>
+    <string name="settings_notif_on_toast">🔔 Notifications are on</string>
+    <string name="settings_notif_not_enabled">Notifications not enabled</string>
+    <string name="settings_notif_rationale_title">Turn on notifications?</string>
+    <string name="settings_notif_rationale_body">Twin Hearts uses notifications to tell you when your partner sends a message, a hug or a touch.</string>
+    <string name="settings_allow">Allow</string>
+    <string name="settings_quiet_hours">Quiet hours</string>
+    <string name="settings_from">From</string>
+    <string name="settings_to">To</string>
+
+    <!-- Appearance, Chat &amp; Media, Twin AI -->
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_note">Light and System themes are coming soon. For now the app stays Dark.</string>
+    <string name="settings_reduce_motion">Reduce motion</string>
+    <string name="settings_reduce_motion_sub">Minimize animations and save battery</string>
+    <string name="settings_auto_save">Auto-save photos</string>
+    <string name="settings_auto_save_sub">Save snapped photos to your gallery</string>
+    <string name="settings_voice_playback">Voice message playback</string>
+    <string name="settings_voice_playback_sub">Auto-play voice messages on open</string>
+    <string name="settings_ai_context">Use relationship context</string>
+    <string name="settings_ai_context_sub">Share your mood and data with Twin for better advice</string>
+    <string name="settings_enabled">Enabled ✓</string>
+    <string name="settings_disabled">Disabled</string>
+
+    <!-- Privacy and security -->
+    <string name="settings_app_lock">Lock app on background</string>
+    <string name="settings_app_lock_sub">Ask for PIN when you return to the app</string>
+    <string name="settings_change_pin">Change vault PIN</string>
+    <string name="settings_current_pin">Current PIN</string>
+    <string name="settings_new_pin">New PIN</string>
+    <string name="settings_pin_dots">••••</string>
+    <string name="settings_pin_four_digits">4 digits</string>
+    <string name="settings_update_pin">Update PIN</string>
+    <string name="settings_pin_enter_current">Enter your current PIN first</string>
+    <string name="settings_pin_not_four">PIN must be exactly 4 digits</string>
+    <string name="settings_pin_repeated">Too easy to guess — avoid repeated digits like 1111</string>
+    <string name="settings_pin_sequence">Too easy to guess — avoid sequences like 1234</string>
+    <string name="settings_pin_updated">✅ PIN updated!</string>
+    <string name="settings_pin_updated_toast">Vault PIN updated! 🔐</string>
+    <string name="settings_pin_failed">❌ %1$s</string>
+
+    <!-- Storage and data -->
+    <string name="settings_calculating">⏳ Calculating...</string>
+    <string name="settings_used">Used</string>
+    <string name="settings_available">Available</string>
+    <string name="settings_total">Total</string>
+    <string name="settings_last_sync">Last sync: %1$s</string>
+    <string name="settings_cat_photos">Photos &amp; Videos</string>
+    <string name="settings_cat_voice">Voice Messages</string>
+    <string name="settings_cat_chat">Chat Messages</string>
+    <string name="settings_cat_notes">Notes &amp; Journal</string>
+    <string name="settings_cat_app">App Data</string>
+    <string name="settings_manage_storage">🛠️ Manage Storage</string>
+    <string name="settings_clear_cache">Clear Cache</string>
+    <string name="settings_export_photos">Export Photos</string>
+    <string name="settings_full_backup">Full Backup</string>
+    <string name="settings_clear_cache_confirm">Clear temporary cache? Your data will not be deleted.</string>
+    <string name="settings_cache_cleared">Cache cleared! ✨</string>
+    <string name="settings_no_photos">No photos to export</string>
+    <string name="settings_photos_saved">Saved %1$d photos 📸</string>
+    <string name="settings_backup_sync">Backup &amp; sync</string>
+    <string name="settings_export_backup">Export backup</string>
+    <string name="settings_export_backup_sub">Download all your data as JSON</string>
+    <string name="settings_import_backup">Import backup</string>
+    <string name="settings_import_backup_sub">Restore from a previous backup file</string>
+    <string name="settings_cloud_sync">Cloud sync</string>
+    <string name="settings_synced_to">Synced to Supabase</string>
+    <string name="settings_last_backup">Last backup: %1$s</string>
+    <string name="settings_sync_now">Sync now</string>
+    <string name="settings_synced">Synced! ☁️</string>
+    <string name="settings_backup_exported">Backup exported! 📤</string>
+    <string name="settings_backup_restored">Backup restored! ✅</string>
+    <string name="settings_backup_invalid">Invalid backup file ❌</string>
+    <string name="settings_restore_title">Restore this backup?</string>
+    <string name="settings_restore_body">Your current data will be replaced by the backup. Your partner will see the restored data too.</string>
+    <string name="settings_restore">Restore</string>
+
+    <!-- About -->
+    <string name="settings_app_name">Twin Hearts</string>
+    <string name="settings_version">Together. Always. · Version %1$s</string>
+    <string name="settings_privacy_policy">Privacy policy</string>
+    <string name="settings_privacy_policy_sub">All data is private to your couple only</string>
+    <string name="settings_privacy_url" translatable="false">https://twinhearts.vercel.app/privacy-policy.html</string>
+
+    <!-- Shared -->
+    <string name="settings_ok">OK</string>
+    <string name="settings_cancel">Cancel</string>
+    <string name="settings_clear">Clear</string>
+
+    <!-- Search keywords (the web's INDEX) -->
+    <string name="settings_kw_profile">names photo avatar gender</string>
+    <string name="settings_kw_together">anniversary date</string>
+    <string name="settings_kw_birthdays">birthday dates</string>
+    <string name="settings_kw_partner">link request phone pair</string>
+    <string name="settings_kw_remove">unlink disconnect</string>
+    <string name="settings_kw_requests">pending invitations accept</string>
+    <string name="settings_kw_notifications">push alerts</string>
+    <string name="settings_kw_quiet">dnd do not disturb silent</string>
+    <string name="settings_kw_appearance">motion animations</string>
+    <string name="settings_kw_motion">animations battery</string>
+    <string name="settings_kw_chatmedia">photos voice</string>
+    <string name="settings_kw_autosave">gallery</string>
+    <string name="settings_kw_voice">autoplay audio</string>
+    <string name="settings_kw_twin">assistant ai</string>
+    <string name="settings_kw_context">mood data advice</string>
+    <string name="settings_kw_privacy">security</string>
+    <string name="settings_kw_lock">app lock</string>
+    <string name="settings_kw_pin">password code</string>
+    <string name="settings_kw_storage">space used</string>
+    <string name="settings_kw_export">download json</string>
+    <string name="settings_kw_import">restore</string>
+    <string name="settings_kw_cloud">supabase sync now</string>
+    <string name="settings_kw_about">version</string>
+    <string name="settings_kw_legal">legal terms</string>
+</resources>

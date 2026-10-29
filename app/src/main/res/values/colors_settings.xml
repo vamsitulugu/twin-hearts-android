@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Settings row icon colours, copied from the web page (index.html, page-settings). -->
+<resources>
+    <color name="settings_ico_profile">#E50914</color>
+    <color name="settings_ico_partner">#EC4899</color>
+    <color name="settings_ico_notifications">#F59E0B</color>
+    <color name="settings_ico_appearance">#A855F7</color>
+    <color name="settings_ico_chat">#3B82F6</color>
+    <color name="settings_ico_twin">#14B8A6</color>
+    <color name="settings_ico_privacy">#34D399</color>
+    <color name="settings_ico_storage">#0EA5E9</color>
+    <color name="settings_ico_about">#94A3B8</color>
+    <color name="settings_ico_logout">#F87171</color>
+</resources>

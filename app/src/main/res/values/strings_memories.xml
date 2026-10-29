@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="memories_title">Our Memories</string>
+    <string name="memories_capture">Capture a Moment</string>
+    <string name="memories_take_photo">📷 Take Photo</string>
+    <string name="memories_record_video">🎥 Record Video</string>
+    <string name="memories_add_photos">📁 Add Photos</string>
+    <string name="memories_add_video">🎬 Add Video</string>
+    <string name="memories_add">Add</string>
+    <string name="memories_by_month">Memories Added by Month</string>
+    <string name="memories_our_memories">Our Memories</string>
+    <string name="memories_camera_failed">Couldn\'t open the camera. Please try again.</string>
+
+    <string name="memories_insight_first">Add your first photo or video to start building your shared memory album.</string>
+    <string name="memories_insight_so_far">You have %1$d memories saved so far. Add a new one to keep the story going.</string>
+    <plurals name="memories_insight_month">
+        <item quantity="one">You\'ve added %1$d memory this month — %2$d in total (%3$d videos).</item>
+        <item quantity="other">You\'ve added %1$d memories this month — %2$d in total (%3$d videos).</item>
+    </plurals>
+
+    <string name="memories_uploading">Uploading %1$d of %2$d…</string>
+    <plurals name="memories_failed_uploads">
+        <item quantity="one">%1$d file couldn\'t be uploaded.</item>
+        <item quantity="other">%1$d files couldn\'t be uploaded.</item>
+    </plurals>
+    <string name="memories_retry">Retry</string>
+    <string name="memories_dismiss">Dismiss</string>
+    <plurals name="memories_added">
+        <item quantity="one">Memory added! 💕</item>
+        <item quantity="other">%1$d memories added! 💕</item>
+    </plurals>
+    <string name="memories_partly_added">%1$d added. %2$d couldn\'t be uploaded — tap Retry.</string>
+
+    <string name="memories_selected_count">%1$d selected</string>
+    <string name="memories_share">Share</string>
+    <string name="memories_delete">Delete</string>
+    <plurals name="memories_delete_title_photos">
+        <item quantity="one">Delete this photo?</item>
+        <item quantity="other">Delete %1$d selected photos?</item>
+    </plurals>
+    <plurals name="memories_delete_title_media">
+        <item quantity="one">Delete this memory?</item>
+        <item quantity="other">Delete %1$d selected memories?</item>
+    </plurals>
+    <string name="memories_delete_message">These memories will be permanently deleted, including any videos.</string>
+    <plurals name="memories_deleted">
+        <item quantity="one">Deleted</item>
+        <item quantity="other">%1$d memories deleted</item>
+    </plurals>
+    <string name="memories_partly_deleted">%1$d deleted. %2$d couldn\'t be deleted.</string>
+
+    <string name="memories_close">Close</string>
+    <string name="memories_more">More</string>
+    <string name="memories_download">Download</string>
+    <string name="memories_details">Details</string>
+    <string name="memories_favorite">Favourite</string>
+    <string name="memories_ok">OK</string>
+    <string name="memories_detail_date">Date added: %1$s</string>
+    <string name="memories_detail_type">Type: %1$s</string>
+    <string name="memories_detail_name">File name: %1$s</string>
+    <string name="memories_type_photo">Photo</string>
+    <string name="memories_type_video">Video</string>
+    <string name="memories_photo_cd">Memory photo</string>
+    <string name="memories_video_cd">Memory video</string>
+</resources>

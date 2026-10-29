@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="myspace_title">My Space</string>
+    <string name="myspace_banner">Both of you share this space. Your personal entries stay with your role.</string>
+    <string name="myspace_ok">OK</string>
+    <string name="myspace_clear">Clear</string>
+    <string name="myspace_date">Date</string>
+    <string name="myspace_time">Time</string>
+    <string name="myspace_pick_date">Pick a date</string>
+    <string name="myspace_pick_time">Pick a time</string>
+    <string name="myspace_no_date">No date</string>
+    <string name="myspace_default_time">9:00 AM (default)</string>
+    <string name="myspace_less">Less</string>
+    <string name="myspace_more">More</string>
+
+    <string name="myspace_tab_journal">Journal</string>
+    <string name="myspace_tab_habits">Habits</string>
+    <string name="myspace_tab_notes">Notes</string>
+    <string name="myspace_tab_wellness">Wellness</string>
+    <string name="myspace_tab_reminders">Reminders</string>
+
+    <string name="myspace_vis_both">Both See</string>
+    <string name="myspace_vis_self">Only Me</string>
+    <string name="myspace_vis_partner">Partner Only</string>
+
+    <string name="myspace_delete">Delete</string>
+    <string name="myspace_deleted">Deleted</string>
+    <string name="myspace_delete_title">Delete %1$d selected item(s)?</string>
+    <string name="myspace_delete_message">This will be permanently deleted.</string>
+    <string name="myspace_delete_confirm">Delete</string>
+    <string name="myspace_select_exit">Exit selection</string>
+    <string name="myspace_select_count">%1$d selected</string>
+
+    <!-- Journal -->
+    <string name="myspace_journal_mine">%1$s\'s Journal</string>
+    <string name="myspace_journal_hint">How was your day? Write freely...</string>
+    <string name="myspace_journal_save">Save Entry ✍️</string>
+    <string name="myspace_journal_saved">Journal saved! 📖</string>
+    <string name="myspace_journal_entries">Your Entries</string>
+    <string name="myspace_journal_empty_title">No entries yet</string>
+    <string name="myspace_journal_empty_hint">Write down today\'s memory — a feeling, a moment, anything worth keeping.</string>
+    <string name="myspace_journal_partner_card">Partner\'s Entries</string>
+    <string name="myspace_journal_partner_empty">Synced when paired.</string>
+    <string name="myspace_journal_empty_action">Write First Entry</string>
+
+    <!-- Habits -->
+    <string name="myspace_habit_today">Today\'s Progress</string>
+    <string name="myspace_habit_7day">7-Day</string>
+    <plurals name="myspace_habit_avg_streak">
+        <item quantity="one">Avg streak: %1$d🔥 across %2$d habit</item>
+        <item quantity="other">Avg streak: %1$d🔥 across %2$d habits</item>
+    </plurals>
+    <string name="myspace_habit_tip_none">Add your first habit to start building streaks together.</string>
+    <string name="myspace_habit_tip_great">Amazing consistency — %1$d%% completion over the last 7 days.</string>
+    <string name="myspace_habit_tip_ok">You\'re at %1$d%% consistency this week — keep it up.</string>
+    <string name="myspace_habit_tip_low">Consistency is at %1$d%% — try checking in daily to build momentum.</string>
+    <string name="myspace_habit_heatmap">🗓️ 12-Week Activity</string>
+    <string name="myspace_habit_mine">%1$s\'s Habits</string>
+    <string name="myspace_habit_empty_title">No habits yet</string>
+    <string name="myspace_habit_empty_hint">Track small daily habits together and build streaks.</string>
+    <string name="myspace_habit_add">Add Habit</string>
+    <string name="myspace_habit_new">New Habit</string>
+    <string name="myspace_habit_name">Habit name</string>
+    <string name="myspace_habit_name_hint">e.g. Drink water</string>
+    <string name="myspace_habit_emoji">Emoji</string>
+    <string name="myspace_habit_goal">Goal per day</string>
+    <string name="myspace_habit_add_confirm">Add</string>
+    <string name="myspace_habit_added">Habit added! ✅</string>
+    <string name="myspace_habit_check">Mark %1$s as done today</string>
+    <string name="myspace_habit_undo">Mark %1$s as not done</string>
+
+    <!-- Notes -->
+    <string name="myspace_note_label">Love note</string>
+    <string name="myspace_note_hint">Write a love note or reminder...</string>
+    <string name="myspace_note_reminder">📅 Add Reminder (optional alarm)</string>
+    <string name="myspace_note_add">Add ✨</string>
+    <string name="myspace_note_added">Note added! ✨</string>
+    <string name="myspace_notes_empty_title">No notes yet</string>
+    <string name="myspace_notes_empty_hint">Write something sweet — it\'ll show up here for both of you.</string>
+
+    <!-- Wellness -->
+    <string name="myspace_well_today_title">Today</string>
+    <string name="myspace_well_glasses">glasses</string>
+    <string name="myspace_well_hours">hours</string>
+    <string name="myspace_well_minutes">min</string>
+    <string name="myspace_well_tip_none">Log today\'s water, sleep, and exercise to see your wellness insights.</string>
+    <string name="myspace_well_tip_all">Perfect day — you hit all 3 wellness goals today!</string>
+    <string name="myspace_well_tip_some">You\'ve hit %1$d/3 wellness goals today. Keep going!</string>
+    <string name="myspace_well_tip_start">Log your water, sleep and exercise to start tracking today\'s wellness.</string>
+    <string name="myspace_well_sleep_trend">😴 7-Day Sleep Trend</string>
+    <string name="myspace_well_mood_history">😊 Mood History</string>
+    <string name="myspace_well_log_title">💧 Today\'s Wellness</string>
+    <string name="myspace_well_water">Water (glasses 💧)</string>
+    <string name="myspace_well_sleep">Sleep (hours 😴)</string>
+    <string name="myspace_well_exercise">Exercise (minutes 🏃)</string>
+    <string name="myspace_well_save">Save today</string>
+    <string name="myspace_wellness_saved">Wellness saved 💆</string>
+    <string name="myspace_well_summary">📊 Wellness Summary</string>
+    <string name="myspace_well_avg">Average water: %1$s glasses · average sleep: %2$sh</string>
+
+    <!-- Reminders -->
+    <string name="myspace_rem_add_title">🔔 Add Reminder</string>
+    <string name="myspace_rem_title">Title</string>
+    <string name="myspace_rem_title_hint">e.g. Study Time, Doctor Appointment</string>
+    <string name="myspace_rem_for">For Whom?</string>
+    <string name="myspace_rem_for_both">Both of us</string>
+    <string name="myspace_rem_for_self">Just me</string>
+    <string name="myspace_rem_for_partner">Partner only</string>
+    <string name="myspace_rem_note">Note (optional)</string>
+    <string name="myspace_rem_note_hint">Any details...</string>
+    <string name="myspace_rem_add">🔔 Add Alarm</string>
+    <string name="myspace_reminder_added">Alarm set! 🔔</string>
+    <string name="myspace_rem_empty_title">No reminders yet</string>
+    <string name="myspace_rem_empty_hint">Set an alarm for something you don\'t want to forget.</string>
+</resources>

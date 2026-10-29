@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Period Tracker (web: page-period). Wording copied from the web app. -->
+<resources>
+    <string name="period_title">Period Tracker</string>
+    <string name="period_hero_title">🩷 Period Tracker</string>
+    <string name="period_log_button">📝 Log Period</string>
+    <string name="period_dash">—</string>
+    <string name="period_ok">OK</string>
+    <string name="period_partner_fallback">your partner</string>
+
+    <string name="period_view_only">👀 View only — %1$s manages this page. You can follow everything they log.</string>
+    <string name="period_choose_prompt">Tell us if you are a girl or a boy to set up this page.</string>
+    <string name="period_choose">Choose</string>
+    <string name="period_gender_title">One quick thing 💕</string>
+    <string name="period_gender_message">Are you a girl or a boy? This sets the right access on the Period page.</string>
+    <string name="period_gender_girl">👩 Girl</string>
+    <string name="period_gender_boy">👨 Boy</string>
+    <string name="period_gender_later">Not now</string>
+    <string name="period_gender_saved">Saved 💕</string>
+    <string name="period_only_girl">Only the girl can change the period data 💗</string>
+    <string name="period_choose_first">Choose Girl or Boy first to edit this page</string>
+
+    <string name="period_phase_menstrual">🔴 Menstrual</string>
+    <string name="period_phase_follicular">🌼 Follicular</string>
+    <string name="period_phase_ovulation">🌟 Ovulation</string>
+    <string name="period_phase_luteal">🌙 Luteal</string>
+    <string name="period_phase_unknown">📊 Start Tracking</string>
+    <string name="period_note_menstrual">🌹 Period phase — she needs warmth, rest &amp; extra care. Partners: bring comfort food, be extra gentle 💗</string>
+    <string name="period_note_follicular">⚡ Energy rising! Great time for new adventures and fun dates. Best time to start new goals!</string>
+    <string name="period_note_ovulation">💫 Peak energy &amp; mood! Perfect for romantic evenings and deep conversations.</string>
+    <string name="period_note_luteal">🤗 Pre-period phase — emotions feel bigger. Partners: extra patience &amp; cuddles needed.</string>
+    <string name="period_note_unknown">📊 Log your first period to unlock cycle insights and partner tips</string>
+
+    <string name="period_stat_days_to_next">Days to Next</string>
+    <string name="period_stat_cycle_length">Cycle Length</string>
+    <string name="period_stat_flow_days">Flow Days</string>
+
+    <string name="period_insight_need_more">Log at least 2 periods to see cycle trend insights.</string>
+    <string name="period_insight_regular">Your cycle is very regular — averaging %1$d days.</string>
+    <string name="period_insight_varies">Your average cycle is %1$d days, varying by up to %2$d days.</string>
+
+    <string name="period_calendar_title">Cycle Calendar</string>
+    <string name="period_mark_period">Period day</string>
+    <string name="period_mark_ovulation">Ovulation day</string>
+    <string name="period_mark_fertile">Fertile day</string>
+    <string name="period_cycles_title">Recent Cycle Lengths</string>
+    <string name="period_common_title">Most Common Symptoms</string>
+    <string name="period_times">%1$dx</string>
+
+    <string name="period_symptoms_title">Today\'s Symptoms</string>
+    <string name="period_symptoms_save">Save Today\'s Symptoms</string>
+    <string name="period_symptoms_saved">Symptoms saved!</string>
+    <string name="period_sym_cramps">Cramps</string>
+    <string name="period_sym_mood_swings">Mood Swings</string>
+    <string name="period_sym_bloating">Bloating</string>
+    <string name="period_sym_fatigue">Fatigue</string>
+    <string name="period_sym_headache">Headache</string>
+    <string name="period_sym_back_pain">Back Pain</string>
+    <string name="period_sym_tender">Tender</string>
+    <string name="period_sym_nausea">Nausea</string>
+    <string name="period_sym_high_energy">High Energy</string>
+    <string name="period_sym_acne">Acne</string>
+
+    <string name="period_history_title">Period History</string>
+    <string name="period_history_empty">No periods logged yet</string>
+    <string name="period_history_detail">Flow: %1$d days · Cycle: %2$d days</string>
+    <string name="period_delete_entry">Delete period entry</string>
+    <string name="period_delete_title">Delete this period entry?</string>
+    <string name="period_delete_message">This period entry will be permanently deleted.</string>
+    <string name="period_delete_confirm">Delete</string>
+
+    <string name="period_form_title">🩷 Log Period</string>
+    <string name="period_form_start">Period Start Date</string>
+    <string name="period_form_flow">Flow Duration (days)</string>
+    <string name="period_form_cycle">Cycle Length (days)</string>
+    <string name="period_form_notes">Notes</string>
+    <string name="period_form_notes_hint">e.g. Heavy flow, mood swings...</string>
+    <string name="period_form_save">Save 🩷</string>
+    <string name="period_logged">Period logged! 🩷</string>
+</resources>
