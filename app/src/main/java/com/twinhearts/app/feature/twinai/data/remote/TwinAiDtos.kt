@@ -79,10 +79,3 @@ data class CoupleBody(val coupleId: String)
 /** Answers that only say "it worked" (`{status}`, `{deleted}`); the content is not needed. */
 @Serializable
 data class StatusDto(val status: String? = null, val deleted: Boolean? = null)
-
-@Serializable
-data class ProStatusDto(val isPro: Boolean = false, val plan: String? = null, val expiresAt: String? = null)
-
-/** The `/api/pro/upgrade-request` answer; the content is not needed, only that it worked. */
-@Serializable
-data class UpgradeAckDto(val success: Boolean? = null, val ok: Boolean? = null)

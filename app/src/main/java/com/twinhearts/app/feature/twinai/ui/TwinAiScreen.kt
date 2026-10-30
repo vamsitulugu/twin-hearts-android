@@ -32,8 +32,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import com.twinhearts.app.feature.twinai.ui.components.TwinOrbFlight
-import com.twinhearts.app.feature.twinai.ui.pro.ProGateSheet
-import com.twinhearts.app.feature.twinai.ui.pro.ProGateViewModel
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -72,12 +70,10 @@ fun TwinAiScreen(
     modifier: Modifier = Modifier,
     viewModel: TwinAiViewModel = hiltViewModel(),
     bothViewModel: BothViewModel = hiltViewModel(),
-    proViewModel: ProGateViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
     val both by bothViewModel.state.collectAsStateWithLifecycle()
-    val pro by proViewModel.state.collectAsStateWithLifecycle()
 
     // Orb flight: the first question sends a small orb from the hero robot to the dock.
     var heroCenter by remember { mutableStateOf(Offset.Zero) }
@@ -151,9 +147,6 @@ fun TwinAiScreen(
     LaunchedEffect(Unit) {
         bothViewModel.messages.collect { toast(it) }
     }
-    LaunchedEffect(Unit) {
-        proViewModel.messages.collect { toast(it) }
-    }
 
     // No back arrow in the header any more: the system back leaves the page (to Home).
     BackHandler { onBack() }
@@ -212,7 +205,6 @@ fun TwinAiScreen(
             },
             onSync = {
                 viewModel.refresh()
-                proViewModel.forgetStatus()
                 if (state.tab == TwinTab.Both) bothViewModel.loadHistory()
             },
         )
@@ -220,13 +212,7 @@ fun TwinAiScreen(
             TwinModeTabs(
                 options = listOf(stringResource(R.string.twinai_tab_you), stringResource(R.string.twinai_tab_both)),
                 selectedIndex = state.tab.ordinal,
-                onSelect = { index ->
-                    if (index == TwinTab.Both.ordinal && state.tab != TwinTab.Both) {
-                        proViewModel.requireBoth { viewModel.selectTab(TwinTab.Both) }
-                    } else {
-                        viewModel.selectTab(TwinTab.entries[index])
-                    }
-                },
+                onSelect = { index -> viewModel.selectTab(TwinTab.entries[index]) },
                 modifier = Modifier
                     .padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.s)
                     .fillMaxWidth(),
@@ -291,7 +277,6 @@ fun TwinAiScreen(
     if (flying) {
         TwinOrbFlight(from = heroCenter - rootOrigin, to = dockCenter - rootOrigin, onDone = { flying = false })
     }
-    ProGateSheet(pro, proViewModel)
     if (state.voiceOpen) {
         TwinVoiceOverlay(controller = voice, onEnd = ::endVoice)
     }

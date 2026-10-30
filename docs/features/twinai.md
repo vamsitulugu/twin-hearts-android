@@ -37,7 +37,7 @@ Result shape: `{intent, sections:[{title,content}], safety_flag}`. Round status:
 - Answer streams into the bubble. If the stream gives nothing, the app asks once for the whole answer (same as web). If text arrived and then the link broke, the bubble is marked failed with Retry.
 - Regenerate / Retry ask the same question again in a new bubble (no second "me" bubble), as on the web.
 - Max 120 bubbles kept.
-- BOTH tab is always shown (the web removed its flag check too). The subtitle changes to "For Both of Us" in BOTH. The last open discussion is reopened next time (like the web). Pro gate for BOTH comes with the Pro phase.
+- BOTH tab is always shown (the web removed its flag check too). The subtitle changes to "For Both of Us" in BOTH. The last open discussion is reopened next time (like the web).
 - BOTH live updates: the web uses a realtime channel with polling fallback. Android polls every 3 s only while the BOTH tab is on screen and the round is waiting; it stops in the background (R-66).
 - Back inside a discussion goes to the list; on the list it goes Home.
 - Mic uses the phone's speech dialog and sends the words to Twin. Listen uses the phone's text-to-speech.

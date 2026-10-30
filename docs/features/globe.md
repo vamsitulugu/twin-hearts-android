@@ -39,12 +39,11 @@ The web page draws a 3D Earth with **Cesium** (satellite imagery, terrain, 3D bu
 | Delete media | `DELETE /api/globe/media/:mediaId?coupleId=` |
 | Photos, videos | `POST /api/media/upload` (multipart `file`, `coupleId`) → `{url}` |
 | Voice notes | `POST /api/media/upload-voice` (multipart `file`, `coupleId`, `senderRole`) → `{url}` |
-| Pro check | `GET /api/pro/status?coupleId=` → `{isPro}` |
 | Live location | `GET /api/location/:coupleId`, `POST /api/location/ping`, `POST /api/location/stop`, `GET /api/location/:coupleId/trail/:role` |
 | Free services | Nominatim search, Open-Meteo weather, OSRM roads (same as web) |
 
 ## Rules kept from the web
-- "Pin a Memory" needs **Pro** (toast "Memory Globe is a Pro feature"). Viewing memories and **+ Add Memory Here** are not gated (same as web).
+- Nothing on the Globe is gated: **Pin a Memory** opens the form straight away, and viewing memories and **+ Add Memory Here** are open too. (Pro was removed from the app.)
 - Memories of one city + country share one pin. Arcs follow `date_from` order; same-city steps draw nothing.
 - Costs are summed in ₹ for the chips (same as web).
 - Wording copied from the web (`strings_globe.xml`).
@@ -66,11 +65,9 @@ The web page draws a 3D Earth with **Cesium** (satellite imagery, terrain, 3D bu
 | Cesium satellite imagery, terrain, photorealistic 3D tiles | Needs Cesium / a paid imagery service. The Map view gives real streets and buildings. |
 | ⭐ Bookmarks | `toggleBookmark` exists in `globe.html` but no button ever calls it (dead code), so there is nothing to port. |
 | Realtime "partner is typing a memory" style pings | None existed besides location. |
-| The Pro **upgrade card** (payment) | Pro upgrade is its own Phase 6 session. The Globe only reads Pro status. See *Change request* below. |
 
 ## Change requests for core (not applied)
-1. **Go Pro sheet in core.** Twin AI has a private Go Pro sheet. Move it to `core/design` (or `core/pro`) so Globe, Music and Movie can open it. When that exists, Globe's `requestPin()` should open it instead of only showing the toast.
-2. **Amber / warning token.** The web used amber for visited-country glows. Add a `warning` token to `TwinColors` if you want it back.
+1. **Amber / warning token.** The web used amber for visited-country glows. Add a `warning` token to `TwinColors` if you want it back.
 
 ## Known limits
 - Not compiled here (no Android SDK in the sandbox). The pure logic (`domain/`, `WorldAtlas`) **was compiled with Kotlin 2.0.21 and tested** (see `GlobeLogicTest`, `GlobeProjectionTest`); the UI is reviewed by hand.

@@ -366,7 +366,6 @@ fun GlobeScreen(
             GlassButton(
                 text = stringResource(R.string.globe_pin_memory),
                 onClick = vm::requestPin,
-                loading = s.checkingPro,
                 modifier = Modifier.fillMaxWidth(),
             )
         }

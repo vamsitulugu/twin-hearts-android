@@ -61,8 +61,14 @@ interface MeetActions {
     fun openRouteDraft() {}
     fun savePlan() {}
 
-    // Route preview
+    // Route preview and in-app navigation
     fun startNavigation() {}
+    fun openInMaps() {}
+    fun endNavigation() {}
+    fun nextStop() {}
+    fun toggleNavMute() {}
+    fun recenterNavigation() {}
+    fun onUserMovedMap() {}
 
     // Saved meetups
     fun setFilter(filter: SavedFilter) {}

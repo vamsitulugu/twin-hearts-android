@@ -120,7 +120,6 @@ data class GlobeUiState(
     val searchPin: GeoPoint? = null,
     val upload: UploadUi? = null,
     val partnerName: String = "",
-    val checkingPro: Boolean = false,
     val search: SearchUi = SearchUi(),
 ) {
     val isEmpty: Boolean get() = memories.isEmpty()
@@ -155,7 +154,6 @@ class GlobeViewModel @Inject constructor(
     private var sequence = 0L
     private var pendingOpen: Pair<Long, String>? = null
     private var pendingZoomIn: Pair<Long, String>? = null
-    private var isPro = false
     private var visible = true
     private var liveJob: Job? = null
     private var pollJob: Job? = null
@@ -393,28 +391,8 @@ class GlobeViewModel @Inject constructor(
 
     // ── adding, editing, deleting ────────────────────────────────────────────────────────────
 
-    /** "Pin a Memory": only couples with Pro may add memories, like the web app. */
-    fun requestPin() {
-        if (isPro) {
-            openForm(editingId = null, cityKey = null)
-            return
-        }
-        if (_state.value.checkingPro) return
-        viewModelScope.launch {
-            _state.update { it.copy(checkingPro = true) }
-            val r = repository.isPro()
-            _state.update { it.copy(checkingPro = false) }
-            when (r) {
-                is AppResult.Success -> if (r.data) {
-                    isPro = true
-                    openForm(null, null)
-                } else {
-                    say(R.string.globe_toast_pro)
-                }
-                is AppResult.Failure -> say(R.string.globe_toast_pro_check_failed)
-            }
-        }
-    }
+    /** "Pin a Memory": opens the empty form. */
+    fun requestPin() = openForm(editingId = null, cityKey = null)
 
     fun addMemoryHere(cityKey: String) = openForm(editingId = null, cityKey = cityKey)
 

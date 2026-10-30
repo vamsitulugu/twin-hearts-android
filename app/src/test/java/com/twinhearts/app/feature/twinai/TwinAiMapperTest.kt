@@ -8,8 +8,6 @@ import com.twinhearts.app.feature.twinai.data.remote.ResultDto
 import com.twinhearts.app.feature.twinai.data.remote.RoundDto
 import com.twinhearts.app.feature.twinai.data.remote.SectionDto
 import com.twinhearts.app.feature.twinai.data.remote.SessionDto
-import com.twinhearts.app.feature.twinai.domain.model.ProPlan
-import com.twinhearts.app.feature.twinai.domain.model.ProUpgradeForm
 import com.twinhearts.app.feature.twinai.domain.model.RoundStatus
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.Json
@@ -71,13 +69,5 @@ class TwinAiMapperTest {
         assertEquals("", latestMood(Json.parseToJsonElement("""{"other":1}""")))
         assertEquals("", latestMood(Json.parseToJsonElement("null")))
         assertEquals("", latestMood(null))
-    }
-
-    @Test
-    fun upgradeFormNeedsAllRequiredFields() {
-        val form = ProUpgradeForm(ProPlan.Monthly, "A", "1", "B", "2", "TXN")
-        assertTrue(form.isComplete)
-        assertTrue(!form.copy(transactionId = " ").isComplete)
-        assertEquals(499, ProPlan.Lifetime.amount)
     }
 }

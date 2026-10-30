@@ -7,7 +7,7 @@ import kotlinx.serialization.json.JsonObject
 
 /*
  * Why this file exists: the exact JSON shapes of the old server's /api/globe, /api/media,
- * /api/location and /api/pro routes (routes/globe.js, media.js, location.js, pro.js) and of the
+ * and /api/location routes (routes/globe.js, media.js, location.js) and of the
  * free map services. Numbers that the database may return as text or number are read as JsonElement.
  */
 
@@ -74,9 +74,6 @@ data class OkDto(val success: Boolean? = null)
 /** `{ url, path }` from /api/media/upload and /api/media/upload-voice. */
 @Serializable
 data class UploadDto(val url: String, val path: String? = null)
-
-@Serializable
-data class ProStatusDto(val isPro: Boolean = false)
 
 // ── live location (routes/location.js) ───────────────────────────────────────────────────────
 

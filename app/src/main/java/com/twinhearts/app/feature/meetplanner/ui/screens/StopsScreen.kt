@@ -52,7 +52,7 @@ import com.twinhearts.app.feature.meetplanner.ui.components.MeetHeader
 import com.twinhearts.app.feature.meetplanner.ui.components.MeetPalette
 import com.twinhearts.app.feature.meetplanner.ui.components.MeetPill
 import com.twinhearts.app.feature.meetplanner.ui.components.MeetStatsRow
-import com.twinhearts.app.feature.meetplanner.ui.components.RouteCanvas
+import com.twinhearts.app.feature.meetplanner.ui.components.MeetMap
 import com.twinhearts.app.feature.meetplanner.ui.components.label
 import java.time.LocalDate
 
@@ -85,8 +85,14 @@ internal fun StopsScreen(state: MeetUiState, actions: MeetActions) {
             }
             d.stops.forEachIndexed { i, s -> StopRow(i, s, d.stops, actions) }
 
-            GlassCard(Modifier.fillMaxWidth().height(240.dp), contentPadding = 0.dp) {
-                RouteCanvas(points = d.stops.map { GeoPoint(it.lat, it.lng) }, stops = d.stops, modifier = Modifier.fillMaxSize())
+            GlassCard(Modifier.fillMaxWidth().height(280.dp), contentPadding = 0.dp) {
+                // Real map with the numbered stops; the thin line is a straight preview until the road route is built.
+                MeetMap(
+                    stops = d.stops,
+                    route = d.stops.map { GeoPoint(it.lat, it.lng) },
+                    fallbackCenter = d.city?.let { GeoPoint(it.lat, it.lng) },
+                    insideScroll = true,
+                )
             }
             MeetStatsRow(
                 listOf(

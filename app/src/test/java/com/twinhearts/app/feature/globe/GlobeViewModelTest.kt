@@ -1,7 +1,5 @@
 package com.twinhearts.app.feature.globe
 
-import app.cash.turbine.test
-import com.twinhearts.app.R
 import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.feature.globe.data.GlobeIdentity
@@ -10,7 +8,6 @@ import com.twinhearts.app.feature.globe.data.GlobeRepository
 import com.twinhearts.app.feature.globe.data.WorldAtlasSource
 import com.twinhearts.app.feature.globe.domain.model.GlobeFilter
 import com.twinhearts.app.feature.globe.domain.model.GlobeViewMode
-import com.twinhearts.app.feature.globe.ui.GlobeEvent
 import com.twinhearts.app.feature.globe.ui.GlobeLoad
 import com.twinhearts.app.feature.globe.ui.GlobePanel
 import com.twinhearts.app.feature.globe.ui.GlobeViewModel
@@ -18,7 +15,6 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -99,18 +95,7 @@ class GlobeViewModelTest {
         assertEquals(false, vm.back())
     }
 
-    @Test fun pin_whenNotPro_showsMessage_andOpensNoForm() = runTest {
-        coEvery { repository.isPro() } returns AppResult.Success(false)
-        val vm = viewModel()
-        vm.events.test {
-            vm.requestPin()
-            assertEquals(GlobeEvent.Message(R.string.globe_toast_pro), awaitItem())
-        }
-        assertTrue(vm.state.value.panels.none { it is GlobePanel.Form })
-    }
-
-    @Test fun pin_whenPro_opensForm() {
-        coEvery { repository.isPro() } returns AppResult.Success(true)
+    @Test fun pin_opensForm() {
         val vm = viewModel()
         vm.requestPin()
         assertTrue(vm.state.value.panels.last() is GlobePanel.Form)

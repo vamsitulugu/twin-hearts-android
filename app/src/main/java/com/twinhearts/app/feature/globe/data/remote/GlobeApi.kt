@@ -14,7 +14,7 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.Url
 
-/** The old Express server: routes/globe.js, media.js, location.js and pro.js. */
+/** The old Express server: routes/globe.js, media.js and location.js. */
 interface GlobeApi {
 
     @GET("api/globe/{coupleId}")
@@ -49,9 +49,6 @@ interface GlobeApi {
         @Part("coupleId") coupleId: RequestBody,
         @Part("senderRole") senderRole: RequestBody,
     ): UploadDto
-
-    @GET("api/pro/status")
-    suspend fun proStatus(@Query("coupleId") coupleId: String): ProStatusDto
 
     @GET("api/location/{coupleId}")
     suspend fun locations(@Path("coupleId") coupleId: String): LocationsDto

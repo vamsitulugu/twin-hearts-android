@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.twinhearts.app.R
 import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.asText
 import com.twinhearts.app.core.design.TwinBackground
@@ -56,6 +57,10 @@ private fun MeetPlannerScreenContent(onExit: () -> Unit, vm: MeetPlannerViewMode
     var photos by remember { mutableStateOf<List<String>?>(null) }
 
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { vm.useMyLocation() }
+    // Turn-by-turn needs the phone's location too; once answered, try starting the trip again.
+    val navPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted ->
+        if (granted.values.any { it }) vm.startNavigation() else Toast.makeText(context, R.string.meetplanner_toast_no_location, Toast.LENGTH_SHORT).show()
+    }
 
     LaunchedEffect(Unit) {
         vm.effects.collect { fx ->
@@ -72,6 +77,9 @@ private fun MeetPlannerScreenContent(onExit: () -> Unit, vm: MeetPlannerViewMode
                 MeetEffect.NeedLocationPermission -> permission.launch(
                     arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
                 )
+                MeetEffect.NeedNavPermission -> navPermission.launch(
+                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+                )
             }
         }
     }
@@ -82,6 +90,8 @@ private fun MeetPlannerScreenContent(onExit: () -> Unit, vm: MeetPlannerViewMode
 
     BackHandler(enabled = state.selectMode) { vm.exitSelect() }
     BackHandler(enabled = !state.selectMode && state.stack.size > 1) { vm.back() }
+    // Declared last so it wins: Back during turn-by-turn ends the trip and returns to the route preview.
+    BackHandler(enabled = state.navActive) { vm.endNavigation() }
 
     TwinBackground {
         Box(Modifier.fillMaxSize().imePadding()) {

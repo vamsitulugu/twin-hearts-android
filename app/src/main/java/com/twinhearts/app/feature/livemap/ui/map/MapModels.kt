@@ -29,6 +29,8 @@ data class MapOverlay(
     val altRoutes: List<List<MapPoint>> = emptyList(),
     val places: List<MapMarker> = emptyList(),
     val stops: List<MapPoint> = emptyList(),
+    /** Numbered round badges (the label is the number), used by Meet Planner for "1, 2, 3" stops. */
+    val numbered: List<MapMarker> = emptyList(),
     val destination: MapPoint? = null,
     val playback: MapPoint? = null,
     val loveNotes: List<MapPoint> = emptyList(),
@@ -49,6 +51,8 @@ data class MapColors(
     val outline: Int,
     /** Colour of the grey alternative routes; 0 = use [stop]. */
     val alt: Int = 0,
+    /** Fill of the numbered badges; 0 = use [route]. */
+    val badge: Int = 0,
 )
 
 /** "Move the camera" request. A new [id] means a new request, even to the same place. */

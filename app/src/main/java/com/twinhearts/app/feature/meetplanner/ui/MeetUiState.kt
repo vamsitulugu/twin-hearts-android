@@ -3,6 +3,8 @@ package com.twinhearts.app.feature.meetplanner.ui
 import androidx.annotation.StringRes
 import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.UiState
+import com.twinhearts.app.feature.livemap.domain.nav.NavSession
+import com.twinhearts.app.feature.livemap.ui.map.CameraRequest
 import com.twinhearts.app.feature.meetplanner.domain.PlanDraft
 import com.twinhearts.app.feature.meetplanner.domain.SavedFilter
 import com.twinhearts.app.feature.meetplanner.domain.model.City
@@ -76,6 +78,13 @@ data class MeetUiState(
     val uploadingCount: Int = 0,
     val completing: Boolean = false,
     val deleteIds: List<String>? = null,
+    /** In-app turn-by-turn: true while a trip started from Route Preview is running. */
+    val navActive: Boolean = false,
+    val nav: NavSession? = null,
+    /** Index (in the route's stops) of the stop we are driving to right now. */
+    val navStop: Int = 0,
+    val navLoading: Boolean = false,
+    val navCamera: CameraRequest? = null,
 ) {
     val screen: MeetScreen get() = stack.last()
     val meetups: List<Meetup> get() = (plans as? UiState.Content)?.data.orEmpty()
@@ -95,4 +104,7 @@ sealed interface MeetEffect {
     data class OpenUrl(val url: String) : MeetEffect
     data class ViewPhotos(val urls: List<String>) : MeetEffect
     data object NeedLocationPermission : MeetEffect
+
+    /** Location permission for turn-by-turn; the screen calls startNavigation again once answered. */
+    data object NeedNavPermission : MeetEffect
 }

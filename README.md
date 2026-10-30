@@ -297,7 +297,7 @@ Calendar · Surprises · Money · Bucket List · Daily Routine · Meet Planner �
 Music (library, player, lyrics/karaoke, recordings) · Watch Together (movies) · Live Map (Map / Track / Partner / Places)
 
 ### Phase 6 — Heavy
-Games (Ludo, Tic-Tac-Toe, Truth or Dare, Memory, Mind Reader, Puzzle, Draw, Bomb — one session each) · Memory Globe (decide native approach in its own audit) · Pro upgrade
+Games (Ludo, Tic-Tac-Toe, Truth or Dare, Memory, Mind Reader, Puzzle, Draw, Bomb — one session each) · Memory Globe (decide native approach in its own audit)
 
 ### Phase 7 — Release
 Performance pass (Baseline Profile, jank check), signing, release APK, crash reporting.

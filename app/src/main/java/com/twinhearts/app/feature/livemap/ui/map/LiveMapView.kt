@@ -1,6 +1,7 @@
 package com.twinhearts.app.feature.livemap.ui.map
 
 import android.os.Bundle
+import android.view.MotionEvent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -21,6 +22,7 @@ import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapLibreMap
+import org.maplibre.android.maps.MapLibreMapOptions
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.expressions.Expression
@@ -55,12 +57,16 @@ fun LiveMapView(
     navigating: Boolean = false,
     /** The person dragged or pinched the map by hand. */
     onUserGesture: () -> Unit = {},
+    /** True when the map sits inside a scrolling page: a drag on the map pans the map instead of scrolling the page. */
+    lockParentScroll: Boolean = false,
+    /** Draws the map on a texture so it clips to rounded corners (a plain map surface cannot). */
+    textureMode: Boolean = false,
 ) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val mapView = remember {
         MapLibre.getInstance(context)
-        MapView(context)
+        if (textureMode) MapView(context, MapLibreMapOptions.createFromAttributes(context).textureMode(true)) else MapView(context)
     }
     var map by remember { mutableStateOf<MapLibreMap?>(null) }
     // Counts up each time a style finishes loading, so the overlay is redrawn onto the new style.
@@ -158,7 +164,23 @@ fun LiveMapView(
         m.setPadding(0, top, 0, 0)
     }
 
-    AndroidView(factory = { mapView }, modifier = modifier)
+    AndroidView(
+        factory = { mapView },
+        modifier = modifier,
+        update = { view ->
+            if (lockParentScroll) {
+                view.setOnTouchListener { v, event ->
+                    when (event.actionMasked) {
+                        MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> v.parent?.requestDisallowInterceptTouchEvent(true)
+                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> v.parent?.requestDisallowInterceptTouchEvent(false)
+                    }
+                    false // the map still handles the touch itself
+                }
+            } else {
+                view.setOnTouchListener(null)
+            }
+        },
+    )
 }
 
 private const val DEFAULT_ZOOM = 14.0
@@ -193,6 +215,7 @@ private const val SRC_MY_TRAIL = "lm-my-trail"
 private const val SRC_PT_TRAIL = "lm-pt-trail"
 private const val SRC_PLACES = "lm-places"
 private const val SRC_STOPS = "lm-stops"
+private const val SRC_NUMBERED = "lm-numbered"
 private const val SRC_NOTES = "lm-notes"
 private const val SRC_DEST = "lm-dest"
 private const val SRC_PLAYBACK = "lm-playback"
@@ -202,7 +225,7 @@ private const val SRC_PARTNER = "lm-partner"
 private fun empty() = FeatureCollection.fromFeatures(emptyList<Feature>())
 
 private fun installLayers(style: Style, c: MapColors) {
-    listOf(SRC_ALT, SRC_ROUTE, SRC_MY_TRAIL, SRC_PT_TRAIL, SRC_PLACES, SRC_STOPS, SRC_NOTES, SRC_DEST, SRC_PLAYBACK, SRC_ME, SRC_PARTNER)
+    listOf(SRC_ALT, SRC_ROUTE, SRC_MY_TRAIL, SRC_PT_TRAIL, SRC_PLACES, SRC_STOPS, SRC_NUMBERED, SRC_NOTES, SRC_DEST, SRC_PLAYBACK, SRC_ME, SRC_PARTNER)
         .forEach { style.addSource(GeoJsonSource(it, empty())) }
 
     fun line(id: String, source: String, color: Int, width: Float, opacity: Float) = LineLayer(id, source).withProperties(
@@ -247,6 +270,25 @@ private fun installLayers(style: Style, c: MapColors) {
         ),
     )
     style.addLayer(dot("lm-stops-dot", SRC_STOPS, c.stop, 6f))
+    // Numbered badges (Meet Planner): a filled circle with the stop number centred on it.
+    style.addLayer(
+        CircleLayer("lm-numbered-dot", SRC_NUMBERED).withProperties(
+            PropertyFactory.circleColor(if (c.badge != 0) c.badge else c.route),
+            PropertyFactory.circleRadius(13f),
+            PropertyFactory.circleStrokeColor(c.outline),
+            PropertyFactory.circleStrokeWidth(2.5f),
+        ),
+    )
+    style.addLayer(
+        SymbolLayer("lm-numbered-text", SRC_NUMBERED).withProperties(
+            PropertyFactory.textField(Expression.get("label")),
+            PropertyFactory.textSize(13f),
+            PropertyFactory.textColor(android.graphics.Color.WHITE),
+            PropertyFactory.textFont(arrayOf("Noto Sans Regular")),
+            PropertyFactory.textAllowOverlap(true),
+            PropertyFactory.textIgnorePlacement(true),
+        ),
+    )
     style.addLayer(dot("lm-notes-dot", SRC_NOTES, c.note, 8f))
     style.addLayer(dot("lm-dest-dot", SRC_DEST, c.destination, 9f))
     style.addLayer(halo("lm-partner-halo", SRC_PARTNER, c.partner))
@@ -288,6 +330,7 @@ private fun drawOverlay(style: Style, o: MapOverlay) {
     set(SRC_PT_TRAIL, lineOf(o.partnerTrail))
     set(SRC_PLACES, FeatureCollection.fromFeatures(o.places.map { pointFeature(it.point, it.label) }))
     set(SRC_STOPS, pointsOf(o.stops))
+    set(SRC_NUMBERED, FeatureCollection.fromFeatures(o.numbered.map { pointFeature(it.point, it.label) }))
     set(SRC_NOTES, pointsOf(o.loveNotes))
     set(SRC_DEST, pointsOf(listOfNotNull(o.destination)))
     set(SRC_PLAYBACK, pointsOf(listOfNotNull(o.playback)))

@@ -5,6 +5,14 @@ import androidx.lifecycle.viewModelScope
 import com.twinhearts.app.R
 import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.core.common.UiState
+import com.twinhearts.app.feature.livemap.data.LiveMapRepository
+import com.twinhearts.app.feature.livemap.data.nav.NavEngine
+import com.twinhearts.app.feature.livemap.domain.nav.NavSession
+import com.twinhearts.app.feature.livemap.ui.map.CameraRequest
+import com.twinhearts.app.feature.livemap.ui.map.MapPoint
+import com.twinhearts.app.feature.meetplanner.domain.haversineKm
+import com.twinhearts.app.feature.livemap.domain.nav.GeoPoint as NavGeoPoint
+import com.twinhearts.app.feature.livemap.domain.nav.TravelMode as NavMode
 import com.twinhearts.app.feature.meetplanner.data.MeetPlannerRepository
 import com.twinhearts.app.feature.meetplanner.domain.PlanDraft
 import com.twinhearts.app.feature.meetplanner.domain.PopularDestination
@@ -51,6 +59,8 @@ import javax.inject.Inject
 @HiltViewModel
 class MeetPlannerViewModel @Inject constructor(
     private val repo: MeetPlannerRepository,
+    private val navRepo: LiveMapRepository,
+    private val navEngine: NavEngine,
 ) : ViewModel(), MeetActions {
 
     private val _state = MutableStateFlow(MeetUiState(draft = PlanDraft.fresh(LocalDate.now())))
@@ -63,8 +73,18 @@ class MeetPlannerViewModel @Inject constructor(
     private var poiJob: Job? = null
     private var checklistClock = 0L
 
+    private var cameraCounter = 0L
+    private var switchingLeg = false
+
     init {
         loadPlans(silent = false)
+        viewModelScope.launch { navEngine.session.collect { onNavSession(it) } }
+    }
+
+    override fun onCleared() {
+        // Leaving Meet Planner ends a trip started from it; a trip started in Live Map is not ours to stop.
+        if (_state.value.navActive) navEngine.stop()
+        super.onCleared()
     }
 
     // ───────────────────────────── helpers ─────────────────────────────
@@ -412,9 +432,132 @@ class MeetPlannerViewModel @Inject constructor(
         push(MeetScreen.Route)
     }
 
-    override fun startNavigation() {
+    /** The old behaviour, kept as "Open in Maps app" and as the fallback when in-app routing cannot work. */
+    override fun openInMaps() {
         val view = _state.value.routeView ?: return
         directionsUrl(view.stops, view.mode)?.let { _effects.tryEmit(MeetEffect.OpenUrl(it)) }
+    }
+
+    /**
+     * Real turn-by-turn inside the app, one leg at a time: from where you are to the first stop you are
+     * not already at, then on to each next stop. Transit has no road router, so it opens the maps app.
+     */
+    override fun startNavigation() {
+        val s = _state.value
+        val view = s.routeView ?: return
+        if (s.navLoading) return
+        if (view.mode == TravelMode.Transit) {
+            openInMaps()
+            return
+        }
+        if (!repo.hasLocationPermission()) {
+            _effects.tryEmit(MeetEffect.NeedNavPermission)
+            return
+        }
+        _state.update { it.copy(navLoading = true) }
+        viewModelScope.launch {
+            val here = repo.currentLocation()
+            if (here == null) {
+                toast(R.string.meetplanner_toast_no_location)
+                _state.update { it.copy(navLoading = false) }
+                return@launch
+            }
+            // Already standing at a stop? Head for the one after it. Otherwise start with the first stop.
+            val at = view.stops.indexOfFirst { haversineKm(here, GeoPoint(it.lat, it.lng)) * 1000 < AT_STOP_M }
+            val target = if (at >= 0) at + 1 else 0
+            if (target >= view.stops.size) {
+                toast(R.string.meetplanner_toast_already_there)
+                _state.update { it.copy(navLoading = false) }
+                return@launch
+            }
+            beginLeg(here, view, target)
+        }
+    }
+
+    /** "Next stop" after arriving: the stop we just reached is where the next leg starts. */
+    override fun nextStop() {
+        val s = _state.value
+        val view = s.routeView ?: return
+        val next = s.navStop + 1
+        if (next >= view.stops.size || s.navLoading) return
+        val from = view.stops[s.navStop]
+        _state.update { it.copy(navLoading = true) }
+        viewModelScope.launch { beginLeg(GeoPoint(from.lat, from.lng), view, next) }
+    }
+
+    private suspend fun beginLeg(from: GeoPoint, view: RouteView, index: Int) {
+        val stop = view.stops[index]
+        val to = NavGeoPoint(stop.lat, stop.lng)
+        val result = navRepo.navRoutes(NavGeoPoint(from.lat, from.lng), to, view.mode.navMode())
+        val route = (result as? AppResult.Success)?.data?.firstOrNull()
+        if (route == null) {
+            // No internet or the free router is busy: hand over to the maps app instead of leaving the button dead.
+            toast(R.string.meetplanner_toast_route_failed)
+            _state.update { it.copy(navLoading = false) }
+            openInMaps()
+            return
+        }
+        // Mark the trip as ours first, so the engine's first update is picked up by onNavSession.
+        switchingLeg = true
+        _state.update { it.copy(navActive = true, navStop = index, navLoading = false, navCamera = null) }
+        navEngine.start(route, stop.name, to)
+        switchingLeg = false
+    }
+
+    override fun endNavigation() {
+        navEngine.stop()
+        _state.update { it.copy(navActive = false, nav = null, navCamera = null, navStop = 0, navLoading = false) }
+    }
+
+    override fun toggleNavMute() {
+        val muted = _state.value.nav?.muted ?: return
+        navEngine.setMuted(!muted)
+    }
+
+    override fun recenterNavigation() = navEngine.setFollowing(true)
+
+    /** The person dragged the map during navigation: stop following until they tap Re-center. */
+    override fun onUserMovedMap() {
+        if (_state.value.nav?.following == true) navEngine.setFollowing(false)
+    }
+
+    private fun onNavSession(session: NavSession?) {
+        _state.update { s ->
+            if (!s.navActive) return@update s
+            // The trip ended on its own (the notification's End button): leave navigation mode.
+            if (session == null) {
+                return@update if (switchingLeg) s else s.copy(navActive = false, nav = null, navCamera = null)
+            }
+            val progress = session.progress
+            val follow = session.following && progress != null
+            s.copy(
+                nav = session,
+                navCamera = if (follow && progress != null) {
+                    CameraRequest(
+                        id = ++cameraCounter,
+                        target = MapPoint(progress.snapped.lat, progress.snapped.lng),
+                        zoom = navZoom(session) + if (progress.distanceToNextM < NAV_CLOSE_M) 1.0 else 0.0,
+                        bearing = progress.roadBearingDeg,
+                        tilt = NAV_TILT,
+                        animMs = NAV_ANIM_MS,
+                    )
+                } else {
+                    s.navCamera
+                },
+            )
+        }
+    }
+
+    private fun navZoom(session: NavSession): Double = when (session.route.mode) {
+        NavMode.Drive -> 16.0
+        NavMode.Bike -> 17.0
+        NavMode.Walk -> 18.0
+    }
+
+    private fun TravelMode.navMode(): NavMode = when (this) {
+        TravelMode.Walk -> NavMode.Walk
+        TravelMode.Bike, TravelMode.Cycle -> NavMode.Bike
+        else -> NavMode.Drive
     }
 
     // ───────────────────────────── Saved meetups ─────────────────────────────
@@ -600,3 +743,8 @@ class MeetPlannerViewModel @Inject constructor(
         const val CITY_DEBOUNCE_MS = 350L
     }
 }
+
+private const val AT_STOP_M = 150.0
+private const val NAV_CLOSE_M = 150.0
+private const val NAV_TILT = 55.0
+private const val NAV_ANIM_MS = 900

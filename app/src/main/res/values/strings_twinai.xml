@@ -112,37 +112,4 @@
     <string name="twinai_menu_copy">📋 Copy conversation</string>
     <string name="twinai_menu_copied">Conversation copied</string>
     <string name="twinai_menu_empty">Nothing to copy yet</string>
-
-    <!-- Go Pro (BOTH mode gate) -->
-    <string name="twinai_pro_title">Go Pro 💎</string>
-    <string name="twinai_pro_sub">AI Both Mode is a Pro feature. Pro is for both of you: when one pays, you both get it.</string>
-    <string name="twinai_pro_monthly">Monthly Pro</string>
-    <string name="twinai_pro_monthly_note">Billed every month</string>
-    <string name="twinai_pro_lifetime">Lifetime Pro</string>
-    <string name="twinai_pro_lifetime_note">One-time payment</string>
-    <string name="twinai_pro_continue">Proceed to Pay</string>
-    <string name="twinai_pro_later">Not now</string>
-    <string name="twinai_pro_back">Back</string>
-    <string name="twinai_pro_pay_note">Pay ₹%1$d with any UPI app. After paying, tap “I’ve Paid” and add your screenshot.</string>
-    <string name="twinai_pro_pay_upi">Pay with UPI app</string>
-    <string name="twinai_pro_copy_upi">Copy UPI ID</string>
-    <string name="twinai_pro_upi_copied">UPI ID copied</string>
-    <string name="twinai_pro_no_upi_app">No UPI app found. Copy the UPI ID and pay from your bank app.</string>
-    <string name="twinai_pro_paid">I’ve Paid</string>
-    <string name="twinai_pro_form_title">Payment details</string>
-    <string name="twinai_pro_f_name">Your name (paid person)</string>
-    <string name="twinai_pro_f_phone">Your phone</string>
-    <string name="twinai_pro_f_partner_name">Partner’s name</string>
-    <string name="twinai_pro_f_partner_phone">Partner’s phone</string>
-    <string name="twinai_pro_f_txn">Transaction / UPI reference ID</string>
-    <string name="twinai_pro_f_proof">Choose payment screenshot</string>
-    <string name="twinai_pro_f_proof_chosen">Screenshot chosen ✓ (tap to change)</string>
-    <string name="twinai_pro_f_note">Note (optional)</string>
-    <string name="twinai_pro_send">Send to admin</string>
-    <string name="twinai_pro_done_title">Request sent to admin</string>
-    <string name="twinai_pro_done_sub">Pro turns on for both of you once the admin confirms your payment.</string>
-    <string name="twinai_pro_ok">OK</string>
-    <string name="twinai_pro_check_failed">Couldn’t check Pro status. Check your connection and try again.</string>
-    <string name="twinai_pro_form_incomplete">Please fill all details and choose the screenshot.</string>
-    <string name="twinai_pro_submit_failed">Could not send. Please try again.</string>
 </resources>

@@ -101,7 +101,9 @@
     <string name="meetplanner_move_down">Move down</string>
     <string name="meetplanner_move_up">Move up</string>
     <string name="meetplanner_n_stops">%1$d stops</string>
-    <string name="meetplanner_navigation_note">Opens your maps app for turn-by-turn directions</string>
+    <string name="meetplanner_navigation_note">Turn-by-turn directions with voice guidance, right inside the app</string>
+    <string name="meetplanner_open_in_maps">Open in Maps app</string>
+    <string name="meetplanner_next_stop">Next stop: %1$s</string>
     <string name="meetplanner_nearby_popular">Nearby Popular</string>
     <string name="meetplanner_no_cities">No cities found</string>
     <string name="meetplanner_no_completed_message">Finish one to add it to your Memory Globe!</string>
@@ -175,6 +177,8 @@
     <string name="meetplanner_tbd">TBD</string>
     <string name="meetplanner_title">Meet Planner</string>
     <string name="meetplanner_to">To</string>
+    <string name="meetplanner_toast_already_there">You are already at the last stop</string>
+    <string name="meetplanner_toast_route_failed">Could not get directions in the app. Opening your maps app instead.</string>
     <string name="meetplanner_toast_checklist_failed">Could not update the checklist</string>
     <string name="meetplanner_toast_choose_city">Choose a city first 📍</string>
     <string name="meetplanner_toast_choose_city_short">Choose a city first</string>

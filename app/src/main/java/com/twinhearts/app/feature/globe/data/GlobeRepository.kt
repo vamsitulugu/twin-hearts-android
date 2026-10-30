@@ -49,7 +49,6 @@ data class SaveOutcome(val memoryId: String, val failedMedia: Int)
 interface GlobeRepository {
     suspend fun identity(): GlobeIdentity?
     suspend fun memories(): AppResult<List<Memory>>
-    suspend fun isPro(): AppResult<Boolean>
     suspend fun saveMemory(editingId: String?, draft: MemoryDraft, media: List<StagedMedia>): AppResult<SaveOutcome>
     suspend fun deleteMemory(id: String): AppResult<Unit>
     suspend fun deleteMedia(id: String): AppResult<Unit>
@@ -90,8 +89,6 @@ class GlobeRepositoryImpl @Inject constructor(
     override suspend fun memories() = withSession { s ->
         safeApiCall { api.memories(s.coupleId) }.map { list -> list.mapNotNull { it.toDomain() } }
     }
-
-    override suspend fun isPro() = withSession { s -> safeApiCall { api.proStatus(s.coupleId) }.map { it.isPro } }
 
     override suspend fun saveMemory(editingId: String?, draft: MemoryDraft, media: List<StagedMedia>) = withSession { s ->
         val body = SaveMemoryBody(

@@ -40,8 +40,6 @@
     <string name="globe_toast_live_on">📡 Live location on</string>
     <string name="globe_toast_live_off">Live location off</string>
     <string name="globe_toast_place">📍 %1$s</string>
-    <string name="globe_toast_pro">Memory Globe is a Pro feature</string>
-    <string name="globe_toast_pro_check_failed">Could not check Pro right now. Please try again.</string>
     <string name="globe_toast_need_location">Please search and select a location first 📍</string>
     <string name="globe_toast_pinned">Memory pinned to the globe! 🌍</string>
     <string name="globe_toast_updated">Memory updated! 💕</string>
