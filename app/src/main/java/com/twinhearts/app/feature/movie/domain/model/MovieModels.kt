@@ -40,6 +40,8 @@ data class WatchRoom(
     val actionSeq: Long,
     val updatedAtMs: Long,
     val sharedMovieId: String?,
+    /** True when this phone made the last change (used for "Paused" vs "Paused by Partner"). */
+    val updatedByMe: Boolean = false,
 ) {
     /** Where the movie should be right now, given the server clock (same maths as the web app). */
     fun expectedPositionSec(serverNowMs: Long): Double {

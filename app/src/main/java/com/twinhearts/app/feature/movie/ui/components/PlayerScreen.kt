@@ -4,9 +4,10 @@ import android.app.Activity
 import android.app.PictureInPictureParams
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.Uri
-import android.provider.OpenableColumns
 import android.util.Rational
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -14,32 +15,13 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.EmojiEmotions
-import androidx.compose.material.icons.rounded.Forward10
-import androidx.compose.material.icons.rounded.MoreVert
-import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Replay10
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -47,14 +29,19 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -66,30 +53,28 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
-import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.twinhearts.app.R
-import com.twinhearts.app.core.design.GlassButton
-import com.twinhearts.app.core.design.GlassButtonStyle
-import com.twinhearts.app.core.design.TwinTextField
 import com.twinhearts.app.core.design.TwinTheme
-import com.twinhearts.app.feature.movie.domain.formatClock
 import com.twinhearts.app.feature.movie.domain.formatRuntime
 import com.twinhearts.app.feature.movie.domain.model.ChatMessage
 import com.twinhearts.app.feature.movie.domain.model.MovieReaction
-import com.twinhearts.app.feature.movie.ui.MovieCallHooks
 import com.twinhearts.app.feature.movie.domain.model.WatchRoom
+import com.twinhearts.app.feature.movie.ui.MovieCallHooks
 import kotlinx.coroutines.delay
 import kotlin.math.abs
+import kotlin.math.max
 
 /**
  * Why this file exists: the cinema screen. It plays the movie with Media3 and keeps it in step with
  * the partner using the shared room (same rules as the web app): jump when 2 s or more apart, nudge
  * the speed by 3 % when 0.5 to 2 s apart. It only reads the room; actions go out through [onAction].
+ * The look (round buttons, status pill, red timeline, six icon buttons, reactions, chat toast) is in
+ * PlayerChrome.kt and the call windows are in WatchCallOverlay.kt; this file decides when to show them.
  */
 @OptIn(UnstableApi::class)
 @Composable
@@ -108,9 +93,13 @@ fun PlayerScreen(
     isCloud: Boolean,
     cloudSizeText: String?,
     callHooks: MovieCallHooks?,
+    partnerName: String,
+    subtitle: SubtitleChoice?,
+    onSubtitle: (SubtitleChoice?) -> Unit,
 ) {
     val context = LocalContext.current
     val colors = TwinTheme.colors
+    val density = LocalDensity.current
     val latestRoom by rememberUpdatedState(room)
     val player = remember { ExoPlayer.Builder(context).build() }
     var positionSec by remember { mutableDoubleStateOf(0.0) }
@@ -122,22 +111,63 @@ fun PlayerScreen(
     var composing by remember { mutableStateOf(false) }
     var draft by remember { mutableStateOf("") }
     var syncedPill by remember { mutableStateOf(false) }
-    var floating by remember { mutableStateOf<ChatMessage?>(null) }
     var showMore by remember { mutableStateOf(false) }
     var showReactions by remember { mutableStateOf(false) }
     var fit by remember { mutableStateOf(ScreenFit.Fit) }
+    var fullscreen by remember { mutableStateOf(false) }
+    var modeLabel by remember { mutableStateOf<String?>(null) }
+    var modeLabelKey by remember { mutableIntStateOf(0) }
     var sleepMin by remember { mutableIntStateOf(0) }
-    var subs by remember { mutableStateOf<SubtitleChoice?>(null) }
     var inPip by remember { mutableStateOf(false) }
+    var overlayPx by remember { mutableIntStateOf(0) }
+    var everPlayed by remember { mutableStateOf(room.playing) }
+    var chatToast by remember { mutableStateOf<String?>(null) }
+    val chatQueue = remember { mutableStateListOf<String>() }
+    // Messages already in the list when the player opens are old; only new ones pop up.
+    val seenChat = remember { mutableSetOf<String>().apply { chat.forEach { add(it.id) } } }
+    val chatFocus = remember { FocusRequester() }
     val activity = remember(context) { context.findActivity() }
     val pipAvailable = remember(context) { context.packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE) }
+    val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val durationSec = (room.myDurationSec ?: 1.0).coerceAtLeast(1.0)
+    val noCallText = stringResource(R.string.movie_toast_call_unavailable)
 
     val exo = player
     ImmersiveEffect()
     KeepScreenOnEffect(keepScreenOn && room.playing)
-    BackHandler { showEnd = true }
     DisposableEffect(player) { onDispose { player.release() } }
+    // Leaving the cinema always gives the phone its rotation back.
+    DisposableEffect(activity) { onDispose { activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED } }
+
+    fun flashMode(text: String) {
+        modeLabel = text
+        modeLabelKey++
+    }
+
+    // Fullscreen = landscape. While already fullscreen the same button cycles Fit, Fill, Zoom (like the web page).
+    fun exitFullscreen() {
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        fullscreen = false
+        fit = ScreenFit.Fit
+    }
+    fun onFullscreenTap() {
+        if (!fullscreen) {
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            fullscreen = true
+            fit = ScreenFit.Fit
+        } else {
+            fit = fit.next()
+        }
+        flashMode(context.getString(fit.label))
+        touches++
+    }
+    BackHandler { if (fullscreen) exitFullscreen() else showEnd = true }
+
+    LaunchedEffect(modeLabelKey) {
+        if (modeLabel == null) return@LaunchedEffect
+        delay(MODE_LABEL_MS)
+        modeLabel = null
+    }
     // Show the .srt/.vtt file even when the movie has no language tag of its own.
     LaunchedEffect(player) {
         player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
@@ -159,7 +189,7 @@ fun PlayerScreen(
         if (choice == null) {
             Toast.makeText(context, R.string.movie_toast_subs_failed, Toast.LENGTH_SHORT).show()
         } else {
-            subs = choice
+            onSubtitle(choice)
             Toast.makeText(context, R.string.movie_toast_subs_loaded, Toast.LENGTH_SHORT).show()
         }
     }
@@ -188,19 +218,20 @@ fun PlayerScreen(
     }
 
     // Open the movie, then jump to where the room says we should be (also covers rejoining mid-movie).
-    LaunchedEffect(streamUrl, subs) {
+    LaunchedEffect(streamUrl, subtitle) {
         val url = streamUrl ?: return@LaunchedEffect
         // Adding or removing subtitles reloads the movie; keep the same spot and play state.
         val reload = player.mediaItemCount > 0
         val startMs = if (reload) player.currentPosition else (latestRoom.expectedPositionSec(serverNowMs()) * 1000).toLong()
         val playing = if (reload) player.playWhenReady else latestRoom.playing
-        player.setMediaItem(buildMediaItem(url, subs), startMs)
+        player.setMediaItem(buildMediaItem(url, subtitle), startMs)
         player.prepare()
         player.playWhenReady = playing
     }
 
     // Someone (the partner, or this phone's own echo) played, paused or jumped.
     LaunchedEffect(room.actionSeq, room.playing) {
+        if (room.playing) everPlayed = true
         if (streamUrl == null) return@LaunchedEffect
         val expected = room.expectedPositionSec(serverNowMs())
         if (abs(player.currentPosition / MS - expected) > SEEK_TOLERANCE_SEC) player.seekTo((expected * MS).toLong())
@@ -232,23 +263,48 @@ fun PlayerScreen(
             delay(POSITION_EVERY_MS)
         }
     }
-    LaunchedEffect(controlsVisible, touches) {
-        if (controlsVisible && !composing) {
+    // Controls fade after 4 s, but never while a sheet, dialog or the message bar is open (web "controlsLocked").
+    val locked = composing || showMore || showEnd || showLog
+    LaunchedEffect(controlsVisible, touches, locked) {
+        if (controlsVisible && !locked) {
             delay(HIDE_AFTER_MS)
             controlsVisible = false
         }
     }
-    LaunchedEffect(chat.lastOrNull()?.id) {
-        val last = chat.lastOrNull() ?: return@LaunchedEffect
-        if (last.fromMe) return@LaunchedEffect
-        floating = last
-        delay(FLOAT_MS)
-        floating = null
+    // Partner messages pop up one at a time above the timeline.
+    LaunchedEffect(chat) {
+        chat.forEach { m ->
+            if (seenChat.add(m.id) && !m.fromMe) {
+                chatQueue.add(m.text)
+                controlsVisible = true
+                touches++
+            }
+        }
+    }
+    LaunchedEffect(Unit) {
+        while (true) {
+            val next = chatQueue.firstOrNull()
+            if (next == null) {
+                delay(CHAT_IDLE_MS)
+                continue
+            }
+            chatToast = next
+            delay(CHAT_SHOW_MS)
+            chatToast = null
+            delay(CHAT_GAP_MS)
+            chatQueue.removeAt(0)
+        }
     }
     LaunchedEffect(syncedPill) {
         if (syncedPill) {
             delay(PILL_MS)
             syncedPill = false
+        }
+    }
+    LaunchedEffect(composing) {
+        if (composing) {
+            delay(FOCUS_DELAY_MS)
+            runCatching { chatFocus.requestFocus() }
         }
     }
 
@@ -265,6 +321,30 @@ fun PlayerScreen(
         onAction(player.playWhenReady, target)
     }
 
+    fun sendDraft() {
+        val text = draft.trim()
+        if (text.isEmpty()) return
+        onSendChat(text, player.currentPosition / MS)
+        // Own message shows as a toast too, like the web page. The echo from the server is ignored (fromMe).
+        chatQueue.add(text)
+        draft = ""
+    }
+
+    fun startCall(video: Boolean) {
+        if (callHooks == null) Toast.makeText(context, noCallText, Toast.LENGTH_SHORT).show() else callHooks.start(video)
+        touches++
+    }
+
+    // The pill under the title: "Paused", "Paused by Partner" or "✓ In Sync" (same texts as the web page).
+    val pill: PillState? = when {
+        syncedPill -> PillState(stringResource(R.string.movie_in_sync), PillKind.Good)
+        !room.playing && everPlayed -> PillState(
+            stringResource(if (room.updatedByMe) R.string.movie_pill_paused else R.string.movie_pill_paused_partner), PillKind.Warn,
+        )
+        else -> null
+    }
+    val overlayDp = with(density) { overlayPx.toDp() }
+
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(
             factory = { ctx -> PlayerView(ctx).apply { useController = false; this.player = exo } },
@@ -280,119 +360,80 @@ fun PlayerScreen(
         if (inPip) return@Box
         // Tap anywhere to show or hide the controls.
         Box(
-            Modifier.fillMaxSize().clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+            Modifier.fillMaxSize().tapNoRipple {
                 controlsVisible = !controlsVisible
                 showReactions = false
                 touches++
             },
         )
+        ModeLabel(modeLabel, Modifier.align(Alignment.Center))
         ReactionsLayer(reactions)
-        callHooks?.bubble?.invoke(this)
-        floating?.let {
-            Text(
-                it.text, color = colors.ink, style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.align(Alignment.CenterStart).padding(TwinTheme.spacing.l)
-                    .background(colors.scrim, TwinTheme.shapes.pill).padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.s),
-            )
-        }
-        if (syncedPill) {
-            Text(
-                stringResource(R.string.movie_in_sync), color = colors.success, style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = TwinTheme.spacing.xxl)
-                    .background(colors.scrim, TwinTheme.shapes.pill).padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.s),
-            )
-        }
+        // A message floats above the timeline, clear of the bottom block (the web page measures the same gap).
+        ChatToast(chatToast, Modifier.align(Alignment.BottomCenter).padding(bottom = overlayDp + CHAT_GAP_DP.dp, start = 40.dp, end = 40.dp))
         if (controlsVisible) {
-            Row(
-                Modifier.align(Alignment.TopStart).fillMaxWidth().statusBarsPadding().padding(TwinTheme.spacing.s),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton({ showEnd = true }) {
-                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.movie_back), tint = colors.ink)
-                }
-                Text(room.myTitle.orEmpty(), color = colors.ink, style = MaterialTheme.typography.titleMedium, maxLines = 1, modifier = Modifier.weight(1f))
-                IconButton({ showReactions = !showReactions; touches++ }) {
-                    Icon(Icons.Rounded.EmojiEmotions, stringResource(R.string.movie_reactions), tint = colors.ink)
-                }
-                IconButton({ showMore = true }) {
-                    Icon(Icons.Rounded.MoreVert, stringResource(R.string.movie_more_title), tint = colors.ink)
-                }
-            }
-            if (showReactions) {
-                ReactionBar(
-                    onPick = { onReaction(it); showReactions = false },
-                    modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = REACTION_BAR_TOP_DP.dp, end = TwinTheme.spacing.s),
-                )
-            }
-            Row(Modifier.align(Alignment.Center), horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.xl), verticalAlignment = Alignment.CenterVertically) {
-                IconButton({ seekTo(player.currentPosition / MS - SKIP_SEC) }) {
-                    Icon(Icons.Rounded.Replay10, stringResource(R.string.movie_back_10), Modifier.size(40.dp), tint = colors.ink)
-                }
-                IconButton({ togglePlay() }, Modifier.size(72.dp)) {
-                    Icon(
-                        if (room.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        stringResource(if (room.playing) R.string.movie_pause else R.string.movie_play),
-                        Modifier.size(56.dp), tint = colors.ink,
+            PlayerTopBar(
+                title = room.myTitle.orEmpty(),
+                pill = pill,
+                fullscreen = fullscreen,
+                onBack = { if (fullscreen) exitFullscreen() else showEnd = true },
+                onMore = { showMore = true },
+                onFullscreen = ::onFullscreenTap,
+                modifier = Modifier.align(Alignment.TopCenter),
+            )
+            PlayerCenterControls(
+                playing = room.playing,
+                landscape = landscape,
+                onBack10 = { seekTo(player.currentPosition / MS - SKIP_SEC); touches++ },
+                onPlayPause = { togglePlay(); touches++ },
+                onForward10 = { seekTo(player.currentPosition / MS + SKIP_SEC); touches++ },
+                modifier = Modifier.align(Alignment.Center),
+            )
+            // 😊 sits at the right edge just above the timeline; the five emoji open to its left.
+            ReactionColumn(
+                open = showReactions,
+                onToggle = { showReactions = !showReactions; touches++ },
+                onPick = { onReaction(it); showReactions = false },
+                modifier = Modifier.align(Alignment.BottomEnd)
+                    .padding(end = 14.dp, bottom = max(overlayDp.value - REACTION_BELOW_TIMELINE_DP, MIN_REACTION_BOTTOM_DP).dp),
+            )
+            PlayerBottomOverlay(
+                positionSec = positionSec,
+                durationSec = durationSec,
+                onScrub = { scrubbing = true; positionSec = it; touches++ },
+                onScrubDone = { scrubbing = false; seekTo(positionSec) },
+                actions = {
+                    PlayerSecondaryRow(
+                        onSync = {
+                            player.seekTo((latestRoom.expectedPositionSec(serverNowMs()) * MS).toLong())
+                            player.setPlaybackSpeed(1f)
+                            syncedPill = true
+                            touches++
+                        },
+                        onMessage = { composing = true; touches++ },
+                        onLog = { showLog = true },
+                        onVoice = { startCall(false) },
+                        onVideo = { startCall(true) },
+                        onEnd = { showEnd = true },
                     )
-                }
-                IconButton({ seekTo(player.currentPosition / MS + SKIP_SEC) }) {
-                    Icon(Icons.Rounded.Forward10, stringResource(R.string.movie_forward_10), Modifier.size(40.dp), tint = colors.ink)
-                }
-            }
-            Column(
-                Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.s),
-            ) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(formatClock(positionSec), color = colors.ink, style = MaterialTheme.typography.labelMedium)
-                    Slider(
-                        value = positionSec.toFloat().coerceIn(0f, durationSec.toFloat()),
-                        onValueChange = { scrubbing = true; positionSec = it.toDouble(); touches++ },
-                        onValueChangeFinished = { scrubbing = false; seekTo(positionSec) },
-                        valueRange = 0f..durationSec.toFloat(),
-                        colors = SliderDefaults.colors(thumbColor = colors.accent, activeTrackColor = colors.accent, inactiveTrackColor = colors.line),
-                        modifier = Modifier.weight(1f).padding(horizontal = TwinTheme.spacing.s),
-                    )
-                    Text(formatClock(durationSec), color = colors.inkMuted, style = MaterialTheme.typography.labelMedium)
-                }
-                if (callHooks != null) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
-                        SmallAction(R.string.movie_voice, Modifier.weight(1f)) { callHooks.start(false) }
-                        SmallAction(R.string.movie_video, Modifier.weight(1f)) { callHooks.start(true) }
-                    }
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
-                    SmallAction(R.string.movie_sync, Modifier.weight(1f)) {
-                        player.seekTo((latestRoom.expectedPositionSec(serverNowMs()) * MS).toLong())
-                        player.setPlaybackSpeed(1f)
-                        syncedPill = true
-                    }
-                    SmallAction(R.string.movie_message, Modifier.weight(1f)) { composing = true }
-                    SmallAction(R.string.movie_log, Modifier.weight(1f)) { showLog = true }
-                    SmallAction(R.string.movie_end, Modifier.weight(1f)) { showEnd = true }
-                }
-            }
+                },
+                modifier = Modifier.align(Alignment.BottomCenter).onSizeChanged { overlayPx = it.height },
+            )
         }
         if (composing) {
-            Row(
-                Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(colors.scrim).navigationBarsPadding().padding(TwinTheme.spacing.s),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TwinTextField(
-                    value = draft, onValueChange = { draft = it }, label = stringResource(R.string.movie_chat_hint),
-                    modifier = Modifier.weight(1f),
-                    imeAction = androidx.compose.ui.text.input.ImeAction.Send,
-                    onImeAction = { onSendChat(draft, player.currentPosition / MS); draft = ""; composing = false },
-                )
-                GlassButton(
-                    stringResource(R.string.movie_send),
-                    { onSendChat(draft, player.currentPosition / MS); draft = ""; composing = false },
-                    Modifier.padding(start = TwinTheme.spacing.s),
-                )
-            }
+            PlayerChatComposer(
+                draft = draft,
+                onDraft = { draft = it },
+                onSend = ::sendDraft,
+                onClose = { composing = false; touches++ },
+                focus = chatFocus,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
+        // The call windows draw over everything, independent of the controls fading (like the web page).
+        callHooks?.bubble?.invoke(this)
     }
     if (showEnd) EndDialog(onConfirm = { showEnd = false; onEnd(player.currentPosition / MS) }, onDismiss = { showEnd = false })
-    if (showLog) ChatLogSheet(chat, onDismiss = { showLog = false })
+    if (showLog) ChatLogSheet(chat, partnerName, onDismiss = { showLog = false })
     if (showMore) {
         PlayerMoreSheet(
             info = MovieInfo(
@@ -400,21 +441,21 @@ fun PlayerScreen(
                 lengthText = formatRuntime(durationSec),
                 cloud = isCloud,
                 sizeText = cloudSizeText,
-                subtitles = subs?.name,
+                subtitles = subtitle?.name,
             ),
             fit = fit,
             sleepMinutes = sleepMin,
             keepScreenOn = keepScreenOn,
             pipAvailable = pipAvailable,
             onSubtitles = {
-                if (subs != null) {
-                    subs = null
+                if (subtitle != null) {
+                    onSubtitle(null)
                     Toast.makeText(context, R.string.movie_toast_subs_off, Toast.LENGTH_SHORT).show()
                 } else {
                     subsPicker.launch(arrayOf("*/*"))
                 }
             },
-            onFit = { fit = fit.next() },
+            onFit = { fit = fit.next(); flashMode(context.getString(fit.label)) },
             onPip = {
                 showMore = false
                 val params = PictureInPictureParams.Builder().setAspectRatio(Rational(PIP_W, PIP_H)).build()
@@ -428,9 +469,6 @@ fun PlayerScreen(
         )
     }
 }
-
-/** A subtitle file the person chose on this phone. It is never uploaded; each phone loads its own. */
-private data class SubtitleChoice(val uri: Uri, val name: String, val mime: String)
 
 @OptIn(UnstableApi::class)
 private fun buildMediaItem(url: String, subs: SubtitleChoice?): MediaItem {
@@ -449,23 +487,6 @@ private fun buildMediaItem(url: String, subs: SubtitleChoice?): MediaItem {
     return builder.build()
 }
 
-/** Media3 reads .srt and .vtt directly (the web page has to convert .srt first). Anything else is refused. */
-@OptIn(UnstableApi::class)
-private fun readSubtitle(context: Context, uri: Uri): SubtitleChoice? {
-    val name = runCatching {
-        context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
-            if (c.moveToFirst()) c.getString(0) else null
-        }
-    }.getOrNull() ?: return null
-    val lower = name.lowercase()
-    val mime = when {
-        lower.endsWith(".srt") -> MimeTypes.APPLICATION_SUBRIP
-        lower.endsWith(".vtt") -> MimeTypes.TEXT_VTT
-        else -> return null
-    }
-    return SubtitleChoice(uri, name, mime)
-}
-
 @OptIn(UnstableApi::class)
 private fun ScreenFit.resizeMode(): Int = when (this) {
     ScreenFit.Fit -> AspectRatioFrameLayout.RESIZE_MODE_FIT
@@ -481,11 +502,6 @@ private fun KeepScreenOnEffect(on: Boolean) {
         view.keepScreenOn = on
         onDispose { view.keepScreenOn = false }
     }
-}
-
-@Composable
-private fun SmallAction(label: Int, modifier: Modifier, onClick: () -> Unit) {
-    GlassButton(stringResource(label), onClick, modifier, style = GlassButtonStyle.Secondary)
 }
 
 /** Hides the system bars while a movie plays. */
@@ -513,10 +529,19 @@ private const val SKIP_SEC = 10.0
 private const val DRIFT_EVERY_MS = 1000L
 private const val POSITION_EVERY_MS = 500L
 private const val HIDE_AFTER_MS = 4000L
-private const val FLOAT_MS = 5000L
 private const val PILL_MS = 2000L
 private const val MS_PER_MINUTE = 60_000L
-private const val SUBTITLE_LANGUAGE = "en"
+private const val MODE_LABEL_MS = 1000L
+private const val CHAT_SHOW_MS = 3500L
+private const val CHAT_GAP_MS = 300L
+private const val CHAT_IDLE_MS = 150L
+private const val FOCUS_DELAY_MS = 50L
+private const val CHAT_GAP_DP = 16
+/**
+ * The bottom block is 20 dp padding + 28 dp timeline + 10 dp gap + 48 dp buttons + 14 dp padding. The timeline top is
+ * therefore (block height - 20) above the screen bottom, and the web page keeps the emoji button 12 dp above that.
+ */
+private const val REACTION_BELOW_TIMELINE_DP = 8f
+private const val MIN_REACTION_BOTTOM_DP = 112f
 private const val PIP_W = 16
 private const val PIP_H = 9
-private const val REACTION_BAR_TOP_DP = 56

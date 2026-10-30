@@ -15,9 +15,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ClosedCaption
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.LightMode
@@ -83,12 +87,22 @@ fun PlayerMoreSheet(
 ) {
     val colors = TwinTheme.colors
     var showInfo by remember { mutableStateOf(false) }
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = colors.card) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color(0xFF141414)) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = TwinTheme.spacing.l)) {
-            Text(
-                stringResource(R.string.movie_more_title), color = colors.ink, style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = TwinTheme.spacing.screenEdge, vertical = TwinTheme.spacing.s),
-            )
+            // Title on the left, round close button on the right (the web sheet header).
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = TwinTheme.spacing.screenEdge, vertical = TwinTheme.spacing.s),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stringResource(R.string.movie_more_title), color = Color.White, style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                Box(
+                    Modifier.size(36.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.08f)).clickable(onClick = onDismiss),
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Icons.Rounded.Close, stringResource(R.string.movie_close), tint = Color.White, modifier = Modifier.size(18.dp)) }
+            }
             MoreRow(Icons.Rounded.Info, R.string.movie_more_info, null, { showInfo = !showInfo })
             if (showInfo) InfoBox(info)
             MoreRow(

@@ -50,6 +50,7 @@ fun RoomDto.toDomain(role: String): WatchRoom {
         actionSeq = actionSeq ?: 0L,
         updatedAtMs = parseIsoMs(updatedAt) ?: 0L,
         sharedMovieId = sharedMovieId?.content?.takeIf { it != "null" && it.isNotBlank() },
+        updatedByMe = updatedBy == role,
     )
 }
 

@@ -21,6 +21,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -50,6 +51,7 @@ import com.twinhearts.app.feature.movie.ui.components.InviteDialog
 import com.twinhearts.app.feature.movie.ui.components.LobbyContent
 import com.twinhearts.app.feature.movie.ui.components.MovieTabsContent
 import com.twinhearts.app.feature.movie.ui.components.PlayerScreen
+import com.twinhearts.app.feature.movie.ui.components.SubtitleChoice
 import kotlinx.coroutines.flow.merge
 import com.twinhearts.app.feature.movie.ui.components.MovieStyled
 
@@ -72,6 +74,8 @@ private fun MovieScreenContent(
     var tab by rememberSaveable { mutableIntStateOf(0) }
     // "Change" only hides the lobby on this phone so the partner's choice is not wiped.
     var changing by rememberSaveable { mutableStateOf(false) }
+    // The subtitle file is picked in the lobby (or the player's ⋮ menu) and stays on this phone only.
+    var subtitle by remember { mutableStateOf<SubtitleChoice?>(null) }
 
     // Polling only runs while the screen is visible, so the battery is safe in the background (R-66).
     LaunchedEffect(watchVm) {
@@ -95,12 +99,15 @@ private fun MovieScreenContent(
                     serverNowMs = watchVm::serverNowMs,
                     onAction = watchVm::sendAction,
                     onSendChat = watchVm::sendChat,
-                    onEnd = watchVm::endMovie,
+                    onEnd = { pos -> subtitle = null; watchVm.endMovie(pos) },
                     reactions = state.reactions,
                     onReaction = watchVm::sendReaction,
                     keepScreenOn = state.keepScreenOn,
                     onKeepScreenOn = watchVm::setKeepScreenOn,
                     callHooks = callHooks,
+                    partnerName = state.who?.partnerName.orEmpty(),
+                    subtitle = subtitle,
+                    onSubtitle = { subtitle = it },
                     isCloud = room.sharedMovieId != null,
                     cloudSizeText = (state.cloud as? UiState.Content)?.data?.movies
                         ?.firstOrNull { it.id == room.sharedMovieId }?.sizeBytes?.let(::formatBytes),
@@ -121,8 +128,10 @@ private fun MovieScreenContent(
                             onReady = { watchVm.setReady(true) },
                             onStart = watchVm::requestStart,
                             onCancelStart = watchVm::cancelStart,
-                            onCancelMovie = watchVm::cancelMovie,
+                            onCancelMovie = { subtitle = null; watchVm.cancelMovie() },
                             onChange = { changing = true; tab = WATCH_TAB },
+                            subtitle = subtitle,
+                            onSubtitle = { subtitle = it },
                         )
                     else -> MovieTabsContent(
                         tab = tab,

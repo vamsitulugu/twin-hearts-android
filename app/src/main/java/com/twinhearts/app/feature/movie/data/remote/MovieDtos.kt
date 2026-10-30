@@ -26,6 +26,7 @@ data class RoomDto(
     @SerialName("action_seq") val actionSeq: Long? = null,
     @SerialName("updated_at") val updatedAt: String? = null,
     @SerialName("shared_movie_id") val sharedMovieId: JsonPrimitive? = null,
+    @SerialName("updated_by") val updatedBy: String? = null,
 )
 
 @Serializable data class PickMovieBody(val role: String, val title: String, val durationSec: Int)
