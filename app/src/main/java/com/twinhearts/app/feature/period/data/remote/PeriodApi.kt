@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.period.data.remote
 
+import com.twinhearts.app.core.network.StateEnvelopeSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -22,8 +23,11 @@ interface PeriodApi {
     suspend fun saveState(@Body body: PeriodSaveBody): PeriodSaveResponse
 }
 
-@Serializable
+@Serializable(with = PeriodStateResponseSerializer::class)
 data class PeriodStateResponse(val state: JsonElement? = null)
+
+/** Reads the saved document in either shape (see [unwrapState]). */
+object PeriodStateResponseSerializer : StateEnvelopeSerializer<PeriodStateResponse>("PeriodStateResponse", { PeriodStateResponse(it) }, { it.state })
 
 @Serializable
 data class PeriodSaveBody(

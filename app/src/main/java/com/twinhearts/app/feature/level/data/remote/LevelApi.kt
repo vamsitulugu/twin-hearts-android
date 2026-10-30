@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.level.data.remote
 
+import com.twinhearts.app.core.network.StateEnvelopeSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import retrofit2.http.GET
@@ -11,5 +12,8 @@ interface LevelApi {
     suspend fun getState(@Path("coupleId") coupleId: String): LevelStateResponse
 }
 
-@Serializable
+@Serializable(with = LevelStateResponseSerializer::class)
 data class LevelStateResponse(val state: JsonElement? = null)
+
+/** Reads the saved document in either shape (see [unwrapState]). */
+object LevelStateResponseSerializer : StateEnvelopeSerializer<LevelStateResponse>("LevelStateResponse", { LevelStateResponse(it) }, { it.state })

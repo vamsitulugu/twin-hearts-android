@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.vault.data.remote
 
+import com.twinhearts.app.core.network.StateEnvelopeSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -66,8 +67,11 @@ data class SetPinBody(val coupleId: String, val newPin: String)
 @Serializable
 data class ResetPinBody(val userId: String, val password: String, val newPin: String)
 
-@Serializable
+@Serializable(with = VaultStateResponseSerializer::class)
 data class VaultStateResponse(val state: JsonElement? = null)
+
+/** Reads the saved document in either shape (see [unwrapState]). */
+object VaultStateResponseSerializer : StateEnvelopeSerializer<VaultStateResponse>("VaultStateResponse", { VaultStateResponse(it) }, { it.state })
 
 @Serializable
 data class VaultSaveBody(

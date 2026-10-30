@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.study.data.remote
 
+import com.twinhearts.app.core.network.StateEnvelopeSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -22,8 +23,11 @@ interface StudyApi {
     suspend fun saveState(@Body body: StudySaveBody): StudySaveResponse
 }
 
-@Serializable
+@Serializable(with = StudyStateResponseSerializer::class)
 data class StudyStateResponse(val state: JsonElement? = null)
+
+/** Reads the saved document in either shape (see [unwrapState]). */
+object StudyStateResponseSerializer : StateEnvelopeSerializer<StudyStateResponse>("StudyStateResponse", { StudyStateResponse(it) }, { it.state })
 
 @Serializable
 data class StudySaveBody(

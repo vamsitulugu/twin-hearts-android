@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.myspace.data.remote
 
+import com.twinhearts.app.core.network.StateEnvelopeSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -21,8 +22,11 @@ interface MySpaceApi {
     suspend fun saveState(@Body body: MySpaceSaveBody): MySpaceSaveResponse
 }
 
-@Serializable
+@Serializable(with = MySpaceStateResponseSerializer::class)
 data class MySpaceStateResponse(val state: JsonElement? = null)
+
+/** Reads the saved document in either shape (see [unwrapState]). */
+object MySpaceStateResponseSerializer : StateEnvelopeSerializer<MySpaceStateResponse>("MySpaceStateResponse", { MySpaceStateResponse(it) }, { it.state })
 
 @Serializable
 data class MySpaceSaveBody(

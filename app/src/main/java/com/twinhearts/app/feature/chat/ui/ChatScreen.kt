@@ -111,10 +111,11 @@ import java.time.LocalDate
  * which only draws. All the logic lives in [ChatViewModel].
  */
 
-// 1 s poll (was 3 s): replies, delivered and blue ticks show up about three times sooner.
-private const val POLL_MS = 1_000L
+// 3 s poll. At 1 s the Chat screen alone, with heartbeat, presence and the call listener, went past the
+// server's per-IP API limit after about 45 s and the server answered "too many requests".
+private const val POLL_MS = 3_000L
 private const val FULL_REFRESH_EVERY = 3
-private const val HEARTBEAT_EVERY = 15
+private const val HEARTBEAT_EVERY = 5   // every 15 s at a 3 s poll, as before
 private const val BANNER_MS = 3_000L
 private const val MIN_VOICE_SECONDS = 1
 private const val MAX_PICKS = 10

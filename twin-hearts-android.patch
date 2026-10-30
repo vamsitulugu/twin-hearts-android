@@ -1,0 +1,384 @@
+diff --git a/app/src/main/java/com/twinhearts/app/core/network/StateEnvelope.kt b/app/src/main/java/com/twinhearts/app/core/network/StateEnvelope.kt
+new file mode 100644
+index 0000000..b8fa69d
+--- /dev/null
++++ b/app/src/main/java/com/twinhearts/app/core/network/StateEnvelope.kt
+@@ -0,0 +1,48 @@
++package com.twinhearts.app.core.network
++
++import kotlinx.serialization.KSerializer
++import kotlinx.serialization.descriptors.SerialDescriptor
++import kotlinx.serialization.descriptors.buildClassSerialDescriptor
++import kotlinx.serialization.encoding.Decoder
++import kotlinx.serialization.encoding.Encoder
++import kotlinx.serialization.json.JsonDecoder
++import kotlinx.serialization.json.JsonElement
++import kotlinx.serialization.json.JsonEncoder
++import kotlinx.serialization.json.JsonObject
++import kotlinx.serialization.json.buildJsonObject
++
++/**
++ * `GET /api/data/state/:coupleId` (us-app/routes/data.js) answers the saved document itself
++ * (`{ "events": [...], "photos": [...] }`), or JSON `null` when nothing is saved yet. Older code
++ * expected it inside a `{ "state": {...} }` wrapper and so read an empty document, then saved
++ * lists built from that empty one over the real data on the server.
++ *
++ * This returns the document for either shape, so every page reads what is really saved.
++ */
++fun unwrapState(root: JsonElement?): JsonElement? {
++    val obj = root as? JsonObject ?: return null
++    return (obj["state"] as? JsonObject) ?: obj
++}
++
++/**
++ * Base serializer for a page's `…StateResponse(val state: JsonElement?)` class. Put
++ * `@Serializable(with = …)` on the class and the page's repository code stays unchanged.
++ */
++abstract class StateEnvelopeSerializer<T>(
++    serialName: String,
++    private val make: (JsonElement?) -> T,
++    private val read: (T) -> JsonElement?,
++) : KSerializer<T> {
++
++    override val descriptor: SerialDescriptor = buildClassSerialDescriptor(serialName)
++
++    override fun deserialize(decoder: Decoder): T {
++        val input = decoder as? JsonDecoder ?: error("StateEnvelopeSerializer needs JSON")
++        return make(unwrapState(input.decodeJsonElement()))
++    }
++
++    override fun serialize(encoder: Encoder, value: T) {
++        val out = encoder as? JsonEncoder ?: error("StateEnvelopeSerializer needs JSON")
++        out.encodeJsonElement(buildJsonObject { read(value)?.let { put("state", it) } })
++    }
++}
+diff --git a/app/src/main/java/com/twinhearts/app/feature/bucket/data/remote/BucketApi.kt b/app/src/main/java/com/twinhearts/app/feature/bucket/data/remote/BucketApi.kt
+index a50c18b..f13f581 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/bucket/data/remote/BucketApi.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/bucket/data/remote/BucketApi.kt
+@@ -1,5 +1,6 @@
+ package com.twinhearts.app.feature.bucket.data.remote
+ 
++import com.twinhearts.app.core.network.StateEnvelopeSerializer
+ import kotlinx.serialization.Serializable
+ import kotlinx.serialization.json.JsonElement
+ import kotlinx.serialization.json.JsonObject
+@@ -21,9 +22,12 @@ interface BucketApi {
+     suspend fun saveState(@Body body: BucketSaveBody): BucketSaveResponse
+ }
+ 
+-@Serializable
++@Serializable(with = BucketStateResponseSerializer::class)
+ data class BucketStateResponse(val state: JsonElement? = null)
+ 
++/** Reads the saved document in either shape (see [unwrapState]). */
++object BucketStateResponseSerializer : StateEnvelopeSerializer<BucketStateResponse>("BucketStateResponse", { BucketStateResponse(it) }, { it.state })
++
+ @Serializable
+ data class BucketSaveBody(
+     val coupleId: String,
+diff --git a/app/src/main/java/com/twinhearts/app/feature/calendar/data/remote/CalendarApi.kt b/app/src/main/java/com/twinhearts/app/feature/calendar/data/remote/CalendarApi.kt
+index e6dd700..29623e0 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/calendar/data/remote/CalendarApi.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/calendar/data/remote/CalendarApi.kt
+@@ -1,5 +1,6 @@
+ package com.twinhearts.app.feature.calendar.data.remote
+ 
++import com.twinhearts.app.core.network.StateEnvelopeSerializer
+ import kotlinx.serialization.Serializable
+ import kotlinx.serialization.json.JsonElement
+ import kotlinx.serialization.json.JsonObject
+@@ -21,9 +22,12 @@ interface CalendarApi {
+     suspend fun saveState(@Body body: CalendarSaveBody): CalendarSaveResponse
+ }
+ 
+-@Serializable
++@Serializable(with = CalendarStateResponseSerializer::class)
+ data class CalendarStateResponse(val state: JsonElement? = null)
+ 
++/** Reads the saved document in either shape (see [unwrapState]). */
++object CalendarStateResponseSerializer : StateEnvelopeSerializer<CalendarStateResponse>("CalendarStateResponse", { CalendarStateResponse(it) }, { it.state })
++
+ @Serializable
+ data class CalendarSaveBody(
+     val coupleId: String,
+diff --git a/app/src/main/java/com/twinhearts/app/feature/chat/ui/ChatScreen.kt b/app/src/main/java/com/twinhearts/app/feature/chat/ui/ChatScreen.kt
+index e323ef1..a7362f8 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/chat/ui/ChatScreen.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/chat/ui/ChatScreen.kt
+@@ -111,10 +111,11 @@ import java.time.LocalDate
+  * which only draws. All the logic lives in [ChatViewModel].
+  */
+ 
+-// 1 s poll (was 3 s): replies, delivered and blue ticks show up about three times sooner.
+-private const val POLL_MS = 1_000L
++// 3 s poll. At 1 s the Chat screen alone, with heartbeat, presence and the call listener, went past the
++// server's per-IP API limit after about 45 s and the server answered "too many requests".
++private const val POLL_MS = 3_000L
+ private const val FULL_REFRESH_EVERY = 3
+-private const val HEARTBEAT_EVERY = 15
++private const val HEARTBEAT_EVERY = 5   // every 15 s at a 3 s poll, as before
+ private const val BANNER_MS = 3_000L
+ private const val MIN_VOICE_SECONDS = 1
+ private const val MAX_PICKS = 10
+diff --git a/app/src/main/java/com/twinhearts/app/feature/collection/data/remote/CollectionApi.kt b/app/src/main/java/com/twinhearts/app/feature/collection/data/remote/CollectionApi.kt
+index a6fa3a4..a1f7f91 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/collection/data/remote/CollectionApi.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/collection/data/remote/CollectionApi.kt
+@@ -1,5 +1,6 @@
+ package com.twinhearts.app.feature.collection.data.remote
+ 
++import com.twinhearts.app.core.network.StateEnvelopeSerializer
+ import kotlinx.serialization.Serializable
+ import kotlinx.serialization.json.JsonElement
+ import kotlinx.serialization.json.JsonObject
+@@ -33,9 +34,12 @@ interface CollectionApi {
+     suspend fun deleteMessage(@Path("id") id: Long, @Body body: DeleteRequest): CollectionOk
+ }
+ 
+-@Serializable
++@Serializable(with = CollectionStateResponseSerializer::class)
+ data class CollectionStateResponse(val state: JsonElement? = null)
+ 
++/** Reads the saved document in either shape (see [unwrapState]). */
++object CollectionStateResponseSerializer : StateEnvelopeSerializer<CollectionStateResponse>("CollectionStateResponse", { CollectionStateResponse(it) }, { it.state })
++
+ @Serializable
+ data class CollectionSaveBody(val coupleId: String, val state: JsonObject, val senderRole: String, val myName: String)
+ 
+diff --git a/app/src/main/java/com/twinhearts/app/feature/level/data/remote/LevelApi.kt b/app/src/main/java/com/twinhearts/app/feature/level/data/remote/LevelApi.kt
+index 002e9cb..cb50bf7 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/level/data/remote/LevelApi.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/level/data/remote/LevelApi.kt
+@@ -1,5 +1,6 @@
+ package com.twinhearts.app.feature.level.data.remote
+ 
++import com.twinhearts.app.core.network.StateEnvelopeSerializer
+ import kotlinx.serialization.Serializable
+ import kotlinx.serialization.json.JsonElement
+ import retrofit2.http.GET
+@@ -11,5 +12,8 @@ interface LevelApi {
+     suspend fun getState(@Path("coupleId") coupleId: String): LevelStateResponse
+ }
+ 
+-@Serializable
++@Serializable(with = LevelStateResponseSerializer::class)
+ data class LevelStateResponse(val state: JsonElement? = null)
++
++/** Reads the saved document in either shape (see [unwrapState]). */
++object LevelStateResponseSerializer : StateEnvelopeSerializer<LevelStateResponse>("LevelStateResponse", { LevelStateResponse(it) }, { it.state })
+diff --git a/app/src/main/java/com/twinhearts/app/feature/money/data/remote/MoneyApi.kt b/app/src/main/java/com/twinhearts/app/feature/money/data/remote/MoneyApi.kt
+index 14a4cf2..fae1892 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/money/data/remote/MoneyApi.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/money/data/remote/MoneyApi.kt
+@@ -1,5 +1,6 @@
+ package com.twinhearts.app.feature.money.data.remote
+ 
++import com.twinhearts.app.core.network.StateEnvelopeSerializer
+ import kotlinx.serialization.Serializable
+ import kotlinx.serialization.json.JsonElement
+ import kotlinx.serialization.json.JsonObject
+@@ -22,9 +23,12 @@ interface MoneyApi {
+     suspend fun saveState(@Body body: MoneySaveBody): MoneySaveResponse
+ }
+ 
+-@Serializable
++@Serializable(with = MoneyStateResponseSerializer::class)
+ data class MoneyStateResponse(val state: JsonElement? = null)
+ 
++/** Reads the saved document in either shape (see [unwrapState]). */
++object MoneyStateResponseSerializer : StateEnvelopeSerializer<MoneyStateResponse>("MoneyStateResponse", { MoneyStateResponse(it) }, { it.state })
++
+ @Serializable
+ data class MoneySaveBody(
+     val coupleId: String,
+diff --git a/app/src/main/java/com/twinhearts/app/feature/myspace/data/remote/MySpaceApi.kt b/app/src/main/java/com/twinhearts/app/feature/myspace/data/remote/MySpaceApi.kt
+index e251439..7eb29c0 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/myspace/data/remote/MySpaceApi.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/myspace/data/remote/MySpaceApi.kt
+@@ -1,5 +1,6 @@
+ package com.twinhearts.app.feature.myspace.data.remote
+ 
++import com.twinhearts.app.core.network.StateEnvelopeSerializer
+ import kotlinx.serialization.Serializable
+ import kotlinx.serialization.json.JsonElement
+ import kotlinx.serialization.json.JsonObject
+@@ -21,9 +22,12 @@ interface MySpaceApi {
+     suspend fun saveState(@Body body: MySpaceSaveBody): MySpaceSaveResponse
+ }
+ 
+-@Serializable
++@Serializable(with = MySpaceStateResponseSerializer::class)
+ data class MySpaceStateResponse(val state: JsonElement? = null)
+ 
++/** Reads the saved document in either shape (see [unwrapState]). */
++object MySpaceStateResponseSerializer : StateEnvelopeSerializer<MySpaceStateResponse>("MySpaceStateResponse", { MySpaceStateResponse(it) }, { it.state })
++
+ @Serializable
+ data class MySpaceSaveBody(
+     val coupleId: String,
+diff --git a/app/src/main/java/com/twinhearts/app/feature/period/data/remote/PeriodApi.kt b/app/src/main/java/com/twinhearts/app/feature/period/data/remote/PeriodApi.kt
+index 82cdf04..28a83b3 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/period/data/remote/PeriodApi.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/period/data/remote/PeriodApi.kt
+@@ -1,5 +1,6 @@
+ package com.twinhearts.app.feature.period.data.remote
+ 
++import com.twinhearts.app.core.network.StateEnvelopeSerializer
+ import kotlinx.serialization.Serializable
+ import kotlinx.serialization.json.JsonElement
+ import kotlinx.serialization.json.JsonObject
+@@ -22,9 +23,12 @@ interface PeriodApi {
+     suspend fun saveState(@Body body: PeriodSaveBody): PeriodSaveResponse
+ }
+ 
+-@Serializable
++@Serializable(with = PeriodStateResponseSerializer::class)
+ data class PeriodStateResponse(val state: JsonElement? = null)
+ 
++/** Reads the saved document in either shape (see [unwrapState]). */
++object PeriodStateResponseSerializer : StateEnvelopeSerializer<PeriodStateResponse>("PeriodStateResponse", { PeriodStateResponse(it) }, { it.state })
++
+ @Serializable
+ data class PeriodSaveBody(
+     val coupleId: String,
+diff --git a/app/src/main/java/com/twinhearts/app/feature/profile/data/remote/ProfileDtos.kt b/app/src/main/java/com/twinhearts/app/feature/profile/data/remote/ProfileDtos.kt
+index aa50964..f424e99 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/profile/data/remote/ProfileDtos.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/profile/data/remote/ProfileDtos.kt
+@@ -1,5 +1,6 @@
+ package com.twinhearts.app.feature.profile.data.remote
+ 
++import com.twinhearts.app.core.network.StateEnvelopeSerializer
+ import kotlinx.serialization.SerialName
+ import kotlinx.serialization.Serializable
+ import kotlinx.serialization.json.JsonElement
+@@ -11,9 +12,12 @@ import kotlinx.serialization.json.JsonObject
+  */
+ 
+ /** GET /api/data/state/:coupleId → `{ state: {...} | null }`. */
+-@Serializable
++@Serializable(with = StateResponseSerializer::class)
+ data class StateResponse(val state: JsonElement? = null)
+ 
++/** Reads the saved document in either shape (see [unwrapState]). */
++object StateResponseSerializer : StateEnvelopeSerializer<StateResponse>("StateResponse", { StateResponse(it) }, { it.state })
++
+ /** POST /api/data/state. The server merges the top-level keys of [state]; `profile` is merged per person. */
+ @Serializable
+ data class SaveStateBody(
+diff --git a/app/src/main/java/com/twinhearts/app/feature/study/data/remote/StudyApi.kt b/app/src/main/java/com/twinhearts/app/feature/study/data/remote/StudyApi.kt
+index 0712085..75329af 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/study/data/remote/StudyApi.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/study/data/remote/StudyApi.kt
+@@ -1,5 +1,6 @@
+ package com.twinhearts.app.feature.study.data.remote
+ 
++import com.twinhearts.app.core.network.StateEnvelopeSerializer
+ import kotlinx.serialization.Serializable
+ import kotlinx.serialization.json.JsonElement
+ import kotlinx.serialization.json.JsonObject
+@@ -22,9 +23,12 @@ interface StudyApi {
+     suspend fun saveState(@Body body: StudySaveBody): StudySaveResponse
+ }
+ 
+-@Serializable
++@Serializable(with = StudyStateResponseSerializer::class)
+ data class StudyStateResponse(val state: JsonElement? = null)
+ 
++/** Reads the saved document in either shape (see [unwrapState]). */
++object StudyStateResponseSerializer : StateEnvelopeSerializer<StudyStateResponse>("StudyStateResponse", { StudyStateResponse(it) }, { it.state })
++
+ @Serializable
+ data class StudySaveBody(
+     val coupleId: String,
+diff --git a/app/src/main/java/com/twinhearts/app/feature/us/data/remote/UsDtos.kt b/app/src/main/java/com/twinhearts/app/feature/us/data/remote/UsDtos.kt
+index 636a451..d79ed18 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/us/data/remote/UsDtos.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/us/data/remote/UsDtos.kt
+@@ -1,5 +1,6 @@
+ package com.twinhearts.app.feature.us.data.remote
+ 
++import com.twinhearts.app.core.network.StateEnvelopeSerializer
+ import kotlinx.serialization.Serializable
+ import kotlinx.serialization.json.JsonArray
+ import kotlinx.serialization.json.JsonElement
+@@ -7,8 +8,11 @@ import kotlinx.serialization.json.JsonObject
+ import kotlinx.serialization.json.JsonPrimitive
+ import kotlinx.serialization.json.contentOrNull
+ 
+-@Serializable
+-data class GetStateResponse(val state: JsonElement?)
++@Serializable(with = GetStateResponseSerializer::class)
++data class GetStateResponse(val state: JsonElement? = null)
++
++/** Reads the saved document in either shape (see [unwrapState]). */
++object GetStateResponseSerializer : StateEnvelopeSerializer<GetStateResponse>("GetStateResponse", { GetStateResponse(it) }, { it.state })
+ 
+ @Serializable
+ data class SaveStateBody(
+diff --git a/app/src/main/java/com/twinhearts/app/feature/vault/data/remote/VaultApi.kt b/app/src/main/java/com/twinhearts/app/feature/vault/data/remote/VaultApi.kt
+index eb61028..a15aa8f 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/vault/data/remote/VaultApi.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/vault/data/remote/VaultApi.kt
+@@ -1,5 +1,6 @@
+ package com.twinhearts.app.feature.vault.data.remote
+ 
++import com.twinhearts.app.core.network.StateEnvelopeSerializer
+ import kotlinx.serialization.Serializable
+ import kotlinx.serialization.json.JsonElement
+ import kotlinx.serialization.json.JsonObject
+@@ -66,9 +67,12 @@ data class SetPinBody(val coupleId: String, val newPin: String)
+ @Serializable
+ data class ResetPinBody(val userId: String, val password: String, val newPin: String)
+ 
+-@Serializable
++@Serializable(with = VaultStateResponseSerializer::class)
+ data class VaultStateResponse(val state: JsonElement? = null)
+ 
++/** Reads the saved document in either shape (see [unwrapState]). */
++object VaultStateResponseSerializer : StateEnvelopeSerializer<VaultStateResponse>("VaultStateResponse", { VaultStateResponse(it) }, { it.state })
++
+ @Serializable
+ data class VaultSaveBody(
+     val coupleId: String,
+diff --git a/app/src/test/java/com/twinhearts/app/core/network/StateEnvelopeTest.kt b/app/src/test/java/com/twinhearts/app/core/network/StateEnvelopeTest.kt
+new file mode 100644
+index 0000000..e119909
+--- /dev/null
++++ b/app/src/test/java/com/twinhearts/app/core/network/StateEnvelopeTest.kt
+@@ -0,0 +1,34 @@
++package com.twinhearts.app.core.network
++
++import kotlinx.serialization.json.Json
++import kotlinx.serialization.json.JsonArray
++import kotlinx.serialization.json.JsonObject
++import com.twinhearts.app.feature.money.data.remote.MoneyStateResponse
++import org.junit.Assert.assertEquals
++import org.junit.Assert.assertNotNull
++import org.junit.Assert.assertNull
++import org.junit.Test
++
++class StateEnvelopeTest {
++    private val json = Json { ignoreUnknownKeys = true; explicitNulls = false; coerceInputValues = true }
++
++    private fun parse(text: String) = json.decodeFromString(MoneyStateResponse.serializer(), text)
++
++    @Test fun `server shape - document at top level is read`() {
++        val state = parse("""{"transactions":[{"id":"1"}],"xp":40}""").state as JsonObject
++        assertEquals(1, (state["transactions"] as JsonArray).size)
++    }
++
++    @Test fun `wrapped shape is still read`() {
++        val state = parse("""{"state":{"transactions":[{"id":"1"},{"id":"2"}]}}""").state as JsonObject
++        assertEquals(2, (state["transactions"] as JsonArray).size)
++    }
++
++    @Test fun `no saved state yet (JSON null) gives null, not a crash`() {
++        assertNull(parse("null").state)
++    }
++
++    @Test fun `empty object gives empty document`() {
++        assertNotNull(parse("{}").state)
++    }
++}

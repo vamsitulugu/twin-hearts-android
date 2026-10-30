@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.money.data.remote
 
+import com.twinhearts.app.core.network.StateEnvelopeSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -22,8 +23,11 @@ interface MoneyApi {
     suspend fun saveState(@Body body: MoneySaveBody): MoneySaveResponse
 }
 
-@Serializable
+@Serializable(with = MoneyStateResponseSerializer::class)
 data class MoneyStateResponse(val state: JsonElement? = null)
+
+/** Reads the saved document in either shape (see [unwrapState]). */
+object MoneyStateResponseSerializer : StateEnvelopeSerializer<MoneyStateResponse>("MoneyStateResponse", { MoneyStateResponse(it) }, { it.state })
 
 @Serializable
 data class MoneySaveBody(

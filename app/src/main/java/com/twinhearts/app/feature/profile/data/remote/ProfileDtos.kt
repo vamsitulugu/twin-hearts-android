@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.profile.data.remote
 
+import com.twinhearts.app.core.network.StateEnvelopeSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
@@ -11,8 +12,11 @@ import kotlinx.serialization.json.JsonObject
  */
 
 /** GET /api/data/state/:coupleId → `{ state: {...} | null }`. */
-@Serializable
+@Serializable(with = StateResponseSerializer::class)
 data class StateResponse(val state: JsonElement? = null)
+
+/** Reads the saved document in either shape (see [unwrapState]). */
+object StateResponseSerializer : StateEnvelopeSerializer<StateResponse>("StateResponse", { StateResponse(it) }, { it.state })
 
 /** POST /api/data/state. The server merges the top-level keys of [state]; `profile` is merged per person. */
 @Serializable

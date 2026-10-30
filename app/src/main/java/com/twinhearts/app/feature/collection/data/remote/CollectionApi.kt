@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.collection.data.remote
 
+import com.twinhearts.app.core.network.StateEnvelopeSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -33,8 +34,11 @@ interface CollectionApi {
     suspend fun deleteMessage(@Path("id") id: Long, @Body body: DeleteRequest): CollectionOk
 }
 
-@Serializable
+@Serializable(with = CollectionStateResponseSerializer::class)
 data class CollectionStateResponse(val state: JsonElement? = null)
+
+/** Reads the saved document in either shape (see [unwrapState]). */
+object CollectionStateResponseSerializer : StateEnvelopeSerializer<CollectionStateResponse>("CollectionStateResponse", { CollectionStateResponse(it) }, { it.state })
 
 @Serializable
 data class CollectionSaveBody(val coupleId: String, val state: JsonObject, val senderRole: String, val myName: String)

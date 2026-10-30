@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.us.data.remote
 
+import com.twinhearts.app.core.network.StateEnvelopeSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -7,8 +8,11 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 
-@Serializable
-data class GetStateResponse(val state: JsonElement?)
+@Serializable(with = GetStateResponseSerializer::class)
+data class GetStateResponse(val state: JsonElement? = null)
+
+/** Reads the saved document in either shape (see [unwrapState]). */
+object GetStateResponseSerializer : StateEnvelopeSerializer<GetStateResponse>("GetStateResponse", { GetStateResponse(it) }, { it.state })
 
 @Serializable
 data class SaveStateBody(
