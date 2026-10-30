@@ -18,6 +18,9 @@ import androidx.compose.ui.graphics.Color
 object TwinNeutral {
     /** Page background shared by all restyled pages. */
     val Base = Color(0xFF0A0A0C)
+
+    /** Very dark wine at the top of the page, the same as Music and Movie. */
+    val Glow = Color(0xFF2A0617)
 }
 
 /** Swaps the pink-tinted tokens for grey glass + burgundy inside [content], on a flat near-black page. */
@@ -28,7 +31,8 @@ fun TwinNeutralPage(content: @Composable () -> Unit) {
         base.copy(
             background = TwinNeutral.Base,
             backgroundGlow = TwinNeutral.Base,
-            burgundy = TwinNeutral.Base,
+            // TwinBackground paints a soft wine glow from this colour at the top of the page (same as Music / Movie).
+            burgundy = TwinNeutral.Glow,
             glass = Color.White.copy(alpha = 0.08f),
             line = Color.White.copy(alpha = 0.16f),
             lineSoft = Color.White.copy(alpha = 0.12f),
@@ -54,7 +58,7 @@ fun TwinNeutralPage(content: @Composable () -> Unit) {
     )
     CompositionLocalProvider(LocalTwinColors provides neutral) {
         MaterialTheme(colorScheme = scheme, typography = MaterialTheme.typography, shapes = MaterialTheme.shapes) {
-            Box(Modifier.fillMaxSize().background(TwinNeutral.Base)) { content() }
+            Box(Modifier.twinPage()) { content() }
         }
     }
 }

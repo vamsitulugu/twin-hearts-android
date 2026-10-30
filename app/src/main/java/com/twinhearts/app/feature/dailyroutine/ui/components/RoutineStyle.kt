@@ -32,8 +32,8 @@ private fun NeutralRoutineColors(content: @Composable () -> Unit) {
         base.copy(
             background = RoutineStyle.Base,
             backgroundGlow = RoutineStyle.Base,
-            // TwinBackground paints a burgundy glow from this colour; flat near-black instead.
-            burgundy = RoutineStyle.Base,
+            // TwinBackground paints a burgundy glow from this colour; the same very dark wine glow as Music and Movie.
+            burgundy = com.twinhearts.app.core.design.TwinNeutral.Glow,
             // Grey glass instead of pink-tinted glass.
             glass = Color.White.copy(alpha = 0.08f),
             line = Color.White.copy(alpha = 0.16f),

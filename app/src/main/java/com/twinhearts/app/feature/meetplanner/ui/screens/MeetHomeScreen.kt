@@ -83,7 +83,7 @@ internal fun MeetHomeScreen(state: MeetUiState, actions: MeetActions, onExit: ()
     val draft = state.draft
 
     Column(Modifier.fillMaxSize()) {
-        TwinTopBar(title = stringResource(R.string.meetplanner_title), onBackClick = onExit, onSyncClick = actions::refresh)
+        TwinTopBar(title = stringResource(R.string.meetplanner_title), showSidebarButton = true, onSyncClick = actions::refresh)
         Column(
             Modifier
                 .fillMaxSize()

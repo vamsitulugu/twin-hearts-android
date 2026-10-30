@@ -23,14 +23,11 @@ fun GlassCard(
     contentPadding: Dp = TwinTheme.spacing.l,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val colors = TwinTheme.colors
     val shape = TwinTheme.shapes.card
     val tap = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
     Column(
         modifier = modifier
-            .clip(shape)
-            .background(colors.glass)
-            .border(1.dp, colors.line, shape)
+            .twinGlass(shape)
             .then(tap)
             .padding(contentPadding),
         content = content,

@@ -74,8 +74,8 @@ fun FightsScreen(
     Column(modifier.fillMaxSize()) {
         TwinTopBar(
             title = stringResource(R.string.fights_title),
-            onBackClick = { if (!viewModel.handleBack()) onBack() },
-            onMenuClick = pending,
+            onBackClick = if (state.view != FightView.Dashboard) ({ if (!viewModel.handleBack()) onBack() }) else null,
+            showSidebarButton = state.view == FightView.Dashboard,
             onSearchClick = pending,
             onSyncClick = viewModel::load,
         )

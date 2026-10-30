@@ -95,7 +95,7 @@ private fun HubScreen(viewModel: GamesViewModel, onBack: () -> Unit, onOpen: (Ga
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        TwinTopBar(title = stringResource(R.string.games_title), onBackClick = onBack)
+        TwinTopBar(title = stringResource(R.string.games_title), showSidebarButton = true)
         when (val current = ui) {
             UiState.Loading, UiState.Empty -> LoadingSkeleton(modifier = Modifier.padding(TwinTheme.spacing.screenEdge))
             is UiState.Error -> ErrorState(message = current.error.asText(), onRetry = viewModel::retry)

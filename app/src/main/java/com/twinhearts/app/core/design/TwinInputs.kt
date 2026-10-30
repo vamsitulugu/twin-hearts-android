@@ -150,29 +150,22 @@ fun SegmentedTabs(
 ) {
     val colors = TwinTheme.colors
     val pill = TwinTheme.shapes.pill
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(pill)
-            .background(colors.glass)
-            .border(1.dp, colors.lineSoft, pill)
-            .padding(4.dp),
-    ) {
+    // Same two-tone track as the Music / Movie tabs: frosted glass track, burgundy glass for the chosen tab.
+    Row(modifier = modifier.fillMaxWidth().twinGlass(pill).padding(4.dp)) {
         options.forEachIndexed { index, label ->
             val selected = index == selectedIndex
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .heightIn(min = 40.dp)
-                    .clip(pill)
-                    .background(if (selected) colors.neutralGlass else Color.Transparent)
+                    .heightIn(min = 44.dp)
+                    .then(if (selected) Modifier.twinWine(pill) else Modifier.clip(pill))
                     .selectable(selected = selected, role = Role.Tab, onClick = { onSelect(index) }),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = label,
                     style = MaterialTheme.typography.titleSmall,
-                    color = if (selected) colors.ink else colors.inkMuted,
+                    color = if (selected) Color.White else colors.inkMuted,
                 )
             }
         }

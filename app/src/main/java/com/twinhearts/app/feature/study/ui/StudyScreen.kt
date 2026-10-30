@@ -129,7 +129,7 @@ fun StudyScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         TwinTopBar(
             title = stringResource(R.string.study_title),
-            onBackClick = onBack,
+            showSidebarButton = true,
             onSyncClick = viewModel::load,
         )
         if (state.offline) OfflineBanner()

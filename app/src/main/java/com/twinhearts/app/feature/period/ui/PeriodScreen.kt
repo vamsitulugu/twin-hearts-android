@@ -149,7 +149,7 @@ fun PeriodScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         TwinTopBar(
             title = stringResource(R.string.period_title),
-            onBackClick = onBack,
+            showSidebarButton = true,
             onSyncClick = viewModel::load,
         )
         val data = state.data

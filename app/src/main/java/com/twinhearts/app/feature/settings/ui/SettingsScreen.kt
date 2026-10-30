@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.settings.ui
 
+import com.twinhearts.app.core.design.twinPage
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -157,7 +158,7 @@ fun SettingsScreen(
     BackHandler(enabled = state.page != null, onBack = viewModel::onBack)
 
     NeutralSettingsColors {
-    Column(modifier = Modifier.fillMaxSize().background(SettingsStyle.Base)) {
+    Column(modifier = Modifier.twinPage()) {
         TwinTopBar(
             title = stringResource(R.string.settings_title),
             showSidebarButton = true,

@@ -153,7 +153,7 @@ internal fun RoutineContent(
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            TwinTopBar(title = stringResource(R.string.dr_title), onBackClick = onBack, onSyncClick = onRefresh)
+            TwinTopBar(title = stringResource(R.string.dr_title), showSidebarButton = true, onSyncClick = onRefresh)
             val identity = state.identity
             when {
                 state.error != null && identity == null -> ErrorState(

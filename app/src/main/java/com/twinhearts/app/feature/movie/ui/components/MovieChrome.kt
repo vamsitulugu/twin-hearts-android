@@ -8,6 +8,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -107,6 +113,42 @@ private fun ModeButton(icon: ImageVector, label: Int, selected: Boolean, onClick
     }
 }
 
+/**
+ * The top of Home: the hero cards of all your movies slide by themselves every few seconds (swipe works too),
+ * with small dots under them. One movie = just the card.
+ */
+@Composable
+fun HeroCarousel(movies: List<MovieItem>, favorites: Set<String>, onWatch: () -> Unit, onOpen: (MovieItem) -> Unit) {
+    val slides = movies.take(HERO_MAX_SLIDES)
+    if (slides.size <= 1) {
+        slides.firstOrNull()?.let { top -> HeroBanner(top, top.id in favorites, onWatch, { onOpen(top) }) }
+        return
+    }
+    val pager = rememberPagerState(pageCount = { slides.size })
+    // Slides on its own, but waits while a finger is on it.
+    LaunchedEffect(pager, slides.size) {
+        while (true) {
+            delay(HERO_SLIDE_MS)
+            if (!pager.isScrollInProgress) pager.animateScrollToPage((pager.currentPage + 1) % slides.size)
+        }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
+        HorizontalPager(state = pager, key = { slides[it].id }) { page ->
+            val movie = slides[page]
+            HeroBanner(movie, movie.id in favorites, onWatch, { onOpen(movie) })
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)) {
+            repeat(slides.size) { i ->
+                val on = i == pager.currentPage
+                Box(
+                    Modifier.size(if (on) 8.dp else 6.dp).clip(CircleShape)
+                        .background(if (on) Color(0xFFFF7AB8) else Color.White.copy(alpha = 0.3f)),
+                )
+            }
+        }
+    }
+}
+
 /** The big card at the top of Home (web ".mc-hero-slide"). */
 @Composable
 fun HeroBanner(movie: MovieItem, isFavorite: Boolean, onWatch: () -> Unit, onDetails: () -> Unit) {
@@ -176,21 +218,25 @@ private fun statusLabel(s: WatchStatus): Int = when (s) {
 fun GenreCard(name: String, count: Int, posterUrl: String?, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val g = genreStyle(name)
     val shape = TwinTheme.shapes.card
+    // Every genre card is the same tall 9:16 card, with or without a poster, so the grid always looks even.
     Box(
-        modifier.heightIn(min = 104.dp).movieGlass(shape).clickable(onClick = onClick),
+        modifier.aspectRatio(GENRE_RATIO).movieGlass(shape).clickable(onClick = onClick),
     ) {
         if (posterUrl != null) {
             AsyncImage(posterUrl, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.15f), Color.Black.copy(alpha = 0.65f)))))
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.15f), Color.Black.copy(alpha = 0.7f)))))
         } else {
             Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(g.startArgb), Color(g.endArgb)))))
         }
-        Text(g.emoji, fontSize = 26.sp, modifier = Modifier.align(Alignment.TopEnd).padding(top = 10.dp, end = 12.dp))
-        Column(Modifier.align(Alignment.BottomStart).padding(12.dp)) {
-            Text(name, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
-            Text(pluralStringResource(R.plurals.movie_genre_count, count, count), color = Color.White.copy(alpha = 0.85f), fontSize = 11.sp)
+        Text(g.emoji, fontSize = 30.sp, modifier = Modifier.align(Alignment.TopCenter).padding(top = 14.dp))
+        Column(Modifier.align(Alignment.BottomStart).padding(horizontal = 8.dp, vertical = 10.dp)) {
+            Text(name, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(pluralStringResource(R.plurals.movie_genre_count, count, count), color = Color.White.copy(alpha = 0.85f), fontSize = 10.sp, maxLines = 1)
         }
     }
 }
 
 private const val HERO_RATIO = 1.08f
+private const val GENRE_RATIO = 9f / 16f
+private const val HERO_MAX_SLIDES = 12
+private const val HERO_SLIDE_MS = 4000L

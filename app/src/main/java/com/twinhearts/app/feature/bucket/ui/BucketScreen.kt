@@ -102,7 +102,7 @@ fun BucketScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         TwinTopBar(
             title = stringResource(R.string.bucket_title),
-            onBackClick = onBack,
+            showSidebarButton = true,
             onSyncClick = viewModel::load,
         )
         val error = state.error

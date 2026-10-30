@@ -27,6 +27,7 @@ internal fun NeutralSettingsColors(content: @Composable () -> Unit) {
         base.copy(
             background = SettingsStyle.Base,
             backgroundGlow = SettingsStyle.Base,
+            burgundy = com.twinhearts.app.core.design.TwinNeutral.Glow,
             // Grey glass instead of pink-tinted glass.
             glass = Color.White.copy(alpha = 0.08f),
             line = Color.White.copy(alpha = 0.16f),

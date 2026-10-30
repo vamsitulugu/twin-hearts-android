@@ -9,6 +9,7 @@ import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.core.common.UiState
 import com.twinhearts.app.feature.movie.data.MovieRepository
 import com.twinhearts.app.feature.movie.data.local.MovieLocalStore
+import com.twinhearts.app.feature.movie.data.local.SavedLocalMovie
 import com.twinhearts.app.feature.movie.data.upload.CloudUploader
 import com.twinhearts.app.feature.movie.data.upload.UploadRequest
 import com.twinhearts.app.feature.movie.data.upload.UploadState
@@ -31,9 +32,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.math.abs
 
 /** Which full-screen part of Watch Together is showing. */
-enum class WatchStage { Setup, Countdown, Watching }
+/** [NeedFile]: the movie has started but this phone has no copy of the file yet (asks the person to pick it). */
+enum class WatchStage { Setup, Countdown, NeedFile, Watching }
 
 data class WatchUiState(
     val loading: Boolean = true,
@@ -86,6 +89,7 @@ class WatchViewModel @Inject constructor(
     private var lastSeq = 0L
     private var lastChatStamp: String? = null
     private var localUri: String? = null
+    private var savedMovie: SavedLocalMovie? = null
     private var sentFirstState = false
     private var reactionsSupported = true
     private var lastReactionAt = 0L
@@ -108,6 +112,7 @@ class WatchViewModel @Inject constructor(
                 return@launch
             }
             _state.update { it.copy(who = who) }
+            savedMovie = store.savedLocalMovie(who.coupleId)
             clockOffsetMs = repo.clockOffsetMs()
             refreshRoom(first = true)
         }
@@ -146,6 +151,12 @@ class WatchViewModel @Inject constructor(
 
     private fun applyRoom(room: WatchRoom?) {
         if (room != null) lastSeq = maxOf(lastSeq, room.actionSeq)
+        // After an app restart the server still has this phone's movie name, but the file link is gone from memory.
+        // Take it back from the phone's storage when it is the same movie.
+        val saved = savedMovie
+        if (room != null && localUri == null && room.sharedMovieId == null && saved != null && saved.title == room.myTitle) {
+            localUri = saved.uri
+        }
         _state.update { it.copy(room = room, loading = false, error = null) }
         updateStage()
     }
@@ -171,13 +182,15 @@ class WatchViewModel @Inject constructor(
         }
         if (s.stage == WatchStage.Watching) return
         if (room.sharedMovieId == null && localUri == null) {
-            // The phone lost its file (app was closed). The web app asks for the same file again.
-            _messages.tryEmit(R.string.movie_toast_select_again)
+            // This phone has no copy of the file (never picked, or the app was restarted). Before, the countdown
+            // froze here and the movie never opened. Now it asks for the file and carries on as soon as it is picked.
+            if (s.stage != WatchStage.NeedFile) _state.update { it.copy(stage = WatchStage.NeedFile) }
             return
         }
         _state.update { it.copy(stage = WatchStage.Watching, streamUrl = localUri) }
         if (room.sharedMovieId != null) loadCloudUrl(room.sharedMovieId)
-        if (room.status == RoomStatus.Countdown && !sentFirstState) {
+        // Only the very first start sends "play from 0". A phone that joins later must not pull the partner back to 0.
+        if (room.status == RoomStatus.Countdown && !sentFirstState && !room.playing && room.positionSec == 0.0) {
             sentFirstState = true
             sendAction(playing = true, positionSec = 0.0)
         }
@@ -197,12 +210,41 @@ class WatchViewModel @Inject constructor(
 
     fun pickLocalMovie(uri: String, title: String, durationSec: Int) {
         localUri = uri
+        rememberLocalMovie(SavedLocalMovie(uri, title, durationSec))
         runAction(R.string.movie_toast_save_failed) { who -> repo.pickMovie(who, title, durationSec) }
     }
 
     fun pickSharedMovie(movie: SharedMovie) {
         localUri = null
+        forgetLocalMovie()
         runAction(R.string.movie_toast_save_failed) { who -> repo.selectShared(who, movie.id) }
+    }
+
+    /**
+     * The movie already started and this phone only needs its own copy of the file. It does NOT tell the server
+     * anything (picking through [pickLocalMovie] would reset "ready" and stop the movie for both of you).
+     */
+    fun attachLocalMovie(uri: String, title: String, durationSec: Int) {
+        val expected = _state.value.room?.myDurationSec
+        if (expected != null && abs(expected - durationSec) > DURATION_TOLERANCE_SEC) {
+            _messages.tryEmit(R.string.movie_need_file_wrong)
+            return
+        }
+        localUri = uri
+        rememberLocalMovie(SavedLocalMovie(uri, title, durationSec))
+        updateStage()
+    }
+
+    private fun rememberLocalMovie(movie: SavedLocalMovie) {
+        savedMovie = movie
+        val who = _state.value.who ?: return
+        viewModelScope.launch { store.saveLocalMovie(who.coupleId, movie) }
+    }
+
+    private fun forgetLocalMovie() {
+        savedMovie = null
+        val who = _state.value.who ?: return
+        viewModelScope.launch { store.clearLocalMovie(who.coupleId) }
     }
 
     fun setReady(ready: Boolean) = runAction(R.string.movie_toast_ready_failed) { who -> repo.setReady(who, ready) }
@@ -226,6 +268,7 @@ class WatchViewModel @Inject constructor(
             when (repo.reset(who)) {
                 is AppResult.Success -> {
                     localUri = null
+                    forgetLocalMovie()
                     _state.update { it.copy(room = null, stage = WatchStage.Setup, streamUrl = null) }
                     _messages.tryEmit(R.string.movie_toast_cancelled)
                 }
@@ -267,6 +310,7 @@ class WatchViewModel @Inject constructor(
             val r = repo.end(who, room?.myTitle, room?.myDurationSec?.toInt(), positionSec, room?.scheduledStartRaw)
             if (r is AppResult.Success) {
                 localUri = null
+                forgetLocalMovie()
                 applyRoom(r.data)
             } else {
                 _messages.tryEmit(R.string.movie_toast_cancel_failed)
@@ -424,6 +468,7 @@ class WatchViewModel @Inject constructor(
         const val REACTION_LIFE_MS = 3000L
         const val MAX_REACTIONS = 8
         const val NOT_FOUND = 404
+        const val DURATION_TOLERANCE_SEC = 3   // same rule the server uses to call two files "the same movie"
         const val TICK_MS = 250L
         const val POLL_EVERY = 6   // 1.5 s
         const val CHAT_EVERY = 8   // 2 s

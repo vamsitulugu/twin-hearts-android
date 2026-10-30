@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.livemap.ui
 
+import com.twinhearts.app.core.design.twinPage
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -130,7 +131,7 @@ fun LiveMapScreen(
 
     val screen = state.screen
     NeutralLiveMapColors {
-    Box(Modifier.fillMaxSize().background(LiveMapStyle.Base)) {
+    Box(Modifier.twinPage()) {
         Column(Modifier.fillMaxSize()) {
             if (!navigating) TwinTopBar(
                 title = stringResource(R.string.livemap_title),

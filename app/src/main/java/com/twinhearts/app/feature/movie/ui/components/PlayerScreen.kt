@@ -18,6 +18,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
@@ -144,21 +145,22 @@ fun PlayerScreen(
         modeLabelKey++
     }
 
-    // Fullscreen = landscape. While already fullscreen the same button cycles Fit, Fill, Zoom (like the web page).
+    // ONE fullscreen button: turns the phone to landscape and shows the movie in a full 16:9 frame.
+    // Tap again to go back. (Fit / Fill / Zoom are still in the ⋮ menu.)
     fun exitFullscreen() {
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         fullscreen = false
         fit = ScreenFit.Fit
     }
     fun onFullscreenTap() {
-        if (!fullscreen) {
+        if (fullscreen) {
+            exitFullscreen()
+        } else {
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
             fullscreen = true
             fit = ScreenFit.Fit
-        } else {
-            fit = fit.next()
         }
-        flashMode(context.getString(fit.label))
+        flashMode(context.getString(if (fullscreen) R.string.movie_ratio_16_9 else R.string.movie_exit_fullscreen))
         touches++
     }
     BackHandler { if (fullscreen) exitFullscreen() else showEnd = true }
@@ -295,6 +297,15 @@ fun PlayerScreen(
             chatQueue.removeAt(0)
         }
     }
+    // The emoji bar must not stay open: it closes 3 s after the last tap, and as soon as the controls fade.
+    LaunchedEffect(showReactions, touches) {
+        if (!showReactions) return@LaunchedEffect
+        delay(REACTIONS_OPEN_MS)
+        showReactions = false
+    }
+    LaunchedEffect(controlsVisible) {
+        if (!controlsVisible) showReactions = false
+    }
     LaunchedEffect(syncedPill) {
         if (syncedPill) {
             delay(PILL_MS)
@@ -346,10 +357,11 @@ fun PlayerScreen(
     val overlayDp = with(density) { overlayPx.toDp() }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
+        // Fullscreen shows the picture in the biggest 16:9 frame that fits the screen; otherwise it fills the screen.
         AndroidView(
             factory = { ctx -> PlayerView(ctx).apply { useController = false; this.player = exo } },
             update = { view -> view.resizeMode = fit.resizeMode() },
-            modifier = Modifier.fillMaxSize(),
+            modifier = if (fullscreen) Modifier.align(Alignment.Center).aspectRatio(FULLSCREEN_RATIO) else Modifier.fillMaxSize(),
         )
         if (streamUrl == null) {
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
@@ -543,5 +555,7 @@ private const val CHAT_GAP_DP = 16
  */
 private const val REACTION_BELOW_TIMELINE_DP = 8f
 private const val MIN_REACTION_BOTTOM_DP = 112f
+private const val FULLSCREEN_RATIO = 16f / 9f
+private const val REACTIONS_OPEN_MS = 3000L
 private const val PIP_W = 16
 private const val PIP_H = 9

@@ -40,7 +40,7 @@ fun LevelScreen(
         Column(Modifier.fillMaxSize()) {
             TwinTopBar(
                 title = stringResource(R.string.level_title),
-                onBackClick = onBack,
+                showSidebarButton = true,
                 onSyncClick = viewModel::load,
             )
             when (val current = state) {

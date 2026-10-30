@@ -29,6 +29,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.MaterialTheme
@@ -202,7 +206,7 @@ private fun HomeTab(
         Triple(R.string.movie_home_watchlist, list.filter { it.status == WatchStatus.Watchlist }, LibraryFilter.Watchlist),
     ).filter { it.second.isNotEmpty() }
     LazyColumn(verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.l), modifier = Modifier.fillMaxSize()) {
-        item { list.first().let { top -> HeroBanner(top, top.id in favorites, onWatch, { onOpen(top) }) } }
+        item { HeroCarousel(list, favorites, onWatch, onOpen) }
         items(rows, key = { it.first }) { (title, movies, seeAll) ->
             Column {
                 MovieSectionTitle(
@@ -241,7 +245,7 @@ private fun LibraryTab(
     var query by rememberSaveable { mutableStateOf("") }
     var owner by rememberSaveable { mutableStateOf(OwnerFilter.Everyone) }
     var onlineMode by rememberSaveable { mutableStateOf(false) }
-    val shown = list.applyFilter(filter, genre, if (onlineMode) "" else query, owner, role, favorites)
+    val shown = list.applyFilter(filter, genre, "", owner, role, favorites)
     val edge = TwinTheme.spacing.screenEdge
 
     LazyVerticalGrid(
@@ -251,40 +255,44 @@ private fun LibraryTab(
         verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
         modifier = Modifier.fillMaxSize(),
     ) {
+        // Two big buttons side by side (like the Music / My Recordings tabs): Add on one side, Search Online on the other.
         item(span = { GridItemSpan(maxLineSpan) }) {
             Row(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s), verticalAlignment = Alignment.CenterVertically) {
-                TwinTextField(
-                    value = query, onValueChange = { query = it },
-                    label = stringResource(if (onlineMode) R.string.movie_online_hint else R.string.movie_search_hint),
-                    imeAction = androidx.compose.ui.text.input.ImeAction.Search,
-                    onImeAction = { if (onlineMode) onSearchOnline(query) },
-                    modifier = Modifier.weight(1f),
-                )
-                MoviePill(stringResource(R.string.movie_add_short), false, onAddMovie, icon = Icons.Rounded.Add, height = 52.dp)
+                MoviePill(stringResource(R.string.movie_add_short), false, onAddMovie, Modifier.weight(1f), icon = Icons.Rounded.Add, height = 52.dp)
                 MoviePill(
-                    stringResource(R.string.movie_search_online_btn), true,
+                    stringResource(R.string.movie_search_online_btn), onlineMode,
                     { if (onlineMode) onSearchOnline(query) else onlineMode = true },
-                    icon = Icons.Rounded.Public, height = 52.dp,
+                    Modifier.weight(1f), icon = Icons.Rounded.Public, height = 52.dp,
                 )
             }
         }
         if (onlineMode) {
+            // The search box only appears when searching online.
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                TwinTextField(
+                    value = query, onValueChange = { query = it },
+                    label = stringResource(R.string.movie_online_hint),
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Search,
+                    onImeAction = { onSearchOnline(query) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
             item(span = { GridItemSpan(maxLineSpan) }) {
                 MoviePill(stringResource(R.string.movie_tab_library) + " ✕", true, { onlineMode = false; onClearOnline() })
             }
             onlineItems(online, onOpen)
         } else {
             item(span = { GridItemSpan(maxLineSpan) }) { Stats(list, favorites) }
+            // Owner chips, with a small ⋮ button at the end that holds the All / Recent / Favorites / Watchlist / Watching / Watched filter.
             item(span = { GridItemSpan(maxLineSpan) }) {
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
-                    LibraryFilter.entries.forEach { f ->
-                        MoviePill(stringResource(f.label()), filter == f, { onFilter(f) })
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
+                    Row(
+                        Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
+                    ) {
+                        OwnerFilter.entries.forEach { o -> MoviePill(stringResource(o.label()), owner == o, { owner = o }) }
                     }
-                }
-            }
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
-                    OwnerFilter.entries.forEach { o -> MoviePill(stringResource(o.label()), owner == o, { owner = o }) }
+                    FilterMenuButton(filter, onFilter)
                 }
             }
             if (genre != null) {
@@ -298,6 +306,27 @@ private fun LibraryTab(
                 }
             }
             items(shown, key = { it.id }) { PosterCard(it, { onOpen(it) }, favorite = it.id in favorites, onToggleFavorite = { onToggleFavorite(it) }) }
+        }
+    }
+}
+
+/** The small ⋮ button next to the owner chips. Opens the status filter list; the chosen one has a tick. */
+@Composable
+private fun FilterMenuButton(filter: LibraryFilter, onFilter: (LibraryFilter) -> Unit) {
+    val colors = TwinTheme.colors
+    var open by remember { mutableStateOf(false) }
+    Box {
+        MovieGlassCircle(40.dp, { open = true }, wine = filter != LibraryFilter.All) {
+            Icon(Icons.Rounded.MoreVert, stringResource(R.string.movie_filter_menu), tint = Color.White)
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, modifier = Modifier.background(colors.card)) {
+            LibraryFilter.entries.forEach { f ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(f.label()), color = colors.ink) },
+                    trailingIcon = { if (f == filter) Icon(Icons.Rounded.Check, null, tint = colors.ink) },
+                    onClick = { onFilter(f); open = false },
+                )
+            }
         }
     }
 }
@@ -352,7 +381,7 @@ private fun Stats(list: List<MovieItem>, favorites: Set<String>) {
 @Composable
 private fun GenresTab(list: List<MovieItem>, onPick: (String) -> Unit) {
     LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
+        columns = GridCells.Adaptive(108.dp),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(TwinTheme.spacing.screenEdge),
         horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
         verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),

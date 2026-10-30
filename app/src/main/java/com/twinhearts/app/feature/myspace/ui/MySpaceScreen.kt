@@ -104,8 +104,7 @@ fun MySpaceScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         TwinTopBar(
             title = stringResource(R.string.myspace_title),
-            onBackClick = onBack,
-            onMenuClick = pending,
+            showSidebarButton = true,
             onSearchClick = pending,
             onSyncClick = viewModel::load,
         )

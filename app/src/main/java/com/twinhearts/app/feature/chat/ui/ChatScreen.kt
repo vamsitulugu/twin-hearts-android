@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.chat.ui
 
+import com.twinhearts.app.core.design.twinPage
 import com.twinhearts.app.core.common.rememberCameraGate
 import android.Manifest
 import android.app.Activity
@@ -667,7 +668,7 @@ internal fun ChatContent(
     val items = remember(state.messages) { buildChatItems(state.messages, LocalDate.now()) }
     Box(Modifier.fillMaxSize()) {
         run {
-            Box(Modifier.fillMaxSize().background(ChatStyle.Base)) {
+            Box(Modifier.twinPage()) {
                 WallpaperLayer(state.wallpaper, Modifier.fillMaxSize())
                 Column(Modifier.fillMaxSize().imePadding()) {
                     if (state.selected.isNotEmpty()) {

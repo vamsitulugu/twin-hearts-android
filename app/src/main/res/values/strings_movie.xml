@@ -264,4 +264,11 @@
     <string name="movie_cancel_caps">CANCEL</string>
     <string name="movie_end_confirm">END MOVIE</string>
     <string name="movie_chat_session_empty">No messages yet in this session.</string>
+    <string name="movie_need_file_title">Pick your copy of the movie</string>
+    <string name="movie_need_file_body">%1$s has started. This phone needs the same movie file to join in.</string>
+    <string name="movie_need_file_pick">Choose movie file</string>
+    <string name="movie_need_file_leave">Leave</string>
+    <string name="movie_need_file_wrong">That is not the same movie (the length is different). Pick the same file your partner has.</string>
+    <string name="movie_ratio_16_9">Fullscreen 16:9</string>
+    <string name="movie_filter_menu">Filter movies</string>
 </resources>

@@ -174,7 +174,7 @@ private fun MemoriesScreenContent(
             } else {
                 TwinTopBar(
                     title = stringResource(R.string.memories_title),
-                    onBackClick = onBack,
+                    showSidebarButton = true,
                     onSyncClick = viewModel::load,
                 )
             }

@@ -135,7 +135,7 @@ fun CalendarScreen(
         } else {
             TwinTopBar(
                 title = stringResource(R.string.calendar_title),
-                onBackClick = onBack,
+                showSidebarButton = true,
                 onSyncClick = viewModel::load,
             )
         }

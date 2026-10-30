@@ -9,12 +9,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.unit.dp
-import com.twinhearts.app.feature.movie.ui.components.MovieGlassCircle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,6 +39,7 @@ import com.twinhearts.app.core.common.UiState
 import com.twinhearts.app.core.common.asText
 import com.twinhearts.app.core.design.ErrorState
 import com.twinhearts.app.core.design.GlassIconButton
+import com.twinhearts.app.core.design.LocalOpenSidebar
 import com.twinhearts.app.core.design.LoadingSkeleton
 import com.twinhearts.app.core.design.SerifFamily
 import com.twinhearts.app.core.design.TwinBackground
@@ -50,6 +51,7 @@ import com.twinhearts.app.feature.movie.ui.components.HistorySheet
 import com.twinhearts.app.feature.movie.ui.components.InviteDialog
 import com.twinhearts.app.feature.movie.ui.components.LobbyContent
 import com.twinhearts.app.feature.movie.ui.components.MovieTabsContent
+import com.twinhearts.app.feature.movie.ui.components.NeedFileContent
 import com.twinhearts.app.feature.movie.ui.components.PlayerScreen
 import com.twinhearts.app.feature.movie.ui.components.SubtitleChoice
 import kotlinx.coroutines.flow.merge
@@ -114,8 +116,13 @@ private fun MovieScreenContent(
                 )
             }
             WatchStage.Countdown -> CountdownContent(state.countdown)
+            WatchStage.NeedFile -> NeedFileContent(
+                movieTitle = state.room?.myTitle.orEmpty(),
+                onPicked = watchVm::attachLocalMovie,
+                onLeave = onBack,
+            )
             WatchStage.Setup -> Column(Modifier.fillMaxSize().statusBarsPadding()) {
-                Header(onBack = onBack, onHistory = { showHistory = true; watchVm.loadHistory() })
+                Header(onHistory = { showHistory = true; watchVm.loadHistory() })
                 val error = state.error
                 val room = state.room
                 when {
@@ -173,24 +180,27 @@ private fun MovieScreenContent(
 
 private const val WATCH_TAB = 3
 
+/** Same top bar as the Music page: side-menu button on the left, title next to it (left-aligned), History on the right. */
 @Composable
-private fun Header(onBack: () -> Unit, onHistory: () -> Unit) {
+private fun Header(onHistory: () -> Unit) {
+    val colors = TwinTheme.colors
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = TwinTheme.spacing.screenEdge, vertical = TwinTheme.spacing.xs),
+        Modifier.fillMaxWidth().padding(horizontal = TwinTheme.spacing.s, vertical = TwinTheme.spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        MovieGlassCircle(44.dp, onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.movie_back), tint = TwinTheme.colors.ink) }
-        Column(Modifier.weight(1f).padding(horizontal = TwinTheme.spacing.s), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = stringResource(R.string.movie_title),
-                style = MaterialTheme.typography.headlineSmall,
-                fontFamily = SerifFamily,
-                color = TwinTheme.colors.ink,
-                maxLines = 1,
-                textAlign = TextAlign.Center,
-            )
+        IconButton(onClick = LocalOpenSidebar.current) {
+            Icon(Icons.Rounded.Menu, contentDescription = stringResource(R.string.core_menu), tint = colors.ink)
         }
-        MovieGlassCircle(44.dp, onHistory) { Icon(Icons.Rounded.History, stringResource(R.string.movie_history), tint = TwinTheme.colors.ink) }
+        Text(
+            text = stringResource(R.string.movie_title),
+            style = MaterialTheme.typography.headlineSmall,
+            color = colors.ink,
+            maxLines = 1,
+            modifier = Modifier.weight(1f).padding(horizontal = TwinTheme.spacing.s),
+        )
+        IconButton(onClick = onHistory) {
+            Icon(Icons.Rounded.History, contentDescription = stringResource(R.string.movie_history), tint = colors.ink)
+        }
     }
 }
 

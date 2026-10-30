@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.twinai.ui
 
+import com.twinhearts.app.core.design.twinPage
 import android.widget.Toast
 import com.twinhearts.app.feature.twinai.ui.components.rememberVoiceController
 import com.twinhearts.app.feature.twinai.ui.components.TwinVoiceOverlay
@@ -172,7 +173,7 @@ fun TwinAiScreen(
         )
     }
 
-    Box(modifier.fillMaxSize().background(TwinAiStyle.Base).onGloballyPositioned { rootOrigin = it.positionInWindow() }) {
+    Box(modifier.twinPage().onGloballyPositioned { rootOrigin = it.positionInWindow() }) {
     Column(Modifier.fillMaxSize().imePadding().navigationBarsPadding()) {
         TwinAiHeader(
             syncing = state.syncing,

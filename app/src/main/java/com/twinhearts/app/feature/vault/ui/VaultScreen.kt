@@ -104,8 +104,7 @@ fun VaultScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         TwinTopBar(
             title = stringResource(R.string.vault_title),
-            onBackClick = onBack,
-            onMenuClick = pending,
+            showSidebarButton = true,
             onSearchClick = pending,
             onSyncClick = viewModel::refresh,
         )

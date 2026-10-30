@@ -118,7 +118,8 @@ fun ProfileScreen(
                         ProfileScreenKind.Story -> R.string.profile_our_story
                     },
                 ),
-                onBackClick = { if (!vm.back()) navigation.onBack() },
+                onBackClick = if (state.stack.size > 1) ({ if (!vm.back()) navigation.onBack() }) else null,
+                showSidebarButton = state.stack.size <= 1,
                 onSyncClick = vm::load,
             )
             Box(Modifier.weight(1f).fillMaxSize()) {

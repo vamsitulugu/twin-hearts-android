@@ -118,7 +118,7 @@ fun MoneyScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         TwinTopBar(
             title = stringResource(R.string.money_title),
-            onBackClick = onBack,
+            showSidebarButton = true,
             onSyncClick = viewModel::load,
         )
         if (state.offline) OfflineBanner()

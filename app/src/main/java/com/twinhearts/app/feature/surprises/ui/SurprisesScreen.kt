@@ -112,7 +112,7 @@ fun SurprisesScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         TwinTopBar(
             title = stringResource(R.string.surprises_title),
-            onBackClick = onBack,
+            showSidebarButton = true,
             onSyncClick = viewModel::refresh,
         )
         when {
