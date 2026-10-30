@@ -11,7 +11,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.unit.dp
+import com.twinhearts.app.feature.movie.ui.components.MovieGlassCircle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -164,19 +167,21 @@ private const val WATCH_TAB = 3
 @Composable
 private fun Header(onBack: () -> Unit, onHistory: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = TwinTheme.spacing.screenEdge, vertical = TwinTheme.spacing.s),
+        Modifier.fillMaxWidth().padding(horizontal = TwinTheme.spacing.screenEdge, vertical = TwinTheme.spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        GlassIconButton(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.movie_back), onBack)
-        Text(
-            text = stringResource(R.string.movie_title),
-            style = MaterialTheme.typography.titleLarge,
-            fontFamily = SerifFamily,
-            color = TwinTheme.colors.ink,
-            textAlign = TextAlign.Center,
-        )
-        GlassIconButton(Icons.Rounded.History, stringResource(R.string.movie_history), onHistory)
+        MovieGlassCircle(44.dp, onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.movie_back), tint = TwinTheme.colors.ink) }
+        Column(Modifier.weight(1f).padding(horizontal = TwinTheme.spacing.s), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = stringResource(R.string.movie_title),
+                style = MaterialTheme.typography.headlineSmall,
+                fontFamily = SerifFamily,
+                color = TwinTheme.colors.ink,
+                maxLines = 1,
+                textAlign = TextAlign.Center,
+            )
+        }
+        MovieGlassCircle(44.dp, onHistory) { Icon(Icons.Rounded.History, stringResource(R.string.movie_history), tint = TwinTheme.colors.ink) }
     }
 }
 

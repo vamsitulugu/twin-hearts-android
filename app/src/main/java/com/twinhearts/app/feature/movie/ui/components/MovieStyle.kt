@@ -22,6 +22,12 @@ import com.twinhearts.app.core.design.TwinTheme
 internal object MovieStyle {
     /** Page background: the same near-black as the other restyled pages. */
     val Base = Color(0xFF0A0A0C)
+
+    /** Burgundy used for the active tab, "See all" links, hearts and progress (same as Music). */
+    val Accent = Color(0xFFC2185B)
+
+    /** Very dark wine that tints the top of the page so the glass has something to sit on (same as Music). */
+    val Glow = Color(0xFF2A0617)
 }
 
 /** Neutral colour set for everything inside [content]. */
@@ -32,8 +38,8 @@ private fun NeutralMovieColors(content: @Composable () -> Unit) {
         base.copy(
             background = MovieStyle.Base,
             backgroundGlow = MovieStyle.Base,
-            // TwinBackground paints a burgundy glow from this colour; flat near-black instead.
-            burgundy = MovieStyle.Base,
+            // TwinBackground paints a soft wine glow from this colour at the top of the page.
+            burgundy = MovieStyle.Glow,
             // Grey glass instead of pink-tinted glass.
             glass = Color.White.copy(alpha = 0.08f),
             line = Color.White.copy(alpha = 0.16f),

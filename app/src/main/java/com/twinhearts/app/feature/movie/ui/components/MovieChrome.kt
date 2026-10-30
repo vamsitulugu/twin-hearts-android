@@ -64,20 +64,20 @@ fun MovieTabBar(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Un
     val colors = TwinTheme.colors
     val pill = TwinTheme.shapes.pill
     Row(
-        modifier.fillMaxWidth().clip(pill).background(colors.glass).border(1.dp, colors.lineSoft, pill).padding(4.dp),
+        modifier.fillMaxWidth().movieGlass(pill).padding(4.dp),
     ) {
         options.forEachIndexed { index, label ->
             val selected = index == selectedIndex
             Column(
-                Modifier.weight(1f).heightIn(min = 52.dp).clip(pill)
-                    .background(if (selected) colors.neutralGlass else Color.Transparent)
+                Modifier.weight(1f).heightIn(min = 52.dp)
+                    .then(if (selected) Modifier.movieWine(pill) else Modifier.clip(pill))
                     .selectable(selected = selected, role = Role.Tab, onClick = { onSelect(index) })
                     .padding(vertical = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Icon(tabIcons[index], null, Modifier.size(18.dp), tint = if (selected) colors.ink else colors.inkMuted)
-                Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = if (selected) colors.ink else colors.inkMuted)
+                Icon(tabIcons[index], null, Modifier.size(18.dp), tint = if (selected) Color.White else colors.inkMuted)
+                Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = if (selected) Color.White else colors.inkMuted)
             }
         }
     }
@@ -97,13 +97,13 @@ private fun ModeButton(icon: ImageVector, label: Int, selected: Boolean, onClick
     val colors = TwinTheme.colors
     val shape = TwinTheme.shapes.pill
     Row(
-        modifier.heightIn(min = 44.dp).clip(shape).background(colors.glass)
-            .border(BorderStroke(if (selected) 1.5.dp else 1.dp, if (selected) colors.accent else colors.lineSoft), shape)
+        modifier.heightIn(min = 48.dp)
+            .then(if (selected) Modifier.movieWine(shape) else Modifier.movieGlass(shape))
             .clickable(onClick = onClick).padding(horizontal = TwinTheme.spacing.m),
         horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, null, Modifier.size(16.dp), tint = colors.ink)
-        Text(stringResource(label), color = colors.ink, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 8.dp), maxLines = 1)
+        Icon(icon, null, Modifier.size(16.dp), tint = if (selected) Color.White else colors.ink)
+        Text(stringResource(label), color = if (selected) Color.White else colors.ink, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 8.dp), maxLines = 1)
     }
 }
 
@@ -115,7 +115,7 @@ fun HeroBanner(movie: MovieItem, isFavorite: Boolean, onWatch: () -> Unit, onDet
     val art = movie.posterUrl ?: movie.backdropUrl
     Box(
         Modifier.padding(horizontal = TwinTheme.spacing.screenEdge).fillMaxWidth().aspectRatio(HERO_RATIO)
-            .clip(shape).background(colors.card).border(1.dp, colors.lineSoft, shape),
+            .movieGlass(shape).background(colors.card),
     ) {
         if (art != null) {
             AsyncImage(art, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
@@ -132,7 +132,7 @@ fun HeroBanner(movie: MovieItem, isFavorite: Boolean, onWatch: () -> Unit, onDet
         ) { Icon(Icons.Rounded.MoreVert, stringResource(R.string.movie_more_title), tint = Color.White) }
         Column(Modifier.align(Alignment.BottomStart).padding(TwinTheme.spacing.m), verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
             Text(
-                stringResource(eyebrow(movie, isFavorite)).uppercase(), color = colors.accent,
+                stringResource(eyebrow(movie, isFavorite)).uppercase(), color = Color(0xFFFF7AB8),
                 style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold,
             )
             Text(movie.title, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -143,7 +143,7 @@ fun HeroBanner(movie: MovieItem, isFavorite: Boolean, onWatch: () -> Unit, onDet
                 Chip(stringResource(statusLabel(movie.status)))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
-                GlassButton(stringResource(R.string.movie_watch_together), onWatch, Modifier.weight(1f), style = GlassButtonStyle.Secondary, leadingIcon = Icons.Rounded.Favorite)
+                GlassButton(stringResource(R.string.movie_watch_together), onWatch, Modifier.weight(1f), style = GlassButtonStyle.Primary, leadingIcon = Icons.Rounded.Favorite)
                 GlassButton(stringResource(R.string.movie_view_details), onDetails, Modifier.weight(1f), style = GlassButtonStyle.Secondary)
             }
         }
@@ -177,7 +177,7 @@ fun GenreCard(name: String, count: Int, posterUrl: String?, onClick: () -> Unit,
     val g = genreStyle(name)
     val shape = TwinTheme.shapes.card
     Box(
-        modifier.heightIn(min = 104.dp).clip(shape).border(1.dp, TwinTheme.colors.lineSoft, shape).clickable(onClick = onClick),
+        modifier.heightIn(min = 104.dp).movieGlass(shape).clickable(onClick = onClick),
     ) {
         if (posterUrl != null) {
             AsyncImage(posterUrl, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)

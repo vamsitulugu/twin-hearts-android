@@ -45,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -204,8 +205,8 @@ private fun HomeTab(
         item { list.first().let { top -> HeroBanner(top, top.id in favorites, onWatch, { onOpen(top) }) } }
         items(rows, key = { it.first }) { (title, movies, seeAll) ->
             Column {
-                SectionHeader(
-                    stringResource(title), Modifier.padding(horizontal = TwinTheme.spacing.screenEdge),
+                MovieSectionTitle(
+                    stringResource(title), Modifier.fillMaxWidth().padding(horizontal = TwinTheme.spacing.screenEdge),
                     actionLabel = stringResource(R.string.movie_see_all), onAction = { onSeeAll(seeAll) },
                 )
                 LazyRow(
@@ -259,17 +260,17 @@ private fun LibraryTab(
                     onImeAction = { if (onlineMode) onSearchOnline(query) },
                     modifier = Modifier.weight(1f),
                 )
-                GlassButton(stringResource(R.string.movie_add_short), onAddMovie, leadingIcon = Icons.Rounded.Add)
-                GlassButton(
-                    stringResource(R.string.movie_search_online_btn),
+                MoviePill(stringResource(R.string.movie_add_short), false, onAddMovie, icon = Icons.Rounded.Add, height = 52.dp)
+                MoviePill(
+                    stringResource(R.string.movie_search_online_btn), true,
                     { if (onlineMode) onSearchOnline(query) else onlineMode = true },
-                    leadingIcon = Icons.Rounded.Public,
+                    icon = Icons.Rounded.Public, height = 52.dp,
                 )
             }
         }
         if (onlineMode) {
             item(span = { GridItemSpan(maxLineSpan) }) {
-                TwinFilterChip(stringResource(R.string.movie_tab_library) + " ✕", true, { onlineMode = false; onClearOnline() })
+                MoviePill(stringResource(R.string.movie_tab_library) + " ✕", true, { onlineMode = false; onClearOnline() })
             }
             onlineItems(online, onOpen)
         } else {
@@ -277,18 +278,18 @@ private fun LibraryTab(
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
                     LibraryFilter.entries.forEach { f ->
-                        TwinFilterChip(stringResource(f.label()), filter == f, { onFilter(f) })
+                        MoviePill(stringResource(f.label()), filter == f, { onFilter(f) })
                     }
                 }
             }
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
-                    OwnerFilter.entries.forEach { o -> TwinFilterChip(stringResource(o.label()), owner == o, { owner = o }) }
+                    OwnerFilter.entries.forEach { o -> MoviePill(stringResource(o.label()), owner == o, { owner = o }) }
                 }
             }
             if (genre != null) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    TwinFilterChip("$genre ✕", true, onClearGenre)
+                    MoviePill("$genre ✕", true, onClearGenre)
                 }
             }
             if (shown.isEmpty()) {
@@ -338,11 +339,11 @@ private fun Stats(list: List<MovieItem>, favorites: Set<String>) {
     // Same as the web page: the average counts every movie (unrated ones as 0); "—" when the list is empty.
     val avg = if (list.isEmpty()) "—" else "%.1f".format(java.util.Locale.US, list.sumOf { it.rating ?: 0.0 } / list.size)
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        StatTile(list.size.toString(), stringResource(R.string.movie_stat_total), Modifier.weight(1f))
-        StatTile(list.countByStatus(WatchStatus.Watched).toString(), stringResource(R.string.movie_stat_watched), Modifier.weight(1f))
-        StatTile(list.countByStatus(WatchStatus.Watchlist).toString(), stringResource(R.string.movie_stat_watchlist), Modifier.weight(1f))
-        StatTile(list.count { it.id in favorites }.toString(), stringResource(R.string.movie_stat_favorites), Modifier.weight(1f))
-        StatTile("⭐$avg", stringResource(R.string.movie_stat_avg), Modifier.weight(1f))
+        MovieStat(list.size.toString(), stringResource(R.string.movie_stat_total), Modifier.weight(1f))
+        MovieStat(list.countByStatus(WatchStatus.Watched).toString(), stringResource(R.string.movie_stat_watched), Modifier.weight(1f))
+        MovieStat(list.countByStatus(WatchStatus.Watchlist).toString(), stringResource(R.string.movie_stat_watchlist), Modifier.weight(1f))
+        MovieStat(list.count { it.id in favorites }.toString(), stringResource(R.string.movie_stat_favorites), Modifier.weight(1f))
+        MovieStat("⭐$avg", stringResource(R.string.movie_stat_avg), Modifier.weight(1f))
     }
 }
 
@@ -357,7 +358,7 @@ private fun GenresTab(list: List<MovieItem>, onPick: (String) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
         modifier = Modifier.fillMaxSize(),
     ) {
-        item(span = { GridItemSpan(maxLineSpan) }) { SectionHeader(stringResource(R.string.movie_genres_title)) }
+        item(span = { GridItemSpan(maxLineSpan) }) { MovieSectionTitle(stringResource(R.string.movie_genres_title)) }
         items(movieGenres, key = { it }) { name ->
             val inGenre = list.applyFilter(LibraryFilter.All, name, "")
             GenreCard(name, inGenre.size, inGenre.firstOrNull { it.posterUrl != null }?.posterUrl, { onPick(name) }, Modifier.fillMaxWidth())
@@ -408,10 +409,9 @@ private fun DirectPane(onPick: (String, String, Int) -> Unit) {
     }
     Column(Modifier.fillMaxWidth().padding(top = TwinTheme.spacing.xl), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
-            Modifier.size(64.dp).clip(TwinTheme.shapes.pill).background(TwinTheme.colors.glass)
-                .border(1.dp, TwinTheme.colors.lineSoft, TwinTheme.shapes.pill),
+            Modifier.size(64.dp).movieWine(TwinTheme.shapes.pill),
             contentAlignment = Alignment.Center,
-        ) { Icon(Icons.Rounded.Movie, null, tint = TwinTheme.colors.accent) }
+        ) { Icon(Icons.Rounded.Movie, null, tint = Color.White) }
         Text(
             stringResource(R.string.movie_direct_title), color = TwinTheme.colors.ink, style = MaterialTheme.typography.titleLarge,
             fontFamily = SerifFamily, modifier = Modifier.padding(top = TwinTheme.spacing.m),
@@ -436,7 +436,7 @@ fun PosterCard(
 ) {
     Column(modifier.clickable(onClick = onClick), verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.xs)) {
         Box(
-            Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(TwinTheme.shapes.small).background(TwinTheme.colors.card),
+            Modifier.fillMaxWidth().aspectRatio(2f / 3f).movieGlass(TwinTheme.shapes.small).background(TwinTheme.colors.card),
             contentAlignment = Alignment.Center,
         ) {
             if (movie.posterUrl == null) {
@@ -447,7 +447,7 @@ fun PosterCard(
             // The ⭐ is kept on this phone only (like the web page), so it shows only for saved movies.
             if (onToggleFavorite != null && movie.id.isNotEmpty()) {
                 Text(
-                    if (favorite) "★" else "☆", color = TwinTheme.colors.accent, style = MaterialTheme.typography.titleMedium,
+                    if (favorite) "★" else "☆", color = if (favorite) Color(0xFFFF7AB8) else Color.White, style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.align(Alignment.TopEnd).clickable(onClick = onToggleFavorite).padding(TwinTheme.spacing.s),
                 )
             }
