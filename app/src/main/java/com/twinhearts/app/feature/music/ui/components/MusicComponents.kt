@@ -80,9 +80,10 @@ internal fun SongRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(TwinTheme.shapes.field)
+            .padding(vertical = 3.dp)
+            .musicGlass(TwinTheme.shapes.field)
             .clickable(onClick = onClick)
-            .padding(vertical = TwinTheme.spacing.xs, horizontal = TwinTheme.spacing.xs),
+            .padding(start = TwinTheme.spacing.xs, top = TwinTheme.spacing.xs, bottom = TwinTheme.spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
     ) {
@@ -91,7 +92,7 @@ internal fun SongRow(
             Text(
                 text = song.title,
                 style = MaterialTheme.typography.titleMedium,
-                color = if (current) colors.accent else colors.ink,
+                color = if (current) MusicStyle.Accent else colors.ink,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -108,7 +109,7 @@ internal fun SongRow(
             Icon(
                 Icons.Rounded.Favorite,
                 contentDescription = stringResource(R.string.music_liked),
-                tint = colors.accent,
+                tint = MusicStyle.Accent,
                 modifier = Modifier.size(16.dp),
             )
         }
@@ -133,7 +134,7 @@ internal fun MusicSectionTitle(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = TwinTheme.spacing.l, bottom = TwinTheme.spacing.s),
+            .padding(top = TwinTheme.spacing.xl, bottom = TwinTheme.spacing.s),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(title, style = MaterialTheme.typography.titleLarge, color = colors.ink, modifier = Modifier.weight(1f))
@@ -146,7 +147,7 @@ internal fun MusicSectionTitle(
                     .padding(horizontal = TwinTheme.spacing.s),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(actionLabel, style = MaterialTheme.typography.titleSmall, color = colors.accent)
+                Text(actionLabel, style = MaterialTheme.typography.titleSmall, color = MusicStyle.Accent)
             }
         }
     }

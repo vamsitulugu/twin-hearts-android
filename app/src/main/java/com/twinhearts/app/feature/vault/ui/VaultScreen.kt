@@ -104,7 +104,6 @@ fun VaultScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         TwinTopBar(
             title = stringResource(R.string.vault_title),
-            showLogo = true,
             onBackClick = onBack,
             onMenuClick = pending,
             onSearchClick = pending,

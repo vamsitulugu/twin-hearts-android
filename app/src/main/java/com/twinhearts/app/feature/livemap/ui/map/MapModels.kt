@@ -25,6 +25,8 @@ data class MapOverlay(
     val partnerTrail: List<MapPoint> = emptyList(),
     /** Road route (directions) or the route of the selected day. */
     val route: List<MapPoint> = emptyList(),
+    /** Other possible routes, drawn grey under the chosen one. */
+    val altRoutes: List<List<MapPoint>> = emptyList(),
     val places: List<MapMarker> = emptyList(),
     val stops: List<MapPoint> = emptyList(),
     val destination: MapPoint? = null,
@@ -45,6 +47,8 @@ data class MapColors(
     val label: Int,
     val labelHalo: Int,
     val outline: Int,
+    /** Colour of the grey alternative routes; 0 = use [stop]. */
+    val alt: Int = 0,
 )
 
 /** "Move the camera" request. A new [id] means a new request, even to the same place. */
@@ -55,4 +59,10 @@ data class CameraRequest(
     val zoom: Double? = null,
     /** When set, the camera fits all these points instead of going to [target]. */
     val fit: List<MapPoint> = emptyList(),
+    /** Turn the map so this compass direction points up (navigation). Null keeps the current rotation. */
+    val bearing: Double? = null,
+    /** Camera tilt in degrees. Null follows the 3D switch. */
+    val tilt: Double? = null,
+    /** Animation length in ms. Null uses the default. */
+    val animMs: Int? = null,
 )

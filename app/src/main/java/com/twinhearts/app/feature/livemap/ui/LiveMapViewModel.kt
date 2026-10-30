@@ -21,6 +21,11 @@ import com.twinhearts.app.feature.livemap.domain.model.MapStyleKind
 import com.twinhearts.app.feature.livemap.domain.model.SavedPlace
 import com.twinhearts.app.feature.livemap.domain.model.SearchHit
 import com.twinhearts.app.feature.livemap.domain.model.Vehicle
+import com.twinhearts.app.feature.livemap.domain.nav.GeoPoint
+import com.twinhearts.app.feature.livemap.domain.nav.NavSession
+import com.twinhearts.app.feature.livemap.domain.nav.sampled
+import com.twinhearts.app.feature.livemap.domain.nav.TravelMode
+import com.twinhearts.app.feature.livemap.data.nav.NavEngine
 import com.twinhearts.app.feature.livemap.domain.spotKey
 import com.twinhearts.app.feature.livemap.ui.map.CameraRequest
 import com.twinhearts.app.feature.livemap.ui.map.MapPoint
@@ -49,6 +54,7 @@ class LiveMapViewModel @Inject constructor(
     private val prefs: LiveMapPrefs,
     private val locationSource: LocationSource,
     private val shareLauncher: ShareLauncher,
+    private val navEngine: NavEngine,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LiveMapUiState())
@@ -79,6 +85,9 @@ class LiveMapViewModel @Inject constructor(
         }
         viewModelScope.launch {
             prefs.settings.collect { settings -> _state.update { it.copy(settings = settings) } }
+        }
+        viewModelScope.launch {
+            navEngine.session.collect { session -> onNavSession(session) }
         }
         load()
     }
@@ -481,30 +490,143 @@ class LiveMapViewModel @Inject constructor(
         )
     }
 
-    fun clearDestination() = _state.update { it.copy(destination = null) }
+    fun clearDestination() {
+        if (_state.value.nav != null) return
+        routeJob?.cancel()
+        _state.update { it.copy(destination = null) }
+    }
 
-    /** Puts a destination on the map and asks OSRM for the road route from here. */
+    /** Puts a destination on the map and asks for road routes from here, in the person's usual way of travelling. */
     private fun setDestination(destination: Destination) {
+        if (_state.value.nav != null) return
+        val mode = when (_state.value.settings.vehicle) {
+            Vehicle.Walking -> TravelMode.Walk
+            Vehicle.Bike -> TravelMode.Bike
+            else -> TravelMode.Drive
+        }
+        _state.update { it.copy(destination = destination.copy(mode = mode)) }
+        loadRoutes(destination.point, mode)
+    }
+
+    private var routeJob: Job? = null
+
+    private fun loadRoutes(point: MapPoint, mode: TravelMode) {
         val origin = myPoint()
-        _state.update { it.copy(destination = destination.copy(routeLoading = origin != null, routeFailed = origin == null)) }
+        routeJob?.cancel()
+        _state.update { s ->
+            s.copy(
+                destination = s.destination?.copy(
+                    mode = mode, routes = emptyList(), selected = 0,
+                    routeLoading = origin != null, routeFailed = origin == null,
+                ),
+            )
+        }
         if (origin == null) {
-            cameraTo(destination.point, PLACE_ZOOM)
+            cameraTo(point, PLACE_ZOOM)
             emit(LiveMapEvent.Message(R.string.livemap_msg_no_my_location))
             return
         }
-        viewModelScope.launch {
-            val result = repository.drivingRoute(origin.lat, origin.lng, destination.point.lat, destination.point.lng)
-            val route = (result as? AppResult.Success)?.data
+        routeJob = viewModelScope.launch {
+            val result = repository.navRoutes(GeoPoint(origin.lat, origin.lng), GeoPoint(point.lat, point.lng), mode)
+            val routes = (result as? AppResult.Success)?.data.orEmpty()
             _state.update { s ->
                 val current = s.destination
-                if (current == null || current.point != destination.point) {
+                if (current == null || current.point != point || current.mode != mode) {
                     s
                 } else {
-                    s.copy(destination = current.copy(route = route, routeLoading = false, routeFailed = route == null))
+                    s.copy(destination = current.copy(routes = routes, selected = 0, routeLoading = false, routeFailed = routes.isEmpty()))
                 }
             }
-            cameraFit(listOf(origin, destination.point))
+            val line = routes.firstOrNull()?.line
+            cameraFit(if (line.isNullOrEmpty()) listOf(origin, point) else line.sampled(FIT_SAMPLES).map { MapPoint(it.lat, it.lng) })
         }
+    }
+
+    /** Drive / Walk / Bike chips of the directions card. */
+    fun setTravelMode(mode: TravelMode) {
+        val d = _state.value.destination ?: return
+        if (_state.value.nav != null || d.mode == mode) return
+        loadRoutes(d.point, mode)
+    }
+
+    fun retryRoutes() {
+        val d = _state.value.destination ?: return
+        loadRoutes(d.point, d.mode)
+    }
+
+    fun selectRoute(index: Int) {
+        _state.update { s ->
+            val d = s.destination ?: return@update s
+            if (index !in d.routes.indices) s else s.copy(destination = d.copy(selected = index))
+        }
+    }
+
+    // ── turn-by-turn navigation ──────────────────────────────────────────────────────────────────
+
+    fun startNavigation() {
+        val d = _state.value.destination ?: return
+        val route = d.route ?: return
+        goToMap()
+        navEngine.start(
+            route = route,
+            destinationName = d.name.ifBlank { d.address },
+            destination = GeoPoint(d.point.lat, d.point.lng),
+        )
+    }
+
+    /** "End" button, the notification's End action, or "Done" after arriving. */
+    fun endNavigation() {
+        val arrived = _state.value.nav?.arrived == true
+        navEngine.stop()
+        _state.update { it.copy(nav = null, destination = if (arrived) null else it.destination, camera = resetCamera()) }
+    }
+
+    fun toggleNavMute() {
+        val muted = _state.value.nav?.muted ?: return
+        navEngine.setMuted(!muted)
+    }
+
+    fun recenterNavigation() = navEngine.setFollowing(true)
+
+    /** The person dragged the map during navigation: stop following until they tap Re-center. */
+    fun onUserMovedMap() {
+        if (_state.value.nav?.following == true) navEngine.setFollowing(false)
+    }
+
+    private fun resetCamera(): CameraRequest {
+        val target = myPoint()
+        return CameraRequest(++cameraCounter, target = target, zoom = PLACE_ZOOM, bearing = 0.0, tilt = 0.0)
+    }
+
+    private fun onNavSession(session: NavSession?) {
+        _state.update { s ->
+            // The engine can end on its own (the notification's End button): drop the trip and flatten the map.
+            if (session == null && s.nav != null) return@update s.copy(nav = null, camera = resetCamera())
+            val progress = session?.progress
+            val follow = session != null && session.following && progress != null
+            s.copy(
+                nav = session,
+                camera = if (follow && progress != null) {
+                    val close = progress.distanceToNextM < NAV_CLOSE_M
+                    CameraRequest(
+                        id = ++cameraCounter,
+                        target = MapPoint(progress.snapped.lat, progress.snapped.lng),
+                        zoom = navZoom(session.route.mode) + if (close) 1.0 else 0.0,
+                        bearing = progress.roadBearingDeg,
+                        tilt = NAV_TILT,
+                        animMs = NAV_ANIM_MS,
+                    )
+                } else {
+                    s.camera
+                },
+            )
+        }
+    }
+
+    private fun navZoom(mode: TravelMode): Double = when (mode) {
+        TravelMode.Drive -> 16.0
+        TravelMode.Bike -> 17.0
+        TravelMode.Walk -> 18.0
     }
 
     // ── places, favorites, love notes ────────────────────────────────────────────────────────────
@@ -766,6 +888,10 @@ class LiveMapViewModel @Inject constructor(
         const val GEOFENCE_RADIUS_M = 100.0
         const val WEATHER_CACHE_MS = 600_000L
         const val PLACE_ZOOM = 16.0
+        const val FIT_SAMPLES = 40
+        const val NAV_CLOSE_M = 150.0
+        const val NAV_TILT = 55.0
+        const val NAV_ANIM_MS = 900
         const val MIN_QUERY = 2
         const val SEARCH_DEBOUNCE_MS = 400L
         const val CUSTOM_CATEGORY = "Custom"

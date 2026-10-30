@@ -1,5 +1,10 @@
 package com.twinhearts.app.feature.music.ui
 
+import androidx.compose.material.icons.rounded.Favorite
+import com.twinhearts.app.feature.music.ui.components.musicGlass
+import com.twinhearts.app.feature.music.ui.components.MusicGlassCircle
+import com.twinhearts.app.feature.music.ui.components.MusicStyle
+import com.twinhearts.app.feature.music.ui.components.MusicPill
 import com.twinhearts.app.core.common.rememberCameraGate
 import android.Manifest
 import android.content.Context
@@ -131,34 +136,23 @@ internal fun RecordingsTab(
         verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
     ) {
         item(key = "filters") {
-            Row(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s), modifier = Modifier.padding(top = TwinTheme.spacing.s)) {
-                TwinFilterChip(stringResource(R.string.music_rec_audio), state.filter == RecordingFilter.Audio, { actions.onFilter(RecordingFilter.Audio) }, Modifier.weight(1f))
-                TwinFilterChip(stringResource(R.string.music_rec_video), state.filter == RecordingFilter.Video, { actions.onFilter(RecordingFilter.Video) }, Modifier.weight(1f))
-                TwinFilterChip(stringResource(R.string.music_rec_favorites), state.filter == RecordingFilter.Favorites, { actions.onFilter(RecordingFilter.Favorites) }, Modifier.weight(1f))
+            Row(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s), modifier = Modifier.padding(top = TwinTheme.spacing.xs)) {
+                MusicPill(stringResource(R.string.music_rec_audio), state.filter == RecordingFilter.Audio, { actions.onFilter(RecordingFilter.Audio) }, Modifier.weight(1f), Icons.Rounded.Mic)
+                MusicPill(stringResource(R.string.music_rec_video), state.filter == RecordingFilter.Video, { actions.onFilter(RecordingFilter.Video) }, Modifier.weight(1f), Icons.Rounded.Videocam)
+                MusicPill(stringResource(R.string.music_rec_favorites), state.filter == RecordingFilter.Favorites, { actions.onFilter(RecordingFilter.Favorites) }, Modifier.weight(1f), Icons.Rounded.Favorite)
             }
         }
         item(key = "record") {
-            Row(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
-                GlassButton(
-                    text = stringResource(R.string.music_rec_record_audio),
-                    onClick = actions.onRecordAudio,
-                    leadingIcon = Icons.Rounded.Mic,
-                    modifier = Modifier.weight(1f),
-                )
-                GlassButton(
-                    text = stringResource(R.string.music_rec_record_video),
-                    onClick = actions.onRecordVideo,
-                    leadingIcon = Icons.Rounded.Videocam,
-                    style = GlassButtonStyle.Secondary,
-                    modifier = Modifier.weight(1f),
-                )
+            Row(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s), modifier = Modifier.padding(top = TwinTheme.spacing.xs)) {
+                MusicPill(stringResource(R.string.music_rec_record_audio), true, actions.onRecordAudio, Modifier.weight(1f), Icons.Rounded.Mic, height = 56.dp)
+                MusicPill(stringResource(R.string.music_rec_record_video), false, actions.onRecordVideo, Modifier.weight(1f), Icons.Rounded.Videocam, height = 56.dp)
             }
         }
         item(key = "owners") {
-            Row(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
-                TwinFilterChip(stringResource(R.string.music_rec_everyone), state.owner == RecordingOwner.Everyone, { actions.onOwner(RecordingOwner.Everyone) })
-                TwinFilterChip(stringResource(R.string.music_rec_mine), state.owner == RecordingOwner.Mine, { actions.onOwner(RecordingOwner.Mine) })
-                TwinFilterChip(stringResource(R.string.music_rec_partners, partnerName), state.owner == RecordingOwner.Partner, { actions.onOwner(RecordingOwner.Partner) })
+            Row(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s), modifier = Modifier.padding(bottom = TwinTheme.spacing.xs)) {
+                MusicPill(stringResource(R.string.music_rec_everyone), state.owner == RecordingOwner.Everyone, { actions.onOwner(RecordingOwner.Everyone) }, height = 40.dp)
+                MusicPill(stringResource(R.string.music_rec_mine), state.owner == RecordingOwner.Mine, { actions.onOwner(RecordingOwner.Mine) }, height = 40.dp)
+                MusicPill(stringResource(R.string.music_rec_partners, partnerName), state.owner == RecordingOwner.Partner, { actions.onOwner(RecordingOwner.Partner) }, height = 40.dp)
             }
         }
         if (state.all is UiState.Content) {
@@ -244,9 +238,7 @@ private fun RecordingRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(TwinTheme.shapes.field)
-            .background(colors.glass)
-            .border(1.dp, colors.line, TwinTheme.shapes.field)
+            .musicGlass(TwinTheme.shapes.field)
             .padding(horizontal = TwinTheme.spacing.m, vertical = TwinTheme.spacing.s),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
@@ -254,8 +246,7 @@ private fun RecordingRow(
         Box(
             modifier = Modifier
                 .size(44.dp)
-                .clip(CircleShape)
-                .background(colors.card),
+                .musicGlass(CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -265,22 +256,22 @@ private fun RecordingRow(
                     else -> Icons.Rounded.Mic
                 },
                 contentDescription = null,
-                tint = colors.pinkSoft,
+                tint = MusicStyle.Accent,
             )
         }
         Column(modifier = Modifier.weight(1f)) {
-            Text(rec.title, style = MaterialTheme.typography.titleMedium, color = if (playing) colors.accent else colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(rec.title, style = MaterialTheme.typography.titleMedium, color = if (playing) MusicStyle.Accent else colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(meta, style = MaterialTheme.typography.bodySmall, color = colors.inkMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         IconButton(onClick = onFavorite) {
             Icon(
                 if (rec.favorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
                 contentDescription = stringResource(R.string.music_rec_favorites),
-                tint = if (rec.favorite) colors.accent else colors.inkMuted,
+                tint = if (rec.favorite) MusicStyle.Accent else colors.inkMuted,
             )
         }
-        IconButton(onClick = onPlay) {
-            Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.music_action_play), tint = colors.ink)
+        MusicGlassCircle(size = 40.dp, onClick = onPlay, wine = true) {
+            Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.music_action_play), tint = Color.White)
         }
         if (mine) {
             Box {

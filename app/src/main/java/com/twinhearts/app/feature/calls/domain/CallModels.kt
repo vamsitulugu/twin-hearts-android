@@ -18,3 +18,6 @@ enum class CallPhase { Idle, Calling, Incoming, Connecting, Connected, Ended }
 
 /** Why a call stopped; the screen shows a short line for each. */
 enum class EndReason { Ended, Declined, NoAnswer, Missed, Failed, PermissionDenied }
+
+/** Where a "turn on video" request stands during a voice call (the web app's video-upgrade-* signals). */
+enum class VideoUpgrade { None, Requested, Asked }

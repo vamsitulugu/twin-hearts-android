@@ -1,5 +1,19 @@
 package com.twinhearts.app.feature.music.ui
 
+import com.twinhearts.app.feature.music.ui.components.MusicGlassCircle
+import com.twinhearts.app.feature.music.ui.components.musicWine
+import com.twinhearts.app.feature.music.ui.components.musicGlass
+import com.twinhearts.app.feature.music.ui.components.SongCover
+import com.twinhearts.app.feature.music.ui.components.MusicStyle
+import com.twinhearts.app.feature.music.ui.components.MusicPill
+import coil.compose.AsyncImage
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -9,6 +23,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -139,34 +154,28 @@ private fun androidx.compose.foundation.lazy.LazyListScope.content(
     val ready = LibraryQueries.singable(songs)
     val recent = LibraryQueries.forScope(LibraryScope.Recent, songs, role).take(RECENT_ON_HOME)
 
-    item(key = "hero") {
-        // The picks only change when the set of songs with artwork changes, so the hero stays put while you listen.
-        val poolKey = songs.filter { !it.isPreview && !it.coverUrl.isNullOrBlank() }.map { it.id }.sorted().joinToString(",")
-        val picks = remember(poolKey) { SmartMixes.heroPicks(songs) }
-        if (picks.isEmpty()) {
-            Hero(partnerName = partnerName, hasSongs = true, onShuffle = { actions.onPlayAll(true) })
-        } else {
-            HeroSlider(picks = picks, onPlay = { actions.onPlay(it, LibraryQueries.full(songs)) })
+    // 1. Liked Songs: the one big card, as in the design.
+    item(key = "liked") {
+        LikedCard(count = liked.size, coverUrl = liked.firstOrNull { !it.coverUrl.isNullOrBlank() }?.coverUrl) {
+            actions.onOpenScope(LibraryScope.Liked)
         }
     }
 
-    item(key = "tiles") {
-        Column(verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m), modifier = Modifier.padding(top = TwinTheme.spacing.l)) {
-            TileRow(
-                Tile(Icons.Rounded.MusicNote, stringResource(R.string.music_tile_mine), mine.size.toString()) { actions.onOpenScope(LibraryScope.Mine) },
-                Tile(Icons.Rounded.Favorite, stringResource(R.string.music_tile_partner), partner.size.toString()) { actions.onOpenScope(LibraryScope.Partner) },
-            )
-            TileRow(
-                Tile(Icons.Rounded.Star, stringResource(R.string.music_tile_featured), featured.size.toString()) { actions.onOpenScope(LibraryScope.Featured) },
-                Tile(Icons.Rounded.Mic, stringResource(R.string.music_tile_karaoke), stringResource(R.string.music_tile_karaoke_ready, ready.size), actions.onKaraoke),
-            )
-            TileRow(
-                Tile(Icons.Rounded.Favorite, stringResource(R.string.music_tile_liked), liked.size.toString()) { actions.onOpenScope(LibraryScope.Liked) },
-                null,
-            )
+    // 2. The other libraries stay one tap away, in a single scrolling row instead of a 2x3 grid.
+    item(key = "library") {
+        LazyRow(
+            modifier = Modifier.padding(top = TwinTheme.spacing.m),
+            horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
+        ) {
+            item { LibraryChip(Icons.Rounded.MusicNote, stringResource(R.string.music_tile_mine), mine.size.toString()) { actions.onOpenScope(LibraryScope.Mine) } }
+            item { LibraryChip(Icons.Rounded.Favorite, stringResource(R.string.music_tile_partner), partner.size.toString()) { actions.onOpenScope(LibraryScope.Partner) } }
+            item { LibraryChip(Icons.Rounded.Star, stringResource(R.string.music_tile_featured), featured.size.toString()) { actions.onOpenScope(LibraryScope.Featured) } }
+            item { AddSongsButton(actions.onAddSongs) }
+            item { LibraryChip(Icons.Rounded.Mic, stringResource(R.string.music_tile_karaoke), stringResource(R.string.music_tile_karaoke_ready, ready.size), actions.onKaraoke) }
         }
     }
 
+    // 3. Recently Played: covers in a row, not a long list.
     if (recent.isNotEmpty()) {
         item(key = "recent_title") {
             MusicSectionTitle(
@@ -175,26 +184,22 @@ private fun androidx.compose.foundation.lazy.LazyListScope.content(
                 onAction = { actions.onOpenScope(LibraryScope.Recent) },
             )
         }
-        items(recent, key = { "recent_${it.id}" }) { song ->
-            SongRow(
-                song = song,
-                current = song.id == currentSongId,
-                onClick = { actions.onPlay(song, recent) },
-                onMore = { actions.onSongMenu(song) },
-            )
+        item(key = "recent") {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m)) {
+                items(recent, key = { "recent_${it.id}" }) { song ->
+                    RecentCard(song = song, current = song.id == currentSongId, onClick = { actions.onPlay(song, recent) })
+                }
+            }
         }
     }
 
+    // 4. Quick Actions: three equal buttons. Plain search is the magnifier at the top.
     item(key = "quick_title") { MusicSectionTitle(title = stringResource(R.string.music_quick_title)) }
     item(key = "quick") {
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
-        ) {
-            QuickChip(Icons.Rounded.PlayArrow, stringResource(R.string.music_quick_play_all), highlighted = true) { actions.onPlayAll(false) }
-            QuickChip(Icons.Rounded.Shuffle, stringResource(R.string.music_quick_shuffle)) { actions.onPlayAll(true) }
-            QuickChip(Icons.Rounded.Search, stringResource(R.string.music_quick_search), onClick = actions.onSearch)
-            QuickChip(Icons.Rounded.Language, stringResource(R.string.music_quick_search_online), highlighted = true, onClick = actions.onSearchOnline)
+        Row(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
+            MusicPill(stringResource(R.string.music_quick_play_all), selected = true, onClick = { actions.onPlayAll(false) }, modifier = Modifier.weight(1f), icon = Icons.Rounded.PlayArrow)
+            MusicPill(stringResource(R.string.music_quick_shuffle), selected = false, onClick = { actions.onPlayAll(true) }, modifier = Modifier.weight(1f), icon = Icons.Rounded.Shuffle)
+            MusicPill(stringResource(R.string.music_quick_search_online), selected = false, onClick = actions.onSearchOnline, modifier = Modifier.weight(1f), icon = Icons.Rounded.Language)
         }
     }
 
@@ -221,12 +226,14 @@ private fun androidx.compose.foundation.lazy.LazyListScope.content(
                 )
             }
         } else {
+            val coverById = remember(songs) { songs.associate { it.id to it.coverUrl } }
             LazyRow(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m)) {
-                items(library.playlists.playlists.reversed(), key = { it.id }) { playlist ->
-                    PlaylistCard(playlist) { actions.onOpenPlaylist(playlist) }
-                }
                 item(key = "new_playlist") {
-                    PlaylistCard(playlist = null, onClick = actions.onNewPlaylist)
+                    PlaylistCard(playlist = null, coverUrl = null, onClick = actions.onNewPlaylist)
+                }
+                items(library.playlists.playlists.reversed(), key = { it.id }) { playlist ->
+                    val cover = playlist.songIds.firstNotNullOfOrNull { id -> coverById[id]?.takeIf { it.isNotBlank() } }
+                    PlaylistCard(playlist, cover) { actions.onOpenPlaylist(playlist) }
                 }
             }
         }
@@ -286,71 +293,139 @@ private fun AddingCard(progress: AddProgress) {
     }
 }
 
-private data class Tile(val icon: ImageVector, val label: String, val count: String, val onClick: () -> Unit)
-
+/** "Liked Songs": wide burgundy-glass card with the heart, the count and a faint cover behind it. */
 @Composable
-private fun TileRow(first: Tile, second: Tile?) {
-    Row(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m)) {
-        TileCard(first, Modifier.weight(1f))
-        if (second != null) TileCard(second, Modifier.weight(1f)) else Box(Modifier.weight(1f))
-    }
-}
-
-@Composable
-private fun TileCard(tile: Tile, modifier: Modifier) {
-    val colors = TwinTheme.colors
-    GlassCard(modifier = modifier, onClick = tile.onClick, contentPadding = TwinTheme.spacing.m) {
-        Icon(tile.icon, contentDescription = null, tint = colors.accent)
-        Text(tile.label, style = MaterialTheme.typography.titleMedium, color = colors.ink, modifier = Modifier.padding(top = TwinTheme.spacing.s))
-        Text(tile.count, style = MaterialTheme.typography.bodySmall, color = colors.inkMuted)
-    }
-}
-
-@Composable
-private fun QuickChip(icon: ImageVector, label: String, highlighted: Boolean = false, onClick: () -> Unit) {
-    val colors = TwinTheme.colors
-    val pill = TwinTheme.shapes.pill
-    Row(
+private fun LikedCard(count: Int, coverUrl: String?, onClick: () -> Unit) {
+    val shape = TwinTheme.shapes.card
+    Box(
         modifier = Modifier
-            .heightIn(min = TwinTheme.shapes.minTouch)
-            .clip(pill)
-            .background(if (highlighted) colors.primaryBrush else androidx.compose.ui.graphics.SolidColor(colors.glass))
-            .border(1.dp, colors.line, pill)
-            .clickable(onClick = onClick)
-            .padding(horizontal = TwinTheme.spacing.l),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
+            .fillMaxWidth()
+            .padding(top = TwinTheme.spacing.xs)
+            .musicWine(shape)
+            .clickable(onClick = onClick),
     ) {
-        Icon(icon, contentDescription = null, tint = colors.ink, modifier = Modifier.size(18.dp))
-        Text(label, style = MaterialTheme.typography.titleSmall, color = colors.ink)
-    }
-}
-
-@Composable
-private fun PlaylistCard(playlist: Playlist?, onClick: () -> Unit) {
-    val colors = TwinTheme.colors
-    GlassCard(modifier = Modifier.width(140.dp), onClick = onClick, contentPadding = TwinTheme.spacing.m) {
-        Icon(
-            if (playlist == null) Icons.Rounded.Add else Icons.Rounded.QueueMusic,
-            contentDescription = null,
-            tint = colors.accent,
-            modifier = Modifier.size(32.dp),
-        )
-        Text(
-            text = playlist?.name ?: stringResource(R.string.music_new_playlist),
-            style = MaterialTheme.typography.titleSmall,
-            color = colors.ink,
-            maxLines = 2,
-            modifier = Modifier.padding(top = TwinTheme.spacing.s),
-        )
-        if (playlist != null) {
-            Text(
-                stringResource(R.string.music_song_count, playlist.songIds.size),
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.inkMuted,
+        if (coverUrl != null) {
+            AsyncImage(
+                model = coverUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                alpha = 0.35f,
+                modifier = Modifier.matchParentSize(),
             )
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .background(Brush.horizontalGradient(listOf(Color(0xFF4F0629), Color(0xFF4F0629).copy(alpha = 0.55f), Color.Transparent))),
+            )
+        }
+        Row(
+            modifier = Modifier.padding(TwinTheme.spacing.m),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
+        ) {
+            Box(
+                modifier = Modifier.size(56.dp).musicGlass(TwinTheme.shapes.field),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Rounded.Favorite, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(stringResource(R.string.music_tile_liked), style = MaterialTheme.typography.titleLarge, color = Color.White)
+                Text(stringResource(R.string.music_song_count, count), style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.75f))
+            }
+            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = Color.White.copy(alpha = 0.8f))
         }
     }
 }
 
-private const val RECENT_ON_HOME = 4
+/** Small glass pill for a library: icon, name and count. */
+@Composable
+private fun LibraryChip(icon: ImageVector, label: String, count: String, onClick: () -> Unit) {
+    val colors = TwinTheme.colors
+    val pill = TwinTheme.shapes.pill
+    Row(
+        modifier = Modifier
+            .heightIn(min = 44.dp)
+            .musicGlass(pill)
+            .clickable(onClick = onClick)
+            .padding(horizontal = TwinTheme.spacing.m),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
+    ) {
+        Icon(icon, contentDescription = null, tint = MusicStyle.Accent, modifier = Modifier.size(18.dp))
+        Text(label, style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 1)
+        Text(count, style = MaterialTheme.typography.bodySmall, color = colors.inkMuted, maxLines = 1)
+    }
+}
+
+/** Small round + next to the library chips: add songs from the phone. */
+@Composable
+private fun AddSongsButton(onClick: () -> Unit) {
+    MusicGlassCircle(size = 44.dp, onClick = onClick, wine = true) {
+        Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.music_add_songs), tint = Color.White)
+    }
+}
+
+/** One recently played song: square cover with a play badge, title and artist underneath. */
+@Composable
+private fun RecentCard(song: Song, current: Boolean, onClick: () -> Unit) {
+    val colors = TwinTheme.colors
+    Column(modifier = Modifier.width(112.dp).clip(TwinTheme.shapes.field).clickable(onClick = onClick)) {
+        Box {
+            SongCover(url = song.coverUrl, size = 112.dp)
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(6.dp)
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .border(1.dp, Color.White.copy(alpha = 0.35f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.music_action_play), tint = Color.White, modifier = Modifier.size(18.dp))
+            }
+        }
+        Text(
+            song.title,
+            style = MaterialTheme.typography.titleSmall,
+            color = if (current) MusicStyle.Accent else colors.ink,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = TwinTheme.spacing.xs),
+        )
+        Text(song.artist, style = MaterialTheme.typography.bodySmall, color = colors.inkMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** A playlist: cover of its first song (or a note), name and song count. The first card creates a new one. */
+@Composable
+private fun PlaylistCard(playlist: Playlist?, coverUrl: String?, onClick: () -> Unit) {
+    val colors = TwinTheme.colors
+    val shape = TwinTheme.shapes.field
+    Column(modifier = Modifier.width(112.dp).clip(shape).clickable(onClick = onClick)) {
+        Box(
+            modifier = Modifier.fillMaxWidth().height(96.dp).musicGlass(shape),
+            contentAlignment = Alignment.Center,
+        ) {
+            when {
+                playlist == null -> Icon(Icons.Rounded.Add, contentDescription = null, tint = colors.ink, modifier = Modifier.size(32.dp))
+                coverUrl != null -> AsyncImage(model = coverUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                else -> Icon(Icons.Rounded.QueueMusic, contentDescription = null, tint = MusicStyle.Accent, modifier = Modifier.size(32.dp))
+            }
+        }
+        Text(
+            text = playlist?.name ?: stringResource(R.string.music_new_playlist),
+            style = MaterialTheme.typography.titleSmall,
+            color = colors.ink,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = TwinTheme.spacing.xs),
+        )
+        if (playlist != null) {
+            Text(stringResource(R.string.music_song_count, playlist.songIds.size), style = MaterialTheme.typography.bodySmall, color = colors.inkMuted)
+        }
+    }
+}
+
+private const val RECENT_ON_HOME = 10

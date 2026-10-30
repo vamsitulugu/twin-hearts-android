@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.background
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -59,6 +62,7 @@ private fun hasLocationPermission(context: Context): Boolean =
 fun LiveMapScreen(
     onBack: () -> Unit,
     onOpenSettings: () -> Unit,
+    onVideoCall: () -> Unit,
     vm: LiveMapViewModel = hiltViewModel(),
     trackVm: TrackViewModel = hiltViewModel(),
 ) {
@@ -110,19 +114,31 @@ fun LiveMapScreen(
         trackVm.messages.collect { res -> Toast.makeText(context, context.getString(res), Toast.LENGTH_SHORT).show() }
     }
 
-    BackHandler(enabled = state.stack.size > 1) { vm.back() }
+    val navigating = state.nav != null
+    var confirmEnd by remember { mutableStateOf(false) }
+    BackHandler(enabled = navigating) { if (state.nav?.arrived == true) vm.endNavigation() else confirmEnd = true }
+    BackHandler(enabled = !navigating && state.stack.size > 1) { vm.back() }
+    if (confirmEnd && navigating) {
+        AlertDialog(
+            onDismissRequest = { confirmEnd = false },
+            containerColor = TwinTheme.colors.card,
+            title = { Text(stringResource(R.string.livemap_nav_exit_title), color = TwinTheme.colors.ink) },
+            confirmButton = { TextButton(onClick = { confirmEnd = false; vm.endNavigation() }) { Text(stringResource(R.string.livemap_nav_end)) } },
+            dismissButton = { TextButton(onClick = { confirmEnd = false }) { Text(stringResource(R.string.livemap_close)) } },
+        )
+    }
 
     val screen = state.screen
     NeutralLiveMapColors {
     Box(Modifier.fillMaxSize().background(LiveMapStyle.Base)) {
         Column(Modifier.fillMaxSize()) {
-            TwinTopBar(
+            if (!navigating) TwinTopBar(
                 title = stringResource(R.string.livemap_title),
                 onBackClick = { if (!vm.back()) onBack() },
                 onSearchClick = if (screen == LmScreen.Search) null else ({ vm.open(LmScreen.Search) }),
                 onMenuClick = if (screen == LmScreen.More) null else ({ vm.open(LmScreen.More) }),
             )
-            if (screen in TABS) {
+            if (!navigating && screen in TABS) {
                 SegmentedTabs(
                     options = listOf(
                         stringResource(R.string.livemap_tab_map),
@@ -148,7 +164,7 @@ fun LiveMapScreen(
                             vm = vm,
                             permissionGranted = granted,
                             onRequestPermission = requestPermission,
-                            onVideoCall = { vm.showMessage(R.string.livemap_msg_calls_pending) },
+                            onVideoCall = onVideoCall,
                         )
                         LmScreen.Track -> TrackPage(track, trackVm, state.myName.ifBlank { context.getString(R.string.livemap_you) }, state.partnerName, state.settings.mapStyle)
                         LmScreen.Partner -> PartnerPage(

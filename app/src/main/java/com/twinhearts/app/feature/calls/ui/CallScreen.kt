@@ -25,6 +25,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -64,7 +66,9 @@ import com.twinhearts.app.R
 import com.twinhearts.app.core.common.rememberReduceMotion
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.feature.calls.domain.CallPhase
+import com.twinhearts.app.feature.calls.data.UpgradeNotice
 import com.twinhearts.app.feature.calls.domain.EndReason
+import com.twinhearts.app.feature.calls.domain.VideoUpgrade
 import kotlinx.coroutines.delay
 
 /**
@@ -90,6 +94,28 @@ fun CallScreen(video: Boolean, incoming: Boolean, onClose: () -> Unit, viewModel
         } else {
             engine.permissionDenied()
         }
+    }
+
+    // Voice call -> video: the camera permission is asked first, then the request goes out (or the answer).
+    var upgradeAction by remember { mutableStateOf(UpgradeAction.Request) }
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (!granted) {
+            if (upgradeAction == UpgradeAction.Accept) engine.declineVideoUpgrade()
+        } else if (upgradeAction == UpgradeAction.Accept) {
+            engine.acceptVideoUpgrade()
+        } else {
+            engine.requestVideoUpgrade()
+        }
+    }
+    val context = LocalContext.current
+    LaunchedEffect(state.upgradeNotice) {
+        val notice = state.upgradeNotice ?: return@LaunchedEffect
+        val text = when (notice) {
+            UpgradeNotice.Declined -> context.getString(R.string.calls_upgrade_declined, state.partnerName)
+            UpgradeNotice.Failed -> context.getString(R.string.calls_upgrade_failed)
+        }
+        Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
+        engine.clearUpgradeNotice()
     }
 
     // Outgoing: ask for permission, then start once. Incoming: the watcher already rang.
@@ -126,6 +152,7 @@ fun CallScreen(video: Boolean, incoming: Boolean, onClose: () -> Unit, viewModel
                 // Video call: name + timer sit in the top-left corner, like WhatsApp.
                 Text(state.partnerName, style = MaterialTheme.typography.titleLarge, color = Color.White)
                 Text(statusLine(state.phase, state.video, state.seconds, state.endReason), style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.78f))
+                if (state.reconnecting) Text(stringResource(R.string.calls_reconnecting), style = MaterialTheme.typography.labelMedium, color = CallAmber)
             } else {
                 Spacer(Modifier.height(TwinTheme.spacing.xxl))
                 PulsingAvatar(name = state.partnerName, pulsing = ringing)
@@ -133,8 +160,18 @@ fun CallScreen(video: Boolean, incoming: Boolean, onClose: () -> Unit, viewModel
                 Text(state.partnerName, style = MaterialTheme.typography.headlineLarge, color = Color.White, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(TwinTheme.spacing.xs))
                 Text(statusLine(state.phase, state.video, state.seconds, state.endReason), style = MaterialTheme.typography.bodyLarge, color = Color.White.copy(alpha = 0.70f))
+                if (state.reconnecting) Text(stringResource(R.string.calls_reconnecting), style = MaterialTheme.typography.labelLarge, color = CallAmber)
+                if (state.upgrade == VideoUpgrade.Requested) Text(stringResource(R.string.calls_upgrade_asking, state.partnerName), style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = 0.78f))
             }
             Spacer(Modifier.weight(1f))
+            if (state.upgrade == VideoUpgrade.Asked) {
+                UpgradeBanner(
+                    text = stringResource(R.string.calls_upgrade_request, state.partnerName),
+                    onNotNow = { engine.declineVideoUpgrade() },
+                    onTurnOn = { upgradeAction = UpgradeAction.Accept; cameraLauncher.launch(Manifest.permission.CAMERA) },
+                )
+                Spacer(Modifier.height(TwinTheme.spacing.m))
+            }
 
             if (state.phase == CallPhase.Incoming) {
                 Row(Modifier.fillMaxWidth().padding(bottom = TwinTheme.spacing.xl), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -158,6 +195,12 @@ fun CallScreen(video: Boolean, incoming: Boolean, onClose: () -> Unit, viewModel
                 ) {
                     ToggleButton(if (state.muted) Icons.Rounded.MicOff else Icons.Rounded.Mic, stringResource(R.string.calls_mute), state.muted) { engine.toggleMute() }
                     ToggleButton(Icons.Rounded.VolumeUp, stringResource(R.string.calls_speaker), state.speaker) { engine.toggleSpeaker() }
+                    if (!state.video && state.phase == CallPhase.Connected) {
+                        ToggleButton(Icons.Rounded.Videocam, stringResource(R.string.calls_video), state.upgrade == VideoUpgrade.Requested) {
+                            upgradeAction = UpgradeAction.Request
+                            cameraLauncher.launch(Manifest.permission.CAMERA)
+                        }
+                    }
                     if (state.video) {
                         ToggleButton(if (state.cameraOff) Icons.Rounded.VideocamOff else Icons.Rounded.Videocam, stringResource(R.string.calls_camera), state.cameraOff) { engine.toggleCamera() }
                         ToggleButton(Icons.Rounded.Cameraswitch, stringResource(R.string.calls_flip), false) { engine.switchCamera() }
@@ -183,6 +226,7 @@ fun CallScreen(video: Boolean, incoming: Boolean, onClose: () -> Unit, viewModel
 
 private val CallBackground = Brush.verticalGradient(listOf(Color(0xFF4A0A2C), Color(0xFF210716), Color(0xFF0C0308)))
 private val CallRed = Color(0xFFE5484D)
+private val CallAmber = Color(0xFFFFC857)
 private val CallGreen = Color(0xFF22C55E)
 private val PanelShape = RoundedCornerShape(32.dp)
 
@@ -271,5 +315,29 @@ private fun ToggleButton(icon: ImageVector, label: String, on: Boolean, onClick:
             Icon(icon, contentDescription = label, tint = if (on) Color(0xFF1A0612) else Color.White, modifier = Modifier.size(26.dp))
         }
         Text(label, style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.78f))
+    }
+}
+
+private enum class UpgradeAction { Request, Accept }
+
+/** "<name> wants to turn on video" with Not now / Turn on (the web app's upgrade banner). */
+@Composable
+private fun UpgradeBanner(text: String, onNotNow: () -> Unit, onTurnOn: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(PanelShape).background(Color.White.copy(alpha = 0.14f))
+            .border(1.dp, Color.White.copy(alpha = 0.18f), PanelShape)
+            .padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.m),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
+    ) {
+        Text(text, style = MaterialTheme.typography.bodyMedium, color = Color.White, modifier = Modifier.weight(1f))
+        Text(
+            stringResource(R.string.calls_upgrade_not_now), style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = 0.78f),
+            modifier = Modifier.clickable(onClick = onNotNow).padding(TwinTheme.spacing.s),
+        )
+        Text(
+            stringResource(R.string.calls_upgrade_turn_on), style = MaterialTheme.typography.labelLarge, color = CallGreen,
+            modifier = Modifier.clickable(onClick = onTurnOn).padding(TwinTheme.spacing.s),
+        )
     }
 }

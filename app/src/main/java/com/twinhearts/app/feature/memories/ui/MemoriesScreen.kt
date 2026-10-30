@@ -90,6 +90,7 @@ import java.io.IOException
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
+import com.twinhearts.app.feature.memories.ui.components.MemoriesStyled
 
 private const val GRID_COLUMNS = 3
 private const val MAX_PICKS = 20
@@ -103,7 +104,7 @@ private val BAR_AREA = 60.dp
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun MemoriesScreen(
+private fun MemoriesScreenContent(
     onBack: () -> Unit,
     viewModel: MemoriesViewModel = hiltViewModel(),
 ) {
@@ -401,7 +402,7 @@ private fun MemoryTile(
     ) {
         if (memory.isVideo) {
             // Video thumbnails need an extra library; a play badge on a dark tile keeps the grid light.
-            Box(Modifier.fillMaxSize().background(Color(0xFF2A0A1E)), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxSize().background(Color(0xFF1E1E20)), contentAlignment = Alignment.Center) {
                 Icon(Icons.Rounded.PlayArrow, stringResource(R.string.memories_video_cd), tint = Color.White, modifier = Modifier.size(36.dp))
             }
         } else {
@@ -580,3 +581,12 @@ private fun openUrl(context: Context, url: String) {
 @Composable
 private fun plural(@PluralsRes id: Int, count: Int, vararg args: Any): String =
     LocalContext.current.resources.getQuantityString(id, count, *args)
+
+/** Public entry: the page body wrapped in the shared near-black glass look. */
+@Composable
+fun MemoriesScreen(
+    onBack: () -> Unit,
+    viewModel: MemoriesViewModel = hiltViewModel(),
+) {
+    MemoriesStyled { MemoriesScreenContent(onBack = onBack, viewModel = viewModel) }
+}

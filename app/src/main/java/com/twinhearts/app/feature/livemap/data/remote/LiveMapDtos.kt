@@ -202,6 +202,30 @@ data class OsrmRouteDto(
     val distance: Double = 0.0,
     val duration: Double = 0.0,
     val geometry: OsrmGeometryDto? = null,
+    val legs: List<OsrmLegDto> = emptyList(),
+)
+
+/** One leg of a route (between two waypoints) with its turn-by-turn steps. */
+@Serializable
+data class OsrmLegDto(val steps: List<OsrmStepDto> = emptyList())
+
+@Serializable
+data class OsrmStepDto(
+    val distance: Double = 0.0,
+    val duration: Double = 0.0,
+    val name: String = "",
+    val ref: String = "",
+    val geometry: OsrmGeometryDto? = null,
+    val maneuver: OsrmManeuverDto? = null,
+)
+
+/** The manoeuvre at the start of a step. [location] is `[lng, lat]`. */
+@Serializable
+data class OsrmManeuverDto(
+    val type: String = "",
+    val modifier: String? = null,
+    val exit: Int? = null,
+    val location: List<Double> = emptyList(),
 )
 
 /** GeoJSON line: each coordinate is `[lng, lat]`. */

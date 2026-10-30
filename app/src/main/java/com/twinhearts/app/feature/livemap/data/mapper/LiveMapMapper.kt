@@ -6,6 +6,12 @@ import com.twinhearts.app.feature.livemap.data.remote.LocationsResponse
 import com.twinhearts.app.feature.livemap.data.remote.NominatimReverseDto
 import com.twinhearts.app.feature.livemap.data.remote.OpenMeteoResponse
 import com.twinhearts.app.feature.livemap.data.remote.OsrmResponse
+import com.twinhearts.app.feature.livemap.domain.nav.GeoPoint
+import com.twinhearts.app.feature.livemap.domain.nav.NavRoute
+import com.twinhearts.app.feature.livemap.domain.nav.OsrmRouteMapper
+import com.twinhearts.app.feature.livemap.domain.nav.RawRoute
+import com.twinhearts.app.feature.livemap.domain.nav.RawStep
+import com.twinhearts.app.feature.livemap.domain.nav.TravelMode
 import com.twinhearts.app.feature.livemap.data.remote.PhotonResponse
 import com.twinhearts.app.feature.livemap.data.remote.RouteDayResponse
 import com.twinhearts.app.feature.livemap.data.remote.RouteSettingsResponse
@@ -293,4 +299,31 @@ fun AlertPrefs.toAlertsJson(): JsonObject = buildJsonObject {
     put("battery", battery)
     put("network", network)
     put("gps", gps)
+}
+
+private fun List<Double>.toGeoPoint(): GeoPoint? = if (size >= 2) GeoPoint(this[1], this[0]) else null
+
+/** OSRM answer with steps -> routes ready for the map and for navigation. Empty when no road route exists. */
+fun OsrmResponse.toNavRoutes(mode: TravelMode): List<NavRoute> {
+    val raw = routes.map { route ->
+        RawRoute(
+            distanceM = route.distance,
+            durationS = route.duration,
+            line = route.geometry?.coordinates.orEmpty().mapNotNull { it.toGeoPoint() },
+            steps = route.legs.flatMap { it.steps }.map { step ->
+                RawStep(
+                    type = step.maneuver?.type.orEmpty(),
+                    modifier = step.maneuver?.modifier,
+                    exit = step.maneuver?.exit,
+                    name = step.name,
+                    ref = step.ref,
+                    distanceM = step.distance,
+                    durationS = step.duration,
+                    line = step.geometry?.coordinates.orEmpty().mapNotNull { it.toGeoPoint() },
+                    at = step.maneuver?.location?.toGeoPoint(),
+                )
+            },
+        )
+    }
+    return OsrmRouteMapper.toRoutes(raw, mode)
 }

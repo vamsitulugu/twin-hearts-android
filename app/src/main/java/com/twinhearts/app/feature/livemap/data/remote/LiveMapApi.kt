@@ -91,6 +91,11 @@ interface GeoServicesApi {
     @GET
     suspend fun route(@Url url: String): OsrmResponse
 
+    /** FOSSGIS asks for a real User-Agent and at most one request a second. */
+    @Headers("User-Agent: TwinHearts-Android/1.0 (couples app)")
+    @GET
+    suspend fun routeWithSteps(@Url url: String): OsrmResponse
+
     @Headers("User-Agent: TwinHearts-Android/1.0 (couples app)")
     @GET
     suspend fun search(@Url url: String): PhotonResponse

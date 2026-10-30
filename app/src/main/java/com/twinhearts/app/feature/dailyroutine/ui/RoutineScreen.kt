@@ -57,6 +57,7 @@ import com.twinhearts.app.feature.dailyroutine.ui.components.WeekStrip
 import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.LocalDateTime
+import com.twinhearts.app.feature.dailyroutine.ui.components.RoutineStyled
 
 /*
  * Why this file exists: the Daily Routine screen. It connects the ViewModel to the stateless
@@ -66,7 +67,7 @@ import java.time.LocalDateTime
 private const val TICK_MS = 60_000L
 
 @Composable
-fun RoutineScreen(onBack: () -> Unit, viewModel: RoutineViewModel = hiltViewModel()) {
+private fun RoutineScreenContent(onBack: () -> Unit, viewModel: RoutineViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var message by remember { mutableStateOf<RoutineMessage?>(null) }
@@ -152,7 +153,7 @@ internal fun RoutineContent(
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            TwinTopBar(title = stringResource(R.string.dr_title), showLogo = true, onBackClick = onBack, onSyncClick = onRefresh)
+            TwinTopBar(title = stringResource(R.string.dr_title), onBackClick = onBack, onSyncClick = onRefresh)
             val identity = state.identity
             when {
                 state.error != null && identity == null -> ErrorState(
@@ -253,3 +254,9 @@ private fun RoutineErrorPreview() = PreviewHost(RoutineUiState(isLoading = false
 @Preview(showBackground = true, backgroundColor = 0xFF14030E, heightDp = 780, widthDp = 360, fontScale = 1.3f)
 @Composable
 private fun RoutineLargeFontPreview() = PreviewHost(previewState)
+
+/** Public entry: the page body wrapped in the shared near-black glass look. */
+@Composable
+fun RoutineScreen(onBack: () -> Unit, viewModel: RoutineViewModel = hiltViewModel()) {
+    RoutineStyled { RoutineScreenContent(onBack = onBack, viewModel = viewModel) }
+}

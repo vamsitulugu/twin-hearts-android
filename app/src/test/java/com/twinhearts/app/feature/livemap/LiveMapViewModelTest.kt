@@ -6,6 +6,9 @@ import com.twinhearts.app.core.data.Session
 import com.twinhearts.app.core.data.SessionStore
 import com.twinhearts.app.feature.livemap.data.LiveMapPrefs
 import com.twinhearts.app.feature.livemap.data.LiveMapRepository
+import com.twinhearts.app.feature.livemap.data.nav.NavEngine
+import com.twinhearts.app.feature.livemap.domain.nav.NavSession
+import kotlinx.coroutines.flow.MutableStateFlow
 import com.twinhearts.app.feature.livemap.data.LiveMapSettings
 import com.twinhearts.app.feature.livemap.data.LocationSource
 import com.twinhearts.app.feature.livemap.data.share.ShareLauncher
@@ -40,6 +43,7 @@ class LiveMapViewModelTest {
     private val prefs = mockk<LiveMapPrefs>(relaxed = true)
     private val location = mockk<LocationSource>(relaxed = true)
     private val launcher = mockk<ShareLauncher>(relaxed = true)
+    private val navEngine = mockk<NavEngine>(relaxed = true)
 
     private val settings = LiveMapSettings(
         sharing = null, invisible = false, approximate = false, pausedUntilMs = 0L, vehicle = Vehicle.Walking,
@@ -52,7 +56,8 @@ class LiveMapViewModelTest {
         every { sessionStore.session } returns emptyFlow<Session?>()
         every { prefs.settings } returns flowOf(settings)
         every { location.updates(any()) } returns emptyFlow()
-        return LiveMapViewModel(repository, sessionStore, prefs, location, launcher)
+        every { navEngine.session } returns MutableStateFlow<NavSession?>(null)
+        return LiveMapViewModel(repository, sessionStore, prefs, location, launcher, navEngine)
     }
 
     @Test

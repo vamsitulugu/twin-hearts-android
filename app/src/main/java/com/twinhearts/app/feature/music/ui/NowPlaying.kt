@@ -1,5 +1,12 @@
 package com.twinhearts.app.feature.music.ui
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import com.twinhearts.app.feature.music.ui.components.musicWine
+import com.twinhearts.app.feature.music.ui.components.MusicGlassCircle
+import com.twinhearts.app.feature.music.ui.components.MusicStyle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -89,8 +96,8 @@ internal fun MiniPlayer(state: PlayerState, onOpen: () -> Unit, onTogglePlay: ()
             .fillMaxWidth()
             .padding(horizontal = TwinTheme.spacing.m, vertical = TwinTheme.spacing.s)
             .clip(shape)
-            .background(colors.card)
-            .border(1.dp, colors.line, shape)
+            .background(Brush.horizontalGradient(listOf(Color(0xE6420624), Color(0xE61C1C20))))
+            .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.32f), Color.White.copy(alpha = 0.06f))), shape)
             .clickable(onClick = onOpen),
     ) {
         Row(
@@ -123,8 +130,8 @@ internal fun MiniPlayer(state: PlayerState, onOpen: () -> Unit, onTogglePlay: ()
             modifier = Modifier
                 .fillMaxWidth()
                 .height(2.dp),
-            color = colors.accent,
-            trackColor = colors.lineSoft,
+            color = MusicStyle.Accent,
+            trackColor = Color.White.copy(alpha = 0.12f),
         )
     }
 }
@@ -134,6 +141,7 @@ internal fun NowPlayingScreen(state: PlayerState, actions: PlayerActions, modifi
     val song = state.current ?: return
     val colors = TwinTheme.colors
     TwinBackground {
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(MusicStyle.Glow.copy(alpha = 0.9f), Color.Transparent))))
         Column(
             modifier = modifier
                 .fillMaxSize()
@@ -155,7 +163,15 @@ internal fun NowPlayingScreen(state: PlayerState, actions: PlayerActions, modifi
                 Box(Modifier.size(48.dp))
             }
             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                SongCover(url = song.coverUrl, size = 280.dp)
+                Box(
+                    modifier = Modifier
+                        .shadow(28.dp, RoundedCornerShape(28.dp), ambientColor = MusicStyle.Accent, spotColor = MusicStyle.Accent)
+                        .size(280.dp)
+                        .clip(RoundedCornerShape(28.dp))
+                        .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(28.dp)),
+                ) {
+                    SongCover(url = song.coverUrl, size = 280.dp, modifier = Modifier.fillMaxSize())
+                }
             }
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
@@ -166,7 +182,7 @@ internal fun NowPlayingScreen(state: PlayerState, actions: PlayerActions, modifi
                     Icon(
                         if (song.liked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                         contentDescription = stringResource(if (song.liked) R.string.music_action_unlike else R.string.music_action_like),
-                        tint = if (song.liked) colors.accent else colors.ink,
+                        tint = if (song.liked) MusicStyle.Accent else colors.ink,
                     )
                 }
             }
@@ -177,16 +193,15 @@ internal fun NowPlayingScreen(state: PlayerState, actions: PlayerActions, modifi
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = actions.onShuffle) {
-                    Icon(Icons.Rounded.Shuffle, contentDescription = stringResource(R.string.music_quick_shuffle), tint = if (state.shuffle) colors.accent else colors.inkMuted)
+                    Icon(Icons.Rounded.Shuffle, contentDescription = stringResource(R.string.music_quick_shuffle), tint = if (state.shuffle) MusicStyle.Accent else colors.inkMuted)
                 }
                 IconButton(onClick = actions.onPrevious, modifier = Modifier.size(56.dp)) {
                     Icon(Icons.Rounded.SkipPrevious, contentDescription = stringResource(R.string.music_previous), tint = colors.ink, modifier = Modifier.size(36.dp))
                 }
                 Box(
                     modifier = Modifier
-                        .size(72.dp)
-                        .clip(TwinTheme.shapes.circle)
-                        .background(colors.primaryBrush)
+                        .size(76.dp)
+                        .musicWine(TwinTheme.shapes.circle)
                         .clickable(onClick = actions.onTogglePlay),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -208,7 +223,7 @@ internal fun NowPlayingScreen(state: PlayerState, actions: PlayerActions, modifi
                     Icon(
                         if (state.repeat == RepeatKind.One) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
                         contentDescription = stringResource(R.string.music_repeat),
-                        tint = if (state.repeat == RepeatKind.Off) colors.inkMuted else colors.accent,
+                        tint = if (state.repeat == RepeatKind.Off) colors.inkMuted else MusicStyle.Accent,
                     )
                 }
             }
@@ -218,15 +233,9 @@ internal fun NowPlayingScreen(state: PlayerState, actions: PlayerActions, modifi
                     .padding(vertical = TwinTheme.spacing.l),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                IconButton(onClick = { actions.onLyrics(song) }) {
-                    Icon(Icons.Rounded.Lyrics, contentDescription = stringResource(R.string.music_action_lyrics), tint = colors.ink)
-                }
-                IconButton(onClick = actions.onQueue) {
-                    Icon(Icons.Rounded.QueueMusic, contentDescription = stringResource(R.string.music_queue_title), tint = colors.ink)
-                }
-                IconButton(onClick = actions.onSleep) {
-                    Icon(Icons.Rounded.Bedtime, contentDescription = stringResource(R.string.music_sleep_title), tint = if (state.sleepAtMs != null) colors.accent else colors.ink)
-                }
+                ShortcutButton(Icons.Rounded.Lyrics, stringResource(R.string.music_action_lyrics), false) { actions.onLyrics(song) }
+                ShortcutButton(Icons.Rounded.QueueMusic, stringResource(R.string.music_queue_title), false, actions.onQueue)
+                ShortcutButton(Icons.Rounded.Bedtime, stringResource(R.string.music_sleep_title), state.sleepAtMs != null, actions.onSleep)
             }
         }
     }
@@ -247,9 +256,9 @@ private fun SeekBar(state: PlayerState, onSeek: (Long) -> Unit) {
             dragging = null
         },
         colors = SliderDefaults.colors(
-            thumbColor = colors.accent,
-            activeTrackColor = colors.accent,
-            inactiveTrackColor = colors.lineSoft,
+            thumbColor = Color.White,
+            activeTrackColor = MusicStyle.Accent,
+            inactiveTrackColor = Color.White.copy(alpha = 0.14f),
         ),
     )
     Row(modifier = Modifier.fillMaxWidth()) {
@@ -276,11 +285,23 @@ internal fun QueueSheet(state: PlayerState, onPick: (Int) -> Unit, onDismiss: ()
                     SongCover(url = song.coverUrl, size = 44.dp)
                     Column(modifier = Modifier.weight(1f)) {
                         val isCurrent = song.id == state.current?.id
-                        Text(song.title, style = MaterialTheme.typography.titleSmall, color = if (isCurrent) colors.accent else colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(song.title, style = MaterialTheme.typography.titleSmall, color = if (isCurrent) MusicStyle.Accent else colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(song.artist, style = MaterialTheme.typography.bodySmall, color = colors.inkMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
         }
+    }
+}
+
+/** Round glass button with a small label under it (Lyrics, Up next, Sleep timer). */
+@Composable
+private fun ShortcutButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, active: Boolean, onClick: () -> Unit) {
+    val colors = TwinTheme.colors
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        MusicGlassCircle(size = 56.dp, onClick = onClick, wine = active) {
+            Icon(icon, contentDescription = label, tint = if (active) Color.White else colors.ink)
+        }
+        Text(label, style = MaterialTheme.typography.bodySmall, color = colors.inkMuted, maxLines = 1, modifier = Modifier.padding(top = TwinTheme.spacing.xs))
     }
 }

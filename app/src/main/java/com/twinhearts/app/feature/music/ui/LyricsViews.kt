@@ -59,14 +59,40 @@ import com.twinhearts.app.feature.music.player.PlayerState
 
 /** Timed lyrics highlight the current line and scroll with the song; plain lyrics just scroll. */
 @Composable
-internal fun LyricsList(lyrics: Lyrics, positionMs: Long, modifier: Modifier = Modifier, state: LazyListState = rememberLazyListState()) {
+internal fun LyricsList(
+    lyrics: Lyrics,
+    positionMs: Long,
+    modifier: Modifier = Modifier,
+    state: LazyListState = rememberLazyListState(),
+    durationMs: Long = 0L,
+) {
     val colors = TwinTheme.colors
     val active = if (lyrics.synced) LrcParser.activeIndex(lyrics.lines, positionMs) else -1
     val reduceMotion = rememberReduceMotion()
-    LaunchedEffect(active) {
-        if (active >= 0) {
-            val target = (active - 2).coerceAtLeast(0)
-            if (reduceMotion) state.scrollToItem(target) else state.animateScrollToItem(target)
+
+    // Follow the song: timed lyrics follow the sung line; plain lyrics follow how far into the song we are.
+    // If the person scrolls by hand, the page leaves them alone for a few seconds, then follows again.
+    var autoScrolling by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var pausedUntil by remember { androidx.compose.runtime.mutableLongStateOf(0L) }
+    LaunchedEffect(state.isScrollInProgress) {
+        if (state.isScrollInProgress && !autoScrolling) pausedUntil = System.currentTimeMillis() + 4_000L
+    }
+    val target = when {
+        lyrics.lines.isEmpty() -> -1
+        lyrics.synced -> active
+        durationMs > 0L && positionMs > 0L ->
+            ((positionMs.toFloat() / durationMs) * lyrics.lines.size).toInt().coerceIn(0, lyrics.lines.lastIndex)
+        else -> -1
+    }
+    LaunchedEffect(target) {
+        if (target < 0 || System.currentTimeMillis() < pausedUntil) return@LaunchedEffect
+        autoScrolling = true
+        try {
+            // Keep the current line about a third of the way down, so the next lines are visible below it.
+            val offset = -(state.layoutInfo.viewportSize.height / 3)
+            if (reduceMotion) state.scrollToItem(target, offset) else state.animateScrollToItem(target, offset)
+        } finally {
+            autoScrolling = false
         }
     }
     LazyColumn(
@@ -142,6 +168,7 @@ internal fun LyricsPage(
                 is UiState.Content -> LyricsList(
                     lyrics = lyrics.data,
                     positionMs = if (playingThis) player.positionMs else 0L,
+                    durationMs = if (playingThis) player.durationMs else 0L,
                     modifier = Modifier.fillMaxSize(),
                 )
             }

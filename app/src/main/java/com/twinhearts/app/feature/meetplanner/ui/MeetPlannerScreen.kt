@@ -41,6 +41,7 @@ import com.twinhearts.app.feature.meetplanner.ui.screens.RouteScreen
 import com.twinhearts.app.feature.meetplanner.ui.screens.SavedScreen
 import com.twinhearts.app.feature.meetplanner.ui.screens.SearchScreen
 import com.twinhearts.app.feature.meetplanner.ui.screens.StopsScreen
+import com.twinhearts.app.feature.meetplanner.ui.components.MeetPlannerStyled
 
 /**
  * Why this file exists: the one entry point of Meet Planner. It owns the ViewModel, turns one-off
@@ -48,7 +49,7 @@ import com.twinhearts.app.feature.meetplanner.ui.screens.StopsScreen
  * current step plus any pop-up. Back moves one step inside the feature, then leaves it.
  */
 @Composable
-fun MeetPlannerScreen(onExit: () -> Unit, vm: MeetPlannerViewModel = hiltViewModel()) {
+private fun MeetPlannerScreenContent(onExit: () -> Unit, vm: MeetPlannerViewModel = hiltViewModel()) {
     val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var failure by remember { mutableStateOf<AppError?>(null) }
@@ -106,4 +107,10 @@ fun MeetPlannerScreen(onExit: () -> Unit, vm: MeetPlannerViewModel = hiltViewMod
 
 private fun openUrl(context: Context, url: String) {
     runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+}
+
+/** Public entry: the page body wrapped in the shared near-black glass look. */
+@Composable
+fun MeetPlannerScreen(onExit: () -> Unit, vm: MeetPlannerViewModel = hiltViewModel()) {
+    MeetPlannerStyled { MeetPlannerScreenContent(onExit = onExit, vm = vm) }
 }

@@ -34,7 +34,7 @@ import kotlin.coroutines.resumeWithException
 class RtcSession(
     context: Context,
     private val factory: PeerConnectionFactory,
-    egl: EglBase,
+    private val egl: EglBase,
     servers: List<IceServerInfo>,
     val video: Boolean,
     private val listener: Listener,
@@ -94,22 +94,32 @@ class RtcSession(
             sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
         }
         peer = requireNotNull(factory.createPeerConnection(config, observer)) { "Could not create the connection" }
-        startLocalMedia(egl)
+        startLocalMedia()
     }
 
-    private fun startLocalMedia(egl: EglBase) {
+    private fun startLocalMedia() {
         val aSource = factory.createAudioSource(MediaConstraints())
         val aTrack = factory.createAudioTrack(AUDIO_ID, aSource)
         audioSource = aSource
         audioTrack = aTrack
         peer.addTrack(aTrack, listOf(STREAM_ID))
-        if (!video) return
+        if (video) startCamera()
+    }
 
+    /** True once a camera track exists (from the start of a video call, or after a voice call was upgraded). */
+    val hasCamera: Boolean get() = cameraTrack != null
+
+    /**
+     * Opens the front camera and adds its picture to the connection. Used at the start of a video call
+     * and when a voice call is upgraded to video. Returns false when this phone has no usable camera.
+     */
+    fun startCamera(): Boolean {
+        if (closed || cameraTrack != null) return cameraTrack != null
         val enumerator = Camera2Enumerator(appContext)
         val name = enumerator.deviceNames.firstOrNull { enumerator.isFrontFacing(it) }
             ?: enumerator.deviceNames.firstOrNull()
-            ?: return
-        val cap = enumerator.createCapturer(name, null) ?: return
+            ?: return false
+        val cap = enumerator.createCapturer(name, null) ?: return false
         val helper = SurfaceTextureHelper.create("TwinCapture", egl.eglBaseContext)
         val vSource = factory.createVideoSource(cap.isScreencast)
         cap.initialize(helper, appContext, vSource.capturerObserver)
@@ -120,6 +130,7 @@ class RtcSession(
         surfaceHelper = helper
         videoSource = vSource
         cameraTrack = vTrack
+        return true
     }
 
     suspend fun createOffer(): SessionDescription = suspendCancellableCoroutine { cont ->

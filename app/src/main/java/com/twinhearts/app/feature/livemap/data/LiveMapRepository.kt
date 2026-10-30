@@ -57,6 +57,13 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import com.twinhearts.app.feature.livemap.data.mapper.toNavRoutes
+import com.twinhearts.app.feature.livemap.domain.nav.GeoPoint
+import com.twinhearts.app.feature.livemap.domain.nav.NavRoute
+import com.twinhearts.app.feature.livemap.domain.nav.TravelMode
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.net.URLEncoder
 import java.time.LocalDate
 import javax.inject.Inject
@@ -88,6 +95,8 @@ interface LiveMapRepository {
     suspend fun clearMyRouteHistory(): AppResult<Unit>
     suspend fun geofenceEvents(ofPartner: Boolean): AppResult<List<GeofenceEvent>>
 
+    /** Routes with turn-by-turn steps, best first, up to three. Tries a second server when the first fails. */
+    suspend fun navRoutes(from: GeoPoint, to: GeoPoint, mode: TravelMode): AppResult<List<NavRoute>>
     suspend fun drivingRoute(fromLat: Double, fromLng: Double, toLat: Double, toLng: Double): AppResult<DrivingRoute?>
     suspend fun search(query: String, nearLat: Double?, nearLng: Double?): AppResult<List<SearchHit>>
     suspend fun areaName(lat: Double, lng: Double): AppResult<AreaName>
@@ -298,6 +307,34 @@ class LiveMapRepositoryImpl @Inject constructor(
 
     // ── free public map services ─────────────────────────────────────────────────────────────
 
+    private val routeGate = Mutex()
+    private var lastRouteCallAt = 0L
+
+    override suspend fun navRoutes(from: GeoPoint, to: GeoPoint, mode: TravelMode): AppResult<List<NavRoute>> {
+        val coords = "${from.lng},${from.lat};${to.lng},${to.lat}"
+        val query = "?overview=full&geometries=geojson&steps=true&alternatives=3"
+        val urls = buildList {
+            add("https://routing.openstreetmap.de/routed-${mode.profile}/route/v1/driving/$coords$query")
+            // The public demo server only knows cars.
+            if (mode == TravelMode.Drive) {
+                add("https://router.project-osrm.org/route/v1/driving/$coords?overview=full&geometries=geojson&steps=true&alternatives=true")
+            }
+        }
+        var failure: AppResult<List<NavRoute>> = AppResult.Failure(AppError.Unknown)
+        for (url in urls) {
+            // The free FOSSGIS servers allow one request a second: wait our turn.
+            routeGate.withLock {
+                val wait = ROUTE_GAP_MS - (System.currentTimeMillis() - lastRouteCallAt)
+                if (wait > 0) delay(wait)
+                lastRouteCallAt = System.currentTimeMillis()
+            }
+            val result = safeApiCall { geo.routeWithSteps(url) }.map { it.toNavRoutes(mode) }
+            if (result is AppResult.Success && result.data.isNotEmpty()) return result
+            failure = result
+        }
+        return failure
+    }
+
     override suspend fun drivingRoute(fromLat: Double, fromLng: Double, toLat: Double, toLng: Double) =
         safeApiCall {
             geo.route(
@@ -327,5 +364,6 @@ class LiveMapRepositoryImpl @Inject constructor(
         /** Above this speed (about 3.6 km/h) a fix counts as "moving". */
         const val MOVING_MPS = 1.0
         const val BATCH_MAX = 2000
+        const val ROUTE_GAP_MS = 1_100L
     }
 }

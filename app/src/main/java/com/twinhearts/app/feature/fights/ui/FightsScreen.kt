@@ -74,7 +74,6 @@ fun FightsScreen(
     Column(modifier.fillMaxSize()) {
         TwinTopBar(
             title = stringResource(R.string.fights_title),
-            showLogo = true,
             onBackClick = { if (!viewModel.handleBack()) onBack() },
             onMenuClick = pending,
             onSearchClick = pending,

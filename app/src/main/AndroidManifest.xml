@@ -14,6 +14,10 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <!-- Calls keep running (microphone, camera) while the app is in the background. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Reminders: put phone alarms back after a restart. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -64,6 +68,16 @@
         <!-- Live Map: keeps sharing the location while the app is closed. Shows a notification with a Stop button. -->
         <service
             android:name=".feature.livemap.data.share.LiveShareService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+        <!-- An ongoing call keeps its microphone and camera with the app in the background. -->
+        <service
+            android:name=".feature.calls.data.CallService"
+            android:exported="false"
+            android:foregroundServiceType="microphone|camera" />
+        <!-- Turn-by-turn navigation keeps running with the screen off. -->
+        <service
+            android:name=".feature.livemap.data.nav.NavigationService"
             android:exported="false"
             android:foregroundServiceType="location" />
 

@@ -1,5 +1,10 @@
 package com.twinhearts.app.feature.music.ui
 
+import com.twinhearts.app.core.design.LocalOpenSidebar
+import com.twinhearts.app.feature.music.ui.components.MusicStyle
+import com.twinhearts.app.feature.music.ui.components.MusicTabs
+import com.twinhearts.app.feature.music.ui.components.MusicHeader
+import androidx.compose.material.icons.rounded.Sync
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -83,6 +88,7 @@ import com.twinhearts.app.feature.music.ui.components.SongDetailsDialog
 import com.twinhearts.app.feature.music.ui.components.SongMenuActions
 import com.twinhearts.app.feature.music.ui.components.SongMenuSheet
 import com.twinhearts.app.feature.music.ui.components.TextPromptDialog
+import com.twinhearts.app.feature.music.ui.components.MusicStyled
 
 /** Every sheet or dialog the Music page can open. Only ids are kept, so the data is always fresh. */
 private sealed interface MusicDialog {
@@ -104,7 +110,7 @@ private sealed interface MusicDialog {
  * the mini player, and opens every sheet and dialog. Follows the web app's `music.html` shell.
  */
 @Composable
-fun MusicScreen(
+private fun MusicScreenContent(
     onBack: () -> Unit,
     viewModel: MusicViewModel = hiltViewModel(),
     recordingsViewModel: RecordingsViewModel = hiltViewModel(),
@@ -211,42 +217,42 @@ fun MusicScreen(
     TwinBackground(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize()) {
-                TwinTopBar(
-                    title = title,
-                    showLogo = page == null,
-                    onBackClick = { if (!viewModel.back()) onBack() },
-                    onSearchClick = if (page == null) ({ viewModel.open(MusicPage.Search) }) else null,
-                    onSyncClick = if (page == null) ({ viewModel.refresh(); recordingsViewModel.refresh() }) else null,
-                )
+                if (page == null) {
+                    MusicHeader(
+                        title = title,
+                        onMenu = LocalOpenSidebar.current,
+                        onSearch = { viewModel.open(MusicPage.Search) },
+                        onMore = { menuOpen = true },
+                        menu = {
+                            HomeMenu(
+                                expanded = menuOpen,
+                                sort = state.sort,
+                                onDismiss = { menuOpen = false },
+                                onAddSongs = { menuOpen = false; openPicker() },
+                                onSearchOnline = { menuOpen = false; viewModel.open(MusicPage.OnlineSearch) },
+                                onSort = { menuOpen = false; viewModel.setSort(it) },
+                                onSleep = { menuOpen = false; dialog = MusicDialog.Sleep },
+                                onSettings = { menuOpen = false; viewModel.open(MusicPage.Settings) },
+                                onRefresh = { menuOpen = false; viewModel.refresh(); recordingsViewModel.refresh() },
+                            )
+                        },
+                    )
+                } else {
+                    TwinTopBar(
+                        title = title,
+                        onBackClick = { if (!viewModel.back()) onBack() },
+                    )
+                }
                 Box(Modifier.weight(1f)) {
                     when (page) {
                         null -> Column(Modifier.fillMaxSize()) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = TwinTheme.spacing.screenEdge, vertical = TwinTheme.spacing.s),
-                                horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s, Alignment.End),
-                            ) {
-                                GlassIconButton(Icons.Rounded.Search, stringResource(R.string.music_page_search), { viewModel.open(MusicPage.Search) })
-                                Box {
-                                    GlassIconButton(Icons.Rounded.MoreVert, stringResource(R.string.music_more), { menuOpen = true })
-                                    HomeMenu(
-                                        expanded = menuOpen,
-                                        sort = state.sort,
-                                        onDismiss = { menuOpen = false },
-                                        onAddSongs = { menuOpen = false; openPicker() },
-                                        onSearchOnline = { menuOpen = false; viewModel.open(MusicPage.OnlineSearch) },
-                                        onSort = { menuOpen = false; viewModel.setSort(it) },
-                                        onSleep = { menuOpen = false; dialog = MusicDialog.Sleep },
-                                        onSettings = { menuOpen = false; viewModel.open(MusicPage.Settings) },
-                                    )
-                                }
-                            }
-                            SegmentedTabs(
+                            MusicTabs(
                                 options = listOf(stringResource(R.string.music_tab_music), stringResource(R.string.music_tab_recordings)),
                                 selectedIndex = state.tab.ordinal,
                                 onSelect = { viewModel.setTab(MusicTab.entries[it]) },
-                                modifier = Modifier.padding(horizontal = TwinTheme.spacing.screenEdge),
+                                modifier = Modifier
+                                    .padding(horizontal = TwinTheme.spacing.screenEdge)
+                                    .padding(top = TwinTheme.spacing.xs, bottom = TwinTheme.spacing.s),
                             )
                             if (state.tab == MusicTab.Music) {
                                 MusicHome(
@@ -602,9 +608,15 @@ private fun HomeMenu(
     onSort: (SongSort) -> Unit,
     onSleep: () -> Unit,
     onSettings: () -> Unit,
+    onRefresh: () -> Unit,
 ) {
     val colors = TwinTheme.colors
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss, modifier = Modifier.background(colors.card)) {
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.core_sync), color = colors.ink) },
+            leadingIcon = { Icon(Icons.Rounded.Sync, null, tint = colors.ink) },
+            onClick = onRefresh,
+        )
         DropdownMenuItem(
             text = { Text(stringResource(R.string.music_add_songs), color = colors.ink) },
             leadingIcon = { Icon(Icons.Rounded.MusicNote, null, tint = colors.ink) },
@@ -628,8 +640,8 @@ private fun HomeMenu(
         Text(stringResource(R.string.music_sort_title), style = MaterialTheme.typography.labelMedium, color = colors.inkMuted, modifier = Modifier.padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.s))
         SongSort.entries.forEach { option ->
             DropdownMenuItem(
-                text = { Text(stringResource(sortLabel(option)), color = if (option == sort) colors.accent else colors.ink) },
-                trailingIcon = { if (option == sort) Icon(Icons.Rounded.Check, null, tint = colors.accent) },
+                text = { Text(stringResource(sortLabel(option)), color = if (option == sort) MusicStyle.Accent else colors.ink) },
+                trailingIcon = { if (option == sort) Icon(Icons.Rounded.Check, null, tint = MusicStyle.Accent) },
                 onClick = { onSort(option) },
             )
         }
@@ -698,3 +710,13 @@ private fun showEvent(context: Context, event: MusicEvent, onFailure: (AppError)
 }
 
 private const val SEARCH_RECENT = 8
+
+/** Public entry: the page body wrapped in the shared near-black glass look. */
+@Composable
+fun MusicScreen(
+    onBack: () -> Unit,
+    viewModel: MusicViewModel = hiltViewModel(),
+    recordingsViewModel: RecordingsViewModel = hiltViewModel(),
+) {
+    MusicStyled { MusicScreenContent(onBack = onBack, viewModel = viewModel, recordingsViewModel = recordingsViewModel) }
+}

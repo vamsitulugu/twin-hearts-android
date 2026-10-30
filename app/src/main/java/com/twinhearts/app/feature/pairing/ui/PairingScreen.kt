@@ -101,7 +101,7 @@ internal fun PairingContent(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize().imePadding()) {
-        TwinTopBar(title = stringResource(R.string.pairing_title), showLogo = true)
+        TwinTopBar(title = stringResource(R.string.pairing_title))
         when (val status = state.status) {
             UiState.Loading -> LoadingSkeleton(
                 modifier = Modifier.padding(TwinTheme.spacing.screenEdge),

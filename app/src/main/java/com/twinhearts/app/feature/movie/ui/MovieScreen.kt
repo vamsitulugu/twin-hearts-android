@@ -48,13 +48,14 @@ import com.twinhearts.app.feature.movie.ui.components.LobbyContent
 import com.twinhearts.app.feature.movie.ui.components.MovieTabsContent
 import com.twinhearts.app.feature.movie.ui.components.PlayerScreen
 import kotlinx.coroutines.flow.merge
+import com.twinhearts.app.feature.movie.ui.components.MovieStyled
 
 /**
  * Why this file exists: the one Watch Together screen. It decides what to show from the room:
  * movie tabs, the lobby, the countdown or the player. All state lives in the two ViewModels (R-42).
  */
 @Composable
-fun MovieScreen(
+private fun MovieScreenContent(
     onBack: () -> Unit,
     callHooks: MovieCallHooks? = null,
     watchVm: WatchViewModel = hiltViewModel(),
@@ -177,4 +178,15 @@ private fun Header(onBack: () -> Unit, onHistory: () -> Unit) {
         )
         GlassIconButton(Icons.Rounded.History, stringResource(R.string.movie_history), onHistory)
     }
+}
+
+/** Public entry: the page body wrapped in the shared near-black glass look. */
+@Composable
+fun MovieScreen(
+    onBack: () -> Unit,
+    callHooks: MovieCallHooks? = null,
+    watchVm: WatchViewModel = hiltViewModel(),
+    browseVm: BrowseViewModel = hiltViewModel(),
+) {
+    MovieStyled { MovieScreenContent(onBack = onBack, callHooks = callHooks, watchVm = watchVm, browseVm = browseVm) }
 }

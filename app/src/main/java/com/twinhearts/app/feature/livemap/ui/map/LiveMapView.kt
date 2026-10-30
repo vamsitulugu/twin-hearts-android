@@ -51,6 +51,10 @@ fun LiveMapView(
     initialZoom: Double = DEFAULT_ZOOM,
     onLongPress: (MapPoint) -> Unit = {},
     onCameraIdle: (MapPoint, Double) -> Unit = { _, _ -> },
+    /** True during turn-by-turn: the car sits in the lower part of the screen, like Google Maps. */
+    navigating: Boolean = false,
+    /** The person dragged or pinched the map by hand. */
+    onUserGesture: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -64,6 +68,7 @@ fun LiveMapView(
 
     val currentLongPress by rememberUpdatedState(onLongPress)
     val currentCameraIdle by rememberUpdatedState(onCameraIdle)
+    val currentUserGesture by rememberUpdatedState(onUserGesture)
 
     // Forward the screen lifecycle to the MapView. Without this MapLibre leaks memory and stops drawing.
     DisposableEffect(lifecycle, mapView) {
@@ -98,6 +103,9 @@ fun LiveMapView(
             m.addOnMapLongClickListener { latLng ->
                 currentLongPress(MapPoint(latLng.latitude, latLng.longitude))
                 true
+            }
+            m.addOnCameraMoveStartedListener { reason ->
+                if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) currentUserGesture()
             }
             m.addOnCameraIdleListener {
                 val target = m.cameraPosition.target
@@ -143,6 +151,13 @@ fun LiveMapView(
         }
     }
 
+    // Navigation: push the camera centre down, so the road ahead is visible.
+    LaunchedEffect(map, navigating) {
+        val m = map ?: return@LaunchedEffect
+        val top = if (navigating) (mapView.height * NAV_TOP_PADDING_FRACTION).toInt() else 0
+        m.setPadding(0, top, 0, 0)
+    }
+
     AndroidView(factory = { mapView }, modifier = modifier)
 }
 
@@ -151,26 +166,29 @@ private const val TILT_3D = 60.0
 private const val ANIM_MS = 600
 private const val FOCUS_ZOOM = 16.0
 private const val FIT_PADDING_PX = 120
+private const val NAV_TOP_PADDING_FRACTION = 0.35
 
 private fun moveCamera(map: MapLibreMap, request: CameraRequest, tilted: Boolean) {
     val fit = request.fit
     if (fit.size >= 2) {
         val bounds = LatLngBounds.Builder().includes(fit.map { LatLng(it.lat, it.lng) }).build()
-        map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, FIT_PADDING_PX), ANIM_MS)
+        map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, FIT_PADDING_PX), request.animMs ?: ANIM_MS)
         return
     }
     val target = request.target ?: fit.firstOrNull() ?: return
     val position = CameraPosition.Builder()
         .target(LatLng(target.lat, target.lng))
         .zoom(request.zoom ?: maxOf(map.cameraPosition.zoom, FOCUS_ZOOM))
-        .tilt(if (tilted) TILT_3D else 0.0)
+        .tilt(request.tilt ?: if (tilted) TILT_3D else 0.0)
+        .bearing(request.bearing ?: map.cameraPosition.bearing)
         .build()
-    map.animateCamera(CameraUpdateFactory.newCameraPosition(position), ANIM_MS)
+    map.animateCamera(CameraUpdateFactory.newCameraPosition(position), request.animMs ?: ANIM_MS)
 }
 
 // ── layers ───────────────────────────────────────────────────────────────────────────────────────
 
 private const val SRC_ROUTE = "lm-route"
+private const val SRC_ALT = "lm-alt"
 private const val SRC_MY_TRAIL = "lm-my-trail"
 private const val SRC_PT_TRAIL = "lm-pt-trail"
 private const val SRC_PLACES = "lm-places"
@@ -184,7 +202,7 @@ private const val SRC_PARTNER = "lm-partner"
 private fun empty() = FeatureCollection.fromFeatures(emptyList<Feature>())
 
 private fun installLayers(style: Style, c: MapColors) {
-    listOf(SRC_ROUTE, SRC_MY_TRAIL, SRC_PT_TRAIL, SRC_PLACES, SRC_STOPS, SRC_NOTES, SRC_DEST, SRC_PLAYBACK, SRC_ME, SRC_PARTNER)
+    listOf(SRC_ALT, SRC_ROUTE, SRC_MY_TRAIL, SRC_PT_TRAIL, SRC_PLACES, SRC_STOPS, SRC_NOTES, SRC_DEST, SRC_PLAYBACK, SRC_ME, SRC_PARTNER)
         .forEach { style.addSource(GeoJsonSource(it, empty())) }
 
     fun line(id: String, source: String, color: Int, width: Float, opacity: Float) = LineLayer(id, source).withProperties(
@@ -208,7 +226,10 @@ private fun installLayers(style: Style, c: MapColors) {
         PropertyFactory.circleRadius(22f),
     )
 
-    style.addLayer(line("lm-route-line", SRC_ROUTE, c.route, 6f, 0.9f))
+    style.addLayer(line("lm-alt-casing", SRC_ALT, c.outline, 8f, 0.85f))
+    style.addLayer(line("lm-alt-line", SRC_ALT, if (c.alt != 0) c.alt else c.stop, 5f, 0.95f))
+    style.addLayer(line("lm-route-casing", SRC_ROUTE, c.outline, 10f, 0.95f))
+    style.addLayer(line("lm-route-line", SRC_ROUTE, c.route, 6.5f, 1f))
     style.addLayer(line("lm-my-trail-line", SRC_MY_TRAIL, c.me, 4f, 0.6f))
     style.addLayer(line("lm-pt-trail-line", SRC_PT_TRAIL, c.partner, 4f, 0.6f))
     style.addLayer(dot("lm-places-dot", SRC_PLACES, c.place, 7f))
@@ -255,6 +276,14 @@ private fun drawOverlay(style: Style, o: MapOverlay) {
         style.getSourceAs<GeoJsonSource>(id)?.setGeoJson(data)
     }
     set(SRC_ROUTE, lineOf(o.route))
+    set(
+        SRC_ALT,
+        FeatureCollection.fromFeatures(
+            o.altRoutes.filter { it.size >= 2 }.map { alt ->
+                Feature.fromGeometry(LineString.fromLngLats(alt.map { Point.fromLngLat(it.lng, it.lat) }))
+            },
+        ),
+    )
     set(SRC_MY_TRAIL, lineOf(o.myTrail))
     set(SRC_PT_TRAIL, lineOf(o.partnerTrail))
     set(SRC_PLACES, FeatureCollection.fromFeatures(o.places.map { pointFeature(it.point, it.label) }))

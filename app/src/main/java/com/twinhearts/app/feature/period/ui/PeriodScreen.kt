@@ -149,7 +149,6 @@ fun PeriodScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         TwinTopBar(
             title = stringResource(R.string.period_title),
-            showLogo = true,
             onBackClick = onBack,
             onSyncClick = viewModel::load,
         )

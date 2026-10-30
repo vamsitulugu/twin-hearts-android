@@ -78,7 +78,6 @@ fun CollectionScreen(
         Column(Modifier.fillMaxSize()) {
             TwinTopBar(
                 title = stringResource(R.string.collection_title),
-                showLogo = true,
                 onBackClick = onBack,
                 onSearchClick = { viewModel.toggleSearch() },
                 onSyncClick = { viewModel.load() },

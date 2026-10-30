@@ -6,10 +6,11 @@ import androidx.navigation.compose.composable
 import com.twinhearts.app.core.navigation.Routes
 import com.twinhearts.app.feature.profile.ui.ProfileNavigation
 import com.twinhearts.app.feature.profile.ui.ProfileScreen
+import com.twinhearts.app.core.design.TwinNeutralPage
 
 /** Plugs the Our Profile page into the app (R-43). Other screens are opened only through [Routes] (R-83). */
 fun NavGraphBuilder.profileGraph(navController: NavHostController) {
-    composable<Routes.Profile> {
+    composable<Routes.Profile> { TwinNeutralPage {
         ProfileScreen(
             navigation = ProfileNavigation(
                 onBack = { navController.popBackStack() },
@@ -23,5 +24,6 @@ fun NavGraphBuilder.profileGraph(navController: NavHostController) {
                 },
             ),
         )
+    }
     }
 }

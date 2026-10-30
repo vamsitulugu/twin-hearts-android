@@ -80,7 +80,6 @@
     <string name="livemap_move_up">Up</string>
     <string name="livemap_msg_approx_off">Sharing your exact location</string>
     <string name="livemap_msg_approx_on">Sharing an approximate location</string>
-    <string name="livemap_msg_calls_pending">Calls are built in a later step.</string>
     <string name="livemap_msg_could_not_save">Could not save. Check your internet and try again.</string>
     <string name="livemap_msg_emergency_sent">Emergency location sent</string>
     <string name="livemap_msg_favorite_added">Added to favorites</string>
@@ -200,4 +199,70 @@
     <string name="livemap_weather_layer">Weather layer</string>
     <string name="livemap_weather_line">%1$d°C · %2$d%% humidity · %3$d km/h</string>
     <string name="livemap_you">You</string>
+
+    <!-- Directions and navigation (Google-Maps-style) -->
+    <string name="livemap_dir_mode_drive">Drive</string>
+    <string name="livemap_dir_mode_walk">Walk</string>
+    <string name="livemap_dir_mode_bike">Bike</string>
+    <string name="livemap_dir_start">Start</string>
+    <string name="livemap_dir_steps">Steps</string>
+    <string name="livemap_dir_hide_steps">Hide steps</string>
+    <string name="livemap_dir_via">via %1$s</string>
+    <string name="livemap_dir_fastest">Fastest</string>
+    <string name="livemap_dir_alternative">Alternative</string>
+    <string name="livemap_dir_arrive_at">Arrive %1$s</string>
+    <string name="livemap_dir_total">%1$s · %2$s</string>
+    <string name="livemap_dir_no_route">No route found for this way of travelling. Try another one.</string>
+    <string name="livemap_dir_retry">Try again</string>
+    <string name="livemap_dir_from_here">From your location</string>
+    <string name="livemap_dir_step_row">%1$s · %2$s</string>
+    <string name="livemap_dir_attribution">Routes © OpenStreetMap contributors, FOSSGIS</string>
+
+    <string name="livemap_nav_end">End</string>
+    <string name="livemap_nav_exit_title">End navigation?</string>
+    <string name="livemap_nav_mute">Mute voice</string>
+    <string name="livemap_nav_unmute">Turn voice on</string>
+    <string name="livemap_nav_recenter">Re-center</string>
+    <string name="livemap_nav_rerouting">Finding a new route…</string>
+    <string name="livemap_nav_reroute_failed">Could not find a new route. Check your internet and keep following the line.</string>
+    <string name="livemap_nav_gps_lost">Searching for GPS…</string>
+    <string name="livemap_nav_then">Then %1$s</string>
+    <string name="livemap_nav_left">%1$s left</string>
+    <string name="livemap_nav_arrived_title">You have arrived</string>
+    <string name="livemap_nav_arrived_body">You reached %1$s.</string>
+    <string name="livemap_nav_trip_summary">%1$s in %2$s</string>
+    <string name="livemap_nav_done">Done</string>
+    <string name="livemap_nav_channel_name">Navigation</string>
+    <string name="livemap_nav_notification_title">Navigation is on</string>
+    <string name="livemap_nav_notification_next">In %1$s: %2$s</string>
+    <string name="livemap_nav_notification_to">To %1$s</string>
+
+    <!-- Instruction pieces. Lower case: the first letter is raised or lowered by the code. -->
+    <string name="livemap_nav_onto">%1$s onto %2$s</string>
+    <string name="livemap_nav_depart">head out</string>
+    <string name="livemap_nav_depart_on">head out on %1$s</string>
+    <string name="livemap_nav_arrive">you have arrived at your destination</string>
+    <string name="livemap_nav_arrive_left">you have arrived, your destination is on the left</string>
+    <string name="livemap_nav_arrive_right">you have arrived, your destination is on the right</string>
+    <string name="livemap_nav_continue">continue straight</string>
+    <string name="livemap_nav_turn_left">turn left</string>
+    <string name="livemap_nav_turn_right">turn right</string>
+    <string name="livemap_nav_slight_left">bear left</string>
+    <string name="livemap_nav_slight_right">bear right</string>
+    <string name="livemap_nav_sharp_left">turn sharp left</string>
+    <string name="livemap_nav_sharp_right">turn sharp right</string>
+    <string name="livemap_nav_uturn">make a U-turn</string>
+    <string name="livemap_nav_merge">merge</string>
+    <string name="livemap_nav_ramp_left">take the ramp on the left</string>
+    <string name="livemap_nav_ramp_right">take the ramp on the right</string>
+    <string name="livemap_nav_fork_left">keep left at the fork</string>
+    <string name="livemap_nav_fork_right">keep right at the fork</string>
+    <string name="livemap_nav_roundabout">enter the roundabout</string>
+    <string name="livemap_nav_roundabout_exit">take exit %1$d at the roundabout</string>
+    <string name="livemap_nav_say_start">Starting navigation</string>
+    <string name="livemap_nav_say_start_on">Starting navigation. Head out on %1$s</string>
+    <string name="livemap_nav_say_in">In %1$s, %2$s</string>
+    <string name="livemap_nav_say_rerouting">Rerouting</string>
+    <string name="livemap_nav_metres">%1$d metres</string>
+    <string name="livemap_nav_km">%1$s kilometres</string>
 </resources>

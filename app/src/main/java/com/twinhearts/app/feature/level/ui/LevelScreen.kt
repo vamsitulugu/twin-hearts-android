@@ -40,7 +40,6 @@ fun LevelScreen(
         Column(Modifier.fillMaxSize()) {
             TwinTopBar(
                 title = stringResource(R.string.level_title),
-                showLogo = true,
                 onBackClick = onBack,
                 onSyncClick = viewModel::load,
             )

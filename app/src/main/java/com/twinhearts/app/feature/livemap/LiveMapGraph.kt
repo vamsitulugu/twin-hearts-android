@@ -12,6 +12,8 @@ fun NavGraphBuilder.liveMapGraph(navController: NavHostController) {
         LiveMapScreen(
             onBack = { navController.popBackStack() },
             onOpenSettings = { navController.navigate(Routes.Settings) },
+            // The Video call tile starts an outgoing video call to the partner.
+            onVideoCall = { navController.navigate(Routes.Call(video = true, incoming = false)) },
         )
     }
 }

@@ -5,10 +5,12 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import com.twinhearts.app.core.navigation.Routes
 import com.twinhearts.app.feature.collection.ui.CollectionScreen
+import com.twinhearts.app.core.design.TwinNeutralPage
 
 /** Plugs the Collection page into the app (R-43). Opened from the Home "Collection" shortcut. */
 fun NavGraphBuilder.collectionGraph(navController: NavHostController) {
-    composable<Routes.Collection> {
+    composable<Routes.Collection> { TwinNeutralPage {
         CollectionScreen(onBack = { navController.popBackStack() })
+    }
     }
 }

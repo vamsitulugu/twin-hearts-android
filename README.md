@@ -282,7 +282,7 @@ Status: ⬜ not started · 🟨 in progress · ✅ done (user confirmed it build
 |---|---|---|---|
 | 2.1 | Home (greeting, search, quick chips, Stay Connected Hug/Touch/Miss You, Coming up, Mood, hub sections, quote) | 1.3 | 🟨 |
 | 2.2 | Chat (all web features except typing indicator; see docs/features/chat.md) | 1.3 | 🟨 |
-| 2.3 | Calls (voice/video buttons in chat) | 2.2 | ⬜ |
+| 2.3 | Calls (voice/video buttons in chat) | 2.2 | 🟨 code present; v2 adds Live Map tile, voice→video upgrade, reconnect, background service. Waiting for you to confirm it builds and rings |
 | 2.4 | Twin AI (You / Both) | 1.3 | ⬜ |
 | 2.5 | Settings (all sub-pages) + Notifications (FCM) | 1.3 | ⬜ |
 | 2.6 | Our Profile | 1.3 | ⬜ |

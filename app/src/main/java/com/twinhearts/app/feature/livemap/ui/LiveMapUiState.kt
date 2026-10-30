@@ -7,13 +7,15 @@ import com.twinhearts.app.feature.livemap.domain.model.AlertPrefs
 import com.twinhearts.app.feature.livemap.domain.model.AreaName
 import com.twinhearts.app.feature.livemap.domain.model.CouplePositions
 import com.twinhearts.app.feature.livemap.domain.model.DeviceFix
-import com.twinhearts.app.feature.livemap.domain.model.DrivingRoute
 import com.twinhearts.app.feature.livemap.domain.model.GeofenceEvent
 import com.twinhearts.app.feature.livemap.domain.model.MapStyleKind
 import com.twinhearts.app.feature.livemap.domain.model.SearchHit
 import com.twinhearts.app.feature.livemap.domain.model.SharedMapState
 import com.twinhearts.app.feature.livemap.domain.model.Vehicle
 import com.twinhearts.app.feature.livemap.domain.model.WeatherNow
+import com.twinhearts.app.feature.livemap.domain.nav.NavRoute
+import com.twinhearts.app.feature.livemap.domain.nav.NavSession
+import com.twinhearts.app.feature.livemap.domain.nav.TravelMode
 import com.twinhearts.app.feature.livemap.ui.map.CameraRequest
 import com.twinhearts.app.feature.livemap.ui.map.MapPoint
 
@@ -36,10 +38,16 @@ data class Destination(
     val name: String,
     val address: String = "",
     val kind: DestinationKind = DestinationKind.Pin,
-    val route: DrivingRoute? = null,
+    val mode: TravelMode = TravelMode.Drive,
+    /** Best first. Up to three. */
+    val routes: List<NavRoute> = emptyList(),
+    val selected: Int = 0,
     val routeLoading: Boolean = false,
     val routeFailed: Boolean = false,
-)
+) {
+    /** The route the person picked. */
+    val route: NavRoute? get() = routes.getOrNull(selected)
+}
 
 /** State of the search screen. */
 data class SearchUiState(
@@ -90,6 +98,8 @@ data class LiveMapUiState(
     val partnerTrail: List<MapPoint> = emptyList(),
     val partnerArea: AreaName? = null,
     val destination: Destination? = null,
+    /** The running trip, or null when not navigating. */
+    val nav: NavSession? = null,
     val weather: WeatherNow? = null,
     val weatherLoading: Boolean = false,
     val search: SearchUiState = SearchUiState(),

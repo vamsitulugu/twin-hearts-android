@@ -102,7 +102,6 @@ fun BucketScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         TwinTopBar(
             title = stringResource(R.string.bucket_title),
-            showLogo = true,
             onBackClick = onBack,
             onSyncClick = viewModel::load,
         )

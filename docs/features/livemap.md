@@ -26,11 +26,22 @@ Free public services (no keys): OSRM routing, Photon search, Nominatim address, 
 - Points missed while offline are sent in one batch when the internet is back. Pause and invisible mode stop pings.
 - Polling and GPS listening only run while the page is on screen (R-66).
 
+## Directions and navigation (v2, Google-Maps style)
+**Flow:** search a place, long-press the map, or tap a saved place, the partner or the meeting point → the card shows **Drive / Walk / Bike**, up to three routes (time, distance, "via road", arrival clock) and a **Start** button → turn-by-turn navigation.
+
+| Piece | What it does | Where |
+|---|---|---|
+| Route fetching | Free OSRM servers by FOSSGIS (car, foot, bike) with steps and alternatives; falls back to the OSRM demo server for driving. At most one request per 1.1 s (their fair-use rule). | `LiveMapRepository.navRoutes`, `data/mapper/LiveMapMapper.kt` |
+| Nav brain (pure Kotlin, unit tested) | Snaps GPS to the route, tracks the current step, remaining distance/time, off-route (3 fixes beyond 35 m / 25 m / 20 m or 1.5 × GPS accuracy), arrival, and when to speak | `domain/nav/NavTracker.kt`, `RouteGeometry.kt`, `OsrmRouteMapper.kt` |
+| Engine | One app-wide object. Reads GPS every second, speaks, reroutes (12 s cooldown), keeps the trip alive with the screen off | `data/nav/NavEngine.kt`, `NavigationService.kt` |
+| Voice | Android text-to-speech, music ducks while speaking. Three cues per turn (far, near, now), never repeated, a GPS jump says only the nearest one | `data/nav/VoiceGuide.kt`, `NavPhrases.kt` |
+| Screens | Top turn banner ("Then …"), bottom bar (time left, distance, arrival clock, mute, End), Re-center button, arrival card, steps list, grey alternative routes | `ui/nav/*`, `ui/screens/MapPage.kt` |
+| Map | White-cased route, grey alternatives, camera follows with heading and tilt, car sits low on screen, dragging the map stops following | `ui/map/LiveMapView.kt` |
+
 ## Not ported (nothing dropped silently)
 | Web feature | Why |
 |---|---|
-| Video Call tile | Calls (2.3) are not built; the tile shows "built in a later step", like Chat |
-| Turn-by-turn voice navigation, "Start" nav panel | Large separate feature; route line + distance + time are shown |
+| Live traffic, lane guidance, speed limits, avoid tolls/highways, public transport routes | The free routing servers do not provide them. Routes use typical speeds |
 | Street View | Needs an external viewer |
 | POI suggestions for the meeting point, Overpass categories with opening hours | Meeting point is the midpoint with its address; category chips use Photon search |
 | Search inside the Add Place dialog, manual lat/lng | Search a place, then tap **Save**; Add Place uses your current location |

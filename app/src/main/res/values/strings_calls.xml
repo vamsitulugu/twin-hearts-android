@@ -26,4 +26,16 @@
     <string name="calls_log_missed">Missed</string>
     <string name="calls_log_declined">Declined</string>
     <string name="calls_log_answered">Answered</string>
+    <string name="calls_video">Video</string>
+    <string name="calls_upgrade_request">%1$s wants to turn on video</string>
+    <string name="calls_upgrade_not_now">Not now</string>
+    <string name="calls_upgrade_turn_on">Turn on</string>
+    <string name="calls_upgrade_asking">Asking %1$s to turn on video…</string>
+    <string name="calls_upgrade_declined">%1$s did not turn on video</string>
+    <string name="calls_upgrade_failed">Video could not start</string>
+    <string name="calls_reconnecting">Poor connection · reconnecting…</string>
+    <string name="calls_notification_channel">Calls in progress</string>
+    <string name="calls_notification_title">Call with %1$s</string>
+    <string name="calls_notification_text">Tap to return to the call</string>
+    <string name="calls_notification_hangup">Hang up</string>
 </resources>

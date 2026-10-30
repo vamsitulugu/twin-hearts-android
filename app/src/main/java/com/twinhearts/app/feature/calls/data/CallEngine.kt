@@ -3,6 +3,9 @@ package com.twinhearts.app.feature.calls.data
 import android.content.Context
 import android.media.AudioManager
 import android.media.Ringtone
+import android.media.ToneGenerator
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.media.RingtoneManager
 import android.os.Build
 import com.twinhearts.app.core.common.AppResult
@@ -10,6 +13,7 @@ import com.twinhearts.app.feature.calls.data.webrtc.RtcSession
 import com.twinhearts.app.feature.calls.domain.CallIdentity
 import com.twinhearts.app.feature.calls.domain.CallPhase
 import com.twinhearts.app.feature.calls.domain.EndReason
+import com.twinhearts.app.feature.calls.domain.VideoUpgrade
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -20,7 +24,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -54,20 +61,29 @@ data class CallState(
     val localVideo: VideoTrack? = null,
     val remoteVideo: VideoTrack? = null,
     val egl: EglBase.Context? = null,
+    /** Turning a voice call into a video call (the web app's video-upgrade signals). */
+    val upgrade: VideoUpgrade = VideoUpgrade.None,
+    /** One-off message after an upgrade attempt; the screen shows it and calls [CallEngine.clearUpgradeNotice]. */
+    val upgradeNotice: UpgradeNotice? = null,
+    /** The connection dropped and is being given a few seconds to come back. */
+    val reconnecting: Boolean = false,
 ) {
     /** True from the first ring until the call is over. */
     val inCall: Boolean get() = phase != CallPhase.Idle && phase != CallPhase.Ended
 }
 
+enum class UpgradeNotice { Declined, Failed }
+
 /**
  * Why this file exists: the brain of Calls. One app-wide object (so an incoming call can open the
  * call screen from anywhere) that
- *  - listens for my partner's signals (offer, answer, ice, end, decline) on the old server,
+ *  - listens for my partner's signals (offer, answer, ice, end, decline, video-upgrade-*) on the old server,
  *  - starts, answers, declines and ends calls,
  *  - keeps the timer, mute, speaker and camera switches.
  *
- * Signalling is plain polling of `/api/call/signal`, exactly like the web app. A call only lives
- * while the app is open: closing the app ends listening (push-to-ring needs Notifications, 2.5).
+ * Signalling is plain polling of `/api/call/signal`, exactly like the web app. Listening for new calls
+ * happens while the app is open; a call already in progress keeps going in the background because
+ * [CallService] holds a notification (push-to-ring for a closed app still needs a server push).
  */
 @Singleton
 class CallEngine @Inject constructor(
@@ -106,6 +122,20 @@ class CallEngine @Inject constructor(
     private var ringJob: Job? = null
     private var timerJob: Job? = null
     private var ringtone: Ringtone? = null
+    private var tone: ToneGenerator? = null
+    private var graceJob: Job? = null
+    private var upgradeJob: Job? = null
+    private var pollJob: Job? = null
+    private var foreground = 0
+
+    init {
+        // A call in progress gets a notification so Android keeps the microphone and camera alive in the background.
+        scope.launch {
+            _state.map { it.phase == CallPhase.Calling || it.phase == CallPhase.Connecting || it.phase == CallPhase.Connected }
+                .distinctUntilChanged()
+                .collect { active -> if (active) CallService.start(context) else CallService.stop(context) }
+        }
+    }
 
     // ───────────── listening ─────────────
 
@@ -114,14 +144,39 @@ class CallEngine @Inject constructor(
      * Idle: one look every few seconds. During a call: faster, so the connection forms quickly.
      */
     suspend fun watch() {
-        while (who == null) {
-            who = repository.identity()
-            if (who == null) delay(IDLE_POLL_MS)
+        foreground++
+        startPolling()
+        try {
+            awaitCancellation()
+        } finally {
+            foreground--
         }
-        while (true) {
-            if (!cursorReady) initCursor()
-            if (cursorReady) pollOnce()
-            delay(if (_state.value.inCall) BUSY_POLL_MS else IDLE_POLL_MS)
+    }
+
+    /**
+     * One polling loop for the whole app. It runs while any screen is watching, and keeps running
+     * while a call is going on even if the app goes to the background.
+     */
+    private fun startPolling() {
+        if (pollJob?.isActive == true) return
+        pollJob = scope.launch {
+            while (who == null) {
+                who = repository.identity()
+                if (who == null) delay(IDLE_POLL_MS)
+            }
+            while (foreground > 0 || _state.value.inCall) {
+                if (!cursorReady) initCursor()
+                if (cursorReady) pollOnce()
+                // The server allows 60 requests a minute per Wi-Fi, shared by both phones: once the call is
+                // connected only "end", "ice" and video requests matter, so look a little less often.
+                delay(
+                    when (_state.value.phase) {
+                        CallPhase.Calling, CallPhase.Connecting -> BUSY_POLL_MS
+                        CallPhase.Connected -> CONNECTED_POLL_MS
+                        else -> IDLE_POLL_MS
+                    },
+                )
+            }
         }
     }
 
@@ -160,7 +215,12 @@ class CallEngine @Inject constructor(
             "ice" -> onRemoteIce(payload)
             "end" -> onRemoteEnd()
             "decline" -> onRemoteDecline()
-            else -> Unit // video-upgrade-* is not ported yet
+            "video-upgrade-request" -> onUpgradeRequest()
+            "video-upgrade-accept" -> onUpgradeAccept()
+            "video-upgrade-decline" -> onUpgradeDecline()
+            "video-upgrade-offer" -> onUpgradeOffer(payload)
+            "video-upgrade-answer" -> onUpgradeAnswer(payload)
+            else -> Unit
         }
     }
 
@@ -194,6 +254,7 @@ class CallEngine @Inject constructor(
         s.setRemote(SessionDescription(SessionDescription.Type.ANSWER, sdp))
         drainRemoteIce(s)
         ringJob?.cancel()
+        stopRingback()
         _state.update { it.copy(phase = CallPhase.Connecting) }
     }
 
@@ -257,6 +318,7 @@ class CallEngine @Inject constructor(
                     )
                     openLocalIce()
                     repository.notifyPartner(me, video)
+                    startRingback()
                     ringJob?.cancel()
                     ringJob = scope.launch {
                         delay(OUTGOING_RING_MS)
@@ -336,8 +398,7 @@ class CallEngine @Inject constructor(
 
     fun toggleSpeaker() {
         val on = !_state.value.speaker
-        @Suppress("DEPRECATION")
-        audio.isSpeakerphoneOn = on
+        setSpeaker(on)
         _state.update { it.copy(speaker = on) }
     }
 
@@ -349,6 +410,121 @@ class CallEngine @Inject constructor(
 
     fun switchCamera() {
         session?.switchCamera()
+    }
+
+    // ───────────── voice call -> video call ─────────────
+    // Same five signals as the web app: request, accept/decline, then an offer and an answer.
+
+    /** "Turn on video" during a voice call. The screen has already asked for the camera permission. */
+    fun requestVideoUpgrade() {
+        scope.launch {
+            lock.withLock {
+                val st = _state.value
+                if (session == null || st.phase != CallPhase.Connected || st.video || st.upgrade != VideoUpgrade.None) return@withLock
+                _state.update { it.copy(upgrade = VideoUpgrade.Requested, upgradeNotice = null) }
+                send(buildJsonObject { put("type", "video-upgrade-request") })
+                upgradeJob?.cancel()
+                upgradeJob = scope.launch {
+                    delay(UPGRADE_WAIT_MS)
+                    if (_state.value.upgrade == VideoUpgrade.Requested) _state.update { it.copy(upgrade = VideoUpgrade.None) }
+                }
+            }
+        }
+    }
+
+    /** The partner asked for video and I said yes (camera permission already granted). */
+    fun acceptVideoUpgrade() {
+        scope.launch {
+            lock.withLock {
+                val s = session ?: return@withLock
+                if (_state.value.upgrade != VideoUpgrade.Asked) return@withLock
+                val opened = runCatching { s.startCamera() }.getOrDefault(false)
+                if (!opened) {
+                    _state.update { it.copy(upgrade = VideoUpgrade.None, upgradeNotice = UpgradeNotice.Failed) }
+                    send(buildJsonObject { put("type", "video-upgrade-decline") })
+                    return@withLock
+                }
+                _state.update { it.copy(upgrade = VideoUpgrade.None, localVideo = s.localVideo) }
+                send(buildJsonObject { put("type", "video-upgrade-accept") })
+            }
+        }
+    }
+
+    fun declineVideoUpgrade() {
+        scope.launch {
+            lock.withLock {
+                if (_state.value.upgrade != VideoUpgrade.Asked) return@withLock
+                _state.update { it.copy(upgrade = VideoUpgrade.None) }
+                send(buildJsonObject { put("type", "video-upgrade-decline") })
+            }
+        }
+    }
+
+    fun clearUpgradeNotice() = _state.update { it.copy(upgradeNotice = null) }
+
+    private fun onUpgradeRequest() {
+        val st = _state.value
+        if (session == null || st.phase != CallPhase.Connected || st.video) {
+            scope.launch { send(buildJsonObject { put("type", "video-upgrade-decline") }) }
+            return
+        }
+        if (st.upgrade == VideoUpgrade.None) _state.update { it.copy(upgrade = VideoUpgrade.Asked) }
+    }
+
+    /** They said yes: open my camera, add it, and offer the new connection. */
+    private suspend fun onUpgradeAccept() = lock.withLock {
+        val s = session ?: return@withLock
+        if (_state.value.upgrade != VideoUpgrade.Requested) return@withLock
+        upgradeJob?.cancel()
+        val opened = runCatching { s.startCamera() }.getOrDefault(false)
+        if (!opened) {
+            send(buildJsonObject { put("type", "video-upgrade-decline") })
+            _state.update { it.copy(upgrade = VideoUpgrade.None, upgradeNotice = UpgradeNotice.Failed) }
+            return@withLock
+        }
+        val offer = s.createOffer()
+        s.setLocal(offer)
+        _state.update { it.copy(localVideo = s.localVideo) }
+        send(
+            buildJsonObject {
+                put("type", "video-upgrade-offer")
+                put("sdp", buildJsonObject { put("type", "offer"); put("sdp", offer.description) })
+            },
+        )
+    }
+
+    private fun onUpgradeDecline() {
+        upgradeJob?.cancel()
+        if (_state.value.upgrade == VideoUpgrade.Requested) {
+            _state.update { it.copy(upgrade = VideoUpgrade.None, upgradeNotice = UpgradeNotice.Declined) }
+        }
+    }
+
+    private suspend fun onUpgradeOffer(payload: JsonObject) = lock.withLock {
+        val s = session ?: return@withLock
+        val sdp = (payload["sdp"] as? JsonObject)?.text("sdp") ?: return@withLock
+        s.setRemote(SessionDescription(SessionDescription.Type.OFFER, sdp))
+        drainRemoteIce(s)
+        val answer = s.createAnswer()
+        s.setLocal(answer)
+        send(
+            buildJsonObject {
+                put("type", "video-upgrade-answer")
+                put("sdp", buildJsonObject { put("type", "answer"); put("sdp", answer.description) })
+            },
+        )
+        _state.update { it.copy(video = true, upgrade = VideoUpgrade.None, localVideo = s.localVideo, speaker = true) }
+        setSpeaker(true)
+    }
+
+    private suspend fun onUpgradeAnswer(payload: JsonObject) = lock.withLock {
+        val s = session ?: return@withLock
+        if (!s.waitingForAnswer) return@withLock
+        val sdp = (payload["sdp"] as? JsonObject)?.text("sdp") ?: return@withLock
+        s.setRemote(SessionDescription(SessionDescription.Type.ANSWER, sdp))
+        drainRemoteIce(s)
+        _state.update { it.copy(video = true, upgrade = VideoUpgrade.None, localVideo = s.localVideo, speaker = true) }
+        setSpeaker(true)
     }
 
     // ───────────── RtcSession.Listener (WebRTC threads) ─────────────
@@ -363,7 +539,20 @@ class CallEngine @Inject constructor(
         scope.launch {
             when (state) {
                 PeerConnection.IceConnectionState.CONNECTED,
-                PeerConnection.IceConnectionState.COMPLETED -> onConnected()
+                PeerConnection.IceConnectionState.COMPLETED -> {
+                    graceJob?.cancel()
+                    if (_state.value.reconnecting) _state.update { it.copy(reconnecting = false) }
+                    onConnected()
+                }
+                // A short network blip: give the connection a few seconds to come back (the web app waits 12 s too).
+                PeerConnection.IceConnectionState.DISCONNECTED -> if (_state.value.phase == CallPhase.Connected) {
+                    _state.update { it.copy(reconnecting = true) }
+                    graceJob?.cancel()
+                    graceJob = scope.launch {
+                        delay(RECONNECT_GRACE_MS)
+                        if (_state.value.reconnecting && _state.value.inCall) finish(EndReason.Failed, tellPartner = true)
+                    }
+                }
                 PeerConnection.IceConnectionState.FAILED -> if (_state.value.inCall) finish(EndReason.Failed, tellPartner = true)
                 else -> Unit
             }
@@ -379,6 +568,7 @@ class CallEngine @Inject constructor(
     private fun onConnected() {
         if (_state.value.phase == CallPhase.Connected || !_state.value.inCall) return
         ringJob?.cancel()
+        stopRingback()
         _state.update { it.copy(phase = CallPhase.Connected, seconds = 0) }
         timerJob?.cancel()
         timerJob = scope.launch {
@@ -437,7 +627,10 @@ class CallEngine @Inject constructor(
         session = null
         ringJob?.cancel()
         timerJob?.cancel()
+        graceJob?.cancel()
+        upgradeJob?.cancel()
         stopRingtone()
+        stopRingback()
         leaveCallAudio()
         val me = who
         val wasCaller = iAmCaller
@@ -448,6 +641,8 @@ class CallEngine @Inject constructor(
             endReason = reason,
             localVideo = null,
             remoteVideo = null,
+            upgrade = VideoUpgrade.None,
+            reconnecting = false,
         )
         resetCallMemory()
         scope.launch {
@@ -485,6 +680,11 @@ class CallEngine @Inject constructor(
         localIceOpen = false
     }
 
+    private fun setSpeaker(on: Boolean) {
+        @Suppress("DEPRECATION")
+        audio.isSpeakerphoneOn = on
+    }
+
     private fun enterCallAudio(speaker: Boolean) {
         audio.mode = AudioManager.MODE_IN_COMMUNICATION
         @Suppress("DEPRECATION")
@@ -506,11 +706,29 @@ class CallEngine @Inject constructor(
                     it.play()
                 }
         }.getOrNull()
+        runCatching { vibrator()?.vibrate(VibrationEffect.createWaveform(RING_VIBRATION, 0)) }
     }
 
     private fun stopRingtone() {
         runCatching { ringtone?.stop() }
         ringtone = null
+        runCatching { vibrator()?.cancel() }
+    }
+
+    private fun vibrator(): Vibrator? = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+
+    /** The "tu-tu" the caller hears while the partner's phone rings. */
+    private fun startRingback() {
+        stopRingback()
+        tone = runCatching {
+            ToneGenerator(AudioManager.STREAM_VOICE_CALL, RINGBACK_VOLUME).also { it.startTone(ToneGenerator.TONE_SUP_RINGTONE) }
+        }.getOrNull()
+    }
+
+    private fun stopRingback() {
+        runCatching { tone?.stopTone() }
+        runCatching { tone?.release() }
+        tone = null
     }
 
     private fun JsonObject.text(key: String): String? =
@@ -524,6 +742,11 @@ class CallEngine @Inject constructor(
     private companion object {
         const val IDLE_POLL_MS = 4_000L
         const val BUSY_POLL_MS = 2_000L
+        const val CONNECTED_POLL_MS = 3_000L
+        const val RECONNECT_GRACE_MS = 12_000L
+        const val UPGRADE_WAIT_MS = 30_000L
+        const val RINGBACK_VOLUME = 70
+        val RING_VIBRATION = longArrayOf(0, 800, 900)
         const val STALE_OFFER_MS = 45_000L
         const val INCOMING_RING_MS = 45_000L
         const val OUTGOING_RING_MS = 30_000L

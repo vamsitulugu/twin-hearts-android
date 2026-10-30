@@ -1,5 +1,7 @@
 package com.twinhearts.app.feature.music.ui
 
+import com.twinhearts.app.feature.music.ui.components.musicWine
+import com.twinhearts.app.feature.music.ui.components.musicGlass
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -89,62 +91,54 @@ private fun mixIcon(kind: MixKind): ImageVector = when (kind) {
     MixKind.Sing -> Icons.Rounded.Mic
 }
 
-/** The "Made for Us" row. Each card is a 2×2 collage of covers (or a single cover / icon). */
+/** The "Made for Us" row: wide cover cards with the name and a one-line subtitle on the glass. */
 @Composable
 internal fun MadeForUsRow(mixes: List<SmartMix>, partner: String, onOpen: (MixKind) -> Unit) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m)) {
         items(mixes, key = { it.kind.name }) { mix ->
-            Column(modifier = Modifier.width(MIX_SIZE).clickable { onOpen(mix.kind) }) {
-                MixArt(mix, mixName(mix.kind, partner))
-                Text(
-                    mixSubtitle(mix),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TwinTheme.colors.inkMuted,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = TwinTheme.spacing.xs),
-                )
-            }
+            MixCard(mix, mixName(mix.kind, partner), mixSubtitle(mix)) { onOpen(mix.kind) }
         }
     }
 }
 
 @Composable
-private fun MixArt(mix: SmartMix, name: String) {
+private fun MixCard(mix: SmartMix, name: String, subtitle: String, onClick: () -> Unit) {
     val colors = TwinTheme.colors
-    val covers = mix.songs.mapNotNull { it.coverUrl }.take(4)
+    val shape = TwinTheme.shapes.card
+    val cover = mix.songs.firstNotNullOfOrNull { it.coverUrl?.takeIf { url -> url.isNotBlank() } }
     Box(
         modifier = Modifier
-            .size(MIX_SIZE)
-            .clip(TwinTheme.shapes.card)
-            .background(Brush.linearGradient(listOf(colors.primaryStart.copy(alpha = 0.55f), colors.primaryEnd.copy(alpha = 0.25f)))),
+            .width(MIX_WIDTH)
+            .height(MIX_HEIGHT)
+            .musicGlass(shape)
+            .clickable(onClick = onClick),
     ) {
-        when {
-            covers.size >= 4 -> Column(Modifier.fillMaxSize()) {
-                for (row in 0..1) {
-                    Row(Modifier.weight(1f)) {
-                        for (col in 0..1) {
-                            AsyncImage(
-                                model = covers[row * 2 + col],
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.weight(1f).fillMaxSize(),
-                            )
-                        }
-                    }
-                }
-            }
-            covers.isNotEmpty() -> AsyncImage(model = covers.first(), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-            else -> Icon(mixIcon(mix.kind), contentDescription = null, tint = colors.ink.copy(alpha = 0.85f), modifier = Modifier.align(Alignment.Center).size(40.dp))
+        if (cover != null) {
+            AsyncImage(model = cover, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        }
+        // Wine tint over the whole card, darker towards the text.
+        Box(
+            Modifier.fillMaxSize().background(
+                Brush.verticalGradient(
+                    listOf(colors.primaryStart.copy(alpha = 0.35f), Color.Black.copy(alpha = 0.78f)),
+                ),
+            ),
+        )
+        Box(
+            modifier = Modifier.align(Alignment.TopStart).padding(10.dp).size(30.dp).musicGlass(CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(mixIcon(mix.kind), contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+        }
+        Column(Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = 10.dp, end = 56.dp)) {
+            Text(name, style = MaterialTheme.typography.titleMedium, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.78f), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Box(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .fillMaxWidth()
-                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.72f))))
-                .padding(horizontal = TwinTheme.spacing.s, vertical = TwinTheme.spacing.s),
+            modifier = Modifier.align(Alignment.BottomEnd).padding(10.dp).size(36.dp).musicWine(CircleShape),
+            contentAlignment = Alignment.Center,
         ) {
-            Text(name, style = MaterialTheme.typography.titleSmall, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.music_action_play), tint = Color.White, modifier = Modifier.size(20.dp))
         }
     }
 }
@@ -224,7 +218,8 @@ internal fun HeroSlider(picks: List<Song>, onPlay: (Song) -> Unit, modifier: Mod
     }
 }
 
-private val MIX_SIZE = 140.dp
+private val MIX_WIDTH = 220.dp
+private val MIX_HEIGHT = 132.dp
 private val HERO_HEIGHT = 168.dp
 private const val HERO_ADVANCE_MS = 4_500L
 private const val HERO_PAUSE_MS = 7_000L

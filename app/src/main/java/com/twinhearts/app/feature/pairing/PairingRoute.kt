@@ -5,10 +5,11 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import com.twinhearts.app.core.navigation.Routes
 import com.twinhearts.app.feature.pairing.ui.PairingScreen
+import com.twinhearts.app.core.design.TwinNeutralPage
 
 /** Plugs the Pairing screen into the app (R-43). Continue / Skip opens Home and clears the entry screens. */
 fun NavGraphBuilder.pairingGraph(navController: NavHostController) {
-    composable<Routes.Pairing> {
+    composable<Routes.Pairing> { TwinNeutralPage {
         PairingScreen(
             onContinue = {
                 navController.navigate(Routes.Home) {
@@ -17,5 +18,6 @@ fun NavGraphBuilder.pairingGraph(navController: NavHostController) {
                 }
             },
         )
+    }
     }
 }

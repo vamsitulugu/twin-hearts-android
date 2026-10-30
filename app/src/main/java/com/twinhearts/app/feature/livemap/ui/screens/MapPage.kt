@@ -67,6 +67,11 @@ import com.twinhearts.app.feature.livemap.ui.map.MapMarker
 import com.twinhearts.app.feature.livemap.ui.map.MapOverlay
 import com.twinhearts.app.feature.livemap.ui.map.MapPoint
 import com.twinhearts.app.feature.livemap.ui.map.MapStyles
+import com.twinhearts.app.feature.livemap.ui.nav.ArrivalCard
+import com.twinhearts.app.feature.livemap.ui.nav.DirectionsSection
+import com.twinhearts.app.feature.livemap.ui.nav.KeepScreenOn
+import com.twinhearts.app.feature.livemap.ui.nav.NavBottomBar
+import com.twinhearts.app.feature.livemap.ui.nav.NavTopBanner
 import java.util.Calendar
 
 /** The "Map" tab: both people on a live map, ETA, quick actions, directions and love notes. */
@@ -95,6 +100,7 @@ fun MapPage(
             label = colors.ink.toArgb(),
             labelHalo = colors.background.toArgb(),
             outline = Color.White.toArgb(),
+            alt = colors.inkFaint.toArgb(),
         )
     }
     val style = remember(state.settings.mapStyle) {
@@ -102,23 +108,32 @@ fun MapPage(
     }
     val me = state.myFix?.let { MapPoint(it.lat, it.lng) } ?: state.positions.me?.let { MapPoint(it.lat, it.lng) }
     val partner = state.positions.partner?.let { MapPoint(it.lat, it.lng) }
+    val nav = state.nav
+    val navigating = nav != null
     val overlay = remember(state, me, partner) {
+        val dest = state.destination
+        val chosen = if (nav != null) nav.remainingLine() else dest?.route?.line.orEmpty()
         MapOverlay(
-            me = me,
+            me = nav?.progress?.snapped?.let { MapPoint(it.lat, it.lng) } ?: me,
             partner = partner,
-            myTrail = if (state.settings.showRouteLine) state.myTrail else emptyList(),
-            partnerTrail = if (state.settings.showRouteLine) state.partnerTrail else emptyList(),
-            route = state.destination?.route?.line?.map { MapPoint(it.first, it.second) }.orEmpty(),
+            myTrail = if (state.settings.showRouteLine && !navigating) state.myTrail else emptyList(),
+            partnerTrail = if (state.settings.showRouteLine && !navigating) state.partnerTrail else emptyList(),
+            route = chosen.map { MapPoint(it.lat, it.lng) },
+            altRoutes = if (navigating || dest == null) {
+                emptyList()
+            } else {
+                dest.routes.filterIndexed { i, _ -> i != dest.selected }.map { r -> r.line.map { MapPoint(it.lat, it.lng) } }
+            },
             places = state.shared.places.map { MapMarker(MapPoint(it.lat, it.lng), if (state.settings.showPlaceLabels) it.name.ifBlank { it.category } else "") },
-            destination = state.destination?.point,
+            destination = nav?.destination?.let { MapPoint(it.lat, it.lng) } ?: state.destination?.point,
             loveNotes = state.shared.loveNotes.map { MapPoint(it.lat, it.lng) },
         )
     }
 
     Column(modifier.fillMaxSize()) {
-        TogetherCard(state, permissionGranted, onRequestPermission, vm, Modifier.padding(horizontal = TwinTheme.spacing.screenEdge))
+        if (!navigating) TogetherCard(state, permissionGranted, onRequestPermission, vm, Modifier.padding(horizontal = TwinTheme.spacing.screenEdge))
         val emergency = state.positions.partner
-        if (emergency != null && emergency.emergency && emergency.updatedAtMs != state.dismissedEmergencyAt) {
+        if (!navigating && emergency != null && emergency.emergency && emergency.updatedAtMs != state.dismissedEmergencyAt) {
             LmBanner(
                 text = stringResource(R.string.livemap_emergency_banner, state.partnerName),
                 modifier = Modifier.padding(horizontal = TwinTheme.spacing.screenEdge, vertical = TwinTheme.spacing.s),
@@ -126,14 +141,14 @@ fun MapPage(
                 onAction = vm::dismissEmergencyBanner,
             )
         }
-        if (state.offline) {
+        if (state.offline && !navigating) {
             LmBanner(
                 text = stringResource(R.string.livemap_offline_banner),
                 modifier = Modifier.padding(horizontal = TwinTheme.spacing.screenEdge, vertical = TwinTheme.spacing.s),
                 color = colors.inkMuted,
             )
         }
-        if (!permissionGranted) {
+        if (!permissionGranted && !navigating) {
             LmBanner(
                 text = stringResource(R.string.livemap_permission_banner),
                 modifier = Modifier.padding(horizontal = TwinTheme.spacing.screenEdge, vertical = TwinTheme.spacing.s),
@@ -142,7 +157,7 @@ fun MapPage(
             )
         }
 
-        Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal = TwinTheme.spacing.s)) {
+        Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal = if (navigating) 0.dp else TwinTheme.spacing.s)) {
             LiveMapView(
                 style = style,
                 overlay = overlay,
@@ -152,10 +167,27 @@ fun MapPage(
                 tilted = state.settings.threeD,
                 initialCenter = state.lastCenter ?: me ?: partner ?: MapPoint(20.5937, 78.9629),
                 initialZoom = if (state.lastCenter != null || me != null || partner != null) state.lastZoom else 4.5,
-                onLongPress = vm::onLongPress,
+                onLongPress = { if (!navigating) vm.onLongPress(it) },
                 onCameraIdle = vm::onCameraIdle,
+                navigating = navigating,
+                onUserGesture = vm::onUserMovedMap,
             )
-            Column(
+            if (nav != null) {
+                KeepScreenOn()
+                if (nav.arrived) {
+                    ArrivalCard(nav, vm::endNavigation, Modifier.align(Alignment.BottomCenter).padding(TwinTheme.spacing.s))
+                } else {
+                    NavTopBanner(nav, Modifier.align(Alignment.TopCenter).padding(TwinTheme.spacing.s))
+                    NavBottomBar(
+                        nav,
+                        onEnd = vm::endNavigation,
+                        onMute = vm::toggleNavMute,
+                        onRecenter = vm::recenterNavigation,
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(TwinTheme.spacing.s),
+                    )
+                }
+            }
+            if (!navigating) Column(
                 Modifier.align(Alignment.TopEnd).padding(TwinTheme.spacing.s),
                 verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
             ) {
@@ -163,7 +195,7 @@ fun MapPage(
                 LmMapFab(Icons.Rounded.Layers, stringResource(R.string.livemap_3d), { vm.setThreeD(!state.settings.threeD) }, active = state.settings.threeD)
             }
             val w = state.weather
-            if (state.settings.showWeather && w != null) {
+            if (!navigating && state.settings.showWeather && w != null) {
                 GlassCard(Modifier.align(Alignment.TopStart).padding(TwinTheme.spacing.s), contentPadding = TwinTheme.spacing.s) {
                     Text(stringResource(R.string.livemap_weather_line, w.temperatureC, w.humidityPct, w.windKmh), style = MaterialTheme.typography.labelMedium, color = colors.ink)
                     if (w.uvIndex != null) Text(stringResource(R.string.livemap_uv, w.uvIndex), style = MaterialTheme.typography.labelSmall, color = colors.inkMuted)
@@ -171,8 +203,8 @@ fun MapPage(
             }
         }
 
-        Column(
-            Modifier.fillMaxWidth().heightIn(max = 300.dp).verticalScroll(rememberScrollState())
+        if (!navigating) Column(
+            Modifier.fillMaxWidth().heightIn(max = 340.dp).verticalScroll(rememberScrollState())
                 .padding(horizontal = TwinTheme.spacing.screenEdge, vertical = TwinTheme.spacing.s),
             verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
         ) {
@@ -300,15 +332,12 @@ private fun DestinationCard(state: LiveMapUiState, vm: LiveMapViewModel, onShare
             }
             LmMapFab(Icons.Rounded.Close, stringResource(R.string.livemap_clear_route), vm::clearDestination)
         }
-        val route = d.route
-        Text(
-            when {
-                d.routeLoading -> stringResource(R.string.livemap_route_loading)
-                route != null -> stringResource(R.string.livemap_route_line, LiveMapFormat.distance(route.distanceM), LiveMapFormat.minutes(maxOf(1, (route.durationS / 60).toInt())))
-                else -> stringResource(R.string.livemap_route_failed)
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = colors.accent,
+        DirectionsSection(
+            destination = d,
+            onMode = vm::setTravelMode,
+            onSelect = vm::selectRoute,
+            onStart = vm::startNavigation,
+            onRetry = vm::retryRoutes,
             modifier = Modifier.padding(vertical = TwinTheme.spacing.s),
         )
         if (d.kind == DestinationKind.Search || d.kind == DestinationKind.Pin) {

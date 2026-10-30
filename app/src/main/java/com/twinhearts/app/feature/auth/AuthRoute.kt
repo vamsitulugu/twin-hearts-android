@@ -7,10 +7,11 @@ import com.twinhearts.app.core.navigation.Routes
 import com.twinhearts.app.feature.auth.ui.ForgotPasswordScreen
 import com.twinhearts.app.feature.auth.ui.SignInScreen
 import com.twinhearts.app.feature.auth.ui.SignUpScreen
+import com.twinhearts.app.core.design.TwinNeutralPage
 
 /** Plugs Sign In, Sign Up and Forgot Password into the app (R-43). */
 fun NavGraphBuilder.authGraph(navController: NavHostController) {
-    composable<Routes.SignIn> {
+    composable<Routes.SignIn> { TwinNeutralPage {
         SignInScreen(
             onSignedIn = { navController.goHomeClearingEntryScreens() },
             // The Sign In / Sign Up tabs swap places, so Back still returns to Get Started.
@@ -24,7 +25,8 @@ fun NavGraphBuilder.authGraph(navController: NavHostController) {
             onBack = { navController.popBackStack() },
         )
     }
-    composable<Routes.SignUp> {
+    }
+    composable<Routes.SignUp> { TwinNeutralPage {
         SignUpScreen(
             // A new account has no partner yet, so it goes to Pairing first (Pairing has "Skip for now").
             onSignedIn = { navController.goToPairingClearingEntryScreens() },
@@ -37,8 +39,10 @@ fun NavGraphBuilder.authGraph(navController: NavHostController) {
             onBack = { navController.popBackStack() },
         )
     }
-    composable<Routes.ForgotPassword> {
+    }
+    composable<Routes.ForgotPassword> { TwinNeutralPage {
         ForgotPasswordScreen(onBackToSignIn = { navController.popBackStack() })
+    }
     }
 }
 
