@@ -27,6 +27,7 @@ import kotlin.math.sin
 
 @Immutable
 data class GlobePalette(
+    val background: Color,
     val oceanLight: Color,
     val oceanDeep: Color,
     val land: Color,
@@ -54,6 +55,7 @@ fun rememberGlobePalette(): GlobePalette {
     val c = TwinTheme.colors
     return remember(c) {
         GlobePalette(
+            background = c.background,
             oceanLight = lerp(c.background, c.accent, 0.22f),
             oceanDeep = lerp(c.background, c.brand, 0.35f),
             land = lerp(c.card, c.ink, 0.16f),

@@ -373,3 +373,4 @@ Error: <paste text>. Fix it and send only the changed files as th-<...>-v2.zip.
 | Money | v2 delivered (not compiled) | same zip; see docs/features/money.md |
 | Study | v2 delivered (not compiled) | same zip; see docs/features/study.md |
 | Phone reminders (core) | v1 delivered (not compiled) | same zip; see docs/features/reminders.md |
+| 2026-10-31 | Phase 6 — Memory Globe v2: real 3D Earth + satellite street level | th-p6-globe-3d-v5.zip | Not compiled in sandbox. See docs/features/globe-3d.md. |

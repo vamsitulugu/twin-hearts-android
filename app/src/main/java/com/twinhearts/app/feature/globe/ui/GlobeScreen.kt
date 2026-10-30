@@ -1,5 +1,8 @@
 package com.twinhearts.app.feature.globe.ui
 
+import com.twinhearts.app.feature.globe.ui.map.SatelliteStyle
+import kotlinx.coroutines.delay
+import com.twinhearts.app.feature.globe.ui.components.SHEET_HALF_FRACTION
 import android.Manifest
 import android.content.pm.PackageManager
 import android.widget.Toast
@@ -7,6 +10,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -49,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
@@ -148,6 +154,8 @@ fun GlobeScreen(
             }
         }
     }
+    // Download the satellite style now, so the map is ready the moment you zoom in.
+    LaunchedEffect(Unit) { SatelliteStyle.load() }
     LifecycleResumeEffect(vm) {
         vm.onVisible()
         onPauseOrDispose { vm.onHidden() }
@@ -156,24 +164,57 @@ fun GlobeScreen(
 
     fun flagOf(country: String): String = flagEmoji(s.atlas?.find(country)?.iso2)
 
+    // While a half-height sheet is (about to be) open on a phone, the map centres on the top half.
+    val screenHeightPx = with(density) { LocalConfiguration.current.screenHeightDp.dp.toPx() }
+    val sheetPaddingPx = if (!wide && (s.panels.isNotEmpty() || s.selectedKey != null)) (screenHeightPx * SHEET_HALF_FRACTION).toInt() else 0
     val topPad = with(density) { topHeightPx.toDp() }
     val bottomPad = with(density) { bottomHeightPx.toDp() }
 
     Box(modifier = Modifier.fillMaxSize().background(colors.background)) {
         // ── the three views ──────────────────────────────────────────────────────────────────
         when (s.view) {
-            GlobeViewMode.Globe -> GlobeCanvas(
-                groups = s.groups,
-                legs = s.legs,
-                glows = s.glows,
-                atlas = s.atlas,
-                selectedKey = s.selectedKey,
-                live = s.live,
-                searchPin = s.searchPin,
-                camera = s.camera,
-                onPinTap = vm::onPinTap,
-                onCameraArrived = vm::onCameraArrived,
-            )
+            GlobeViewMode.Globe -> {
+                GlobeCanvas(
+                    groups = s.groups,
+                    legs = s.legs,
+                    glows = s.glows,
+                    atlas = s.atlas,
+                    selectedKey = s.selectedKey,
+                    live = s.live,
+                    searchPin = s.searchPin,
+                    camera = s.camera,
+                    onPinTap = vm::onPinTap,
+                    onCameraArrived = vm::onCameraArrived,
+                    onStreetLevel = vm::enterStreetLevel,
+                )
+                // Zoomed in close: the real satellite + 3D buildings map fades in on the same tab,
+                // so the globe feels like one continuous zoom (the web app's Cesium street level).
+                if (s.street) {
+                    var mapReady by remember { mutableStateOf(false) }
+                    // The map covers the globe, so never leave it blank: give up politely if it does not appear.
+                    LaunchedEffect(Unit) {
+                        delay(SATELLITE_TIMEOUT_MS)
+                        if (!mapReady) vm.satelliteUnavailable()
+                    }
+                    val fade by animateFloatAsState(if (mapReady) 1f else 0f, tween(SATELLITE_FADE_MS), label = "satelliteFade")
+                    GlobeMapView(
+                        groups = s.groups,
+                        legs = s.legs,
+                        roads = s.roads,
+                        selectedKey = s.selectedKey,
+                        live = s.live,
+                        searchPin = s.searchPin,
+                        camera = s.camera,
+                        onPinTap = vm::onPinTap,
+                        onCameraArrived = vm::onCameraArrived,
+                        onZoomChange = { mapZoom = it },
+                        modifier = Modifier.graphicsLayer { alpha = fade },
+                        onReady = { mapReady = true },
+                        onReturnToGlobe = vm::exitStreetLevel,
+                        bottomPaddingPx = sheetPaddingPx,
+                    )
+                }
+            }
             GlobeViewMode.Map -> GlobeMapView(
                 groups = s.groups,
                 legs = s.legs,
@@ -185,6 +226,7 @@ fun GlobeScreen(
                 onPinTap = vm::onPinTap,
                 onCameraArrived = vm::onCameraArrived,
                 onZoomChange = { mapZoom = it },
+                bottomPaddingPx = sheetPaddingPx,
             )
             GlobeViewMode.Timeline -> TimelineView(
                 memories = s.visible,
@@ -293,7 +335,7 @@ fun GlobeScreen(
         if (s.live.enabled && s.view != GlobeViewMode.Timeline) {
             LiveInfo(s.live, s.partnerName, Modifier.align(Alignment.TopStart).padding(top = topPad + TwinTheme.spacing.s, start = TwinTheme.spacing.m))
         }
-        if (s.view == GlobeViewMode.Map && mapZoom >= STREET_LEVEL_ZOOM) {
+        if ((s.view == GlobeViewMode.Map || s.street) && mapZoom >= STREET_LEVEL_ZOOM) {
             Text(
                 text = stringResource(R.string.globe_street_badge),
                 style = MaterialTheme.typography.labelMedium,
@@ -554,3 +596,6 @@ private fun LiveInfo(live: LiveUi, partnerName: String, modifier: Modifier) {
         Text(distance, style = MaterialTheme.typography.labelSmall, color = colors.inkMuted)
     }
 }
+
+private const val SATELLITE_FADE_MS = 450
+private const val SATELLITE_TIMEOUT_MS = 10_000L

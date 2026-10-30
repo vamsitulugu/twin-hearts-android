@@ -8,7 +8,7 @@ The web page draws a 3D Earth with **Cesium** (satellite imagery, terrain, 3D bu
 
 | Web | Native |
 |---|---|
-| Cesium 3D globe | **Own 3D globe drawn in Compose** (`ui/globe/GlobeCanvas.kt`): country shapes from a bundled map (Natural Earth, public domain, 77 KB, no network), graticule, atmosphere, drag with inertia, pinch zoom, idle spin, fly-to. A full world frame costs about 0.5 ms (measured). |
+| Cesium 3D globe | **(v2: real textured 3D Earth, see globe-3d.md)** Earlier: own globe drawn in Compose (`ui/globe/GlobeCanvas.kt`): country shapes from a bundled map (Natural Earth, public domain, 77 KB, no network), graticule, atmosphere, drag with inertia, pinch zoom, idle spin, fly-to. A full world frame costs about 0.5 ms (measured). |
 | Cesium street-level imagery | The **Map** view (MapLibre + OpenFreeMap): zoom in for real roads and buildings. The "Street level" badge shows from zoom 15. |
 | Leaflet "Map" view | MapLibre flat map, same pins. |
 | Timeline | Native `LazyColumn`. |

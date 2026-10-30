@@ -39,6 +39,7 @@ import com.twinhearts.app.feature.globe.domain.model.MediaKind
 import com.twinhearts.app.feature.globe.domain.model.Memory
 import com.twinhearts.app.feature.globe.domain.preview
 import com.twinhearts.app.feature.globe.ui.ViewerItem
+import com.twinhearts.app.feature.globe.ui.components.SHEET_HALF_FRACTION
 import com.twinhearts.app.feature.globe.ui.components.SheetFrame
 import com.twinhearts.app.feature.globe.ui.components.SmallPill
 import com.twinhearts.app.feature.globe.ui.components.Tag
@@ -60,7 +61,7 @@ fun BoxScope.CityPanel(
     onMedia: (List<ViewerItem>, Int) -> Unit,
 ) {
     var pendingDelete by remember { mutableStateOf<String?>(null) }
-    SheetFrame(wide = wide, title = "$flag ${group.city}", onClose = onClose) {
+    SheetFrame(wide = wide, title = "$flag ${group.city}", onClose = onClose, heightFraction = SHEET_HALF_FRACTION) {
         LazyColumn(
             contentPadding = PaddingValues(start = TwinTheme.spacing.l, end = TwinTheme.spacing.l, top = TwinTheme.spacing.s, bottom = TwinTheme.spacing.xl),
             verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),

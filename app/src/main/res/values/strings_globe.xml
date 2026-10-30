@@ -28,6 +28,7 @@
 
     <string name="globe_empty_title">Your world awaits</string>
     <string name="globe_empty_sub">Add your first memory to see it on the globe</string>
+    <string name="globe_map_unavailable">The satellite map could not load. Check your internet and try again.</string>
     <string name="globe_street_badge">🗺️ Street level — real roads &amp; buildings</string>
 
     <string name="globe_search_hint">Search country, city, landmark...</string>

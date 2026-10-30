@@ -60,6 +60,7 @@ import com.twinhearts.app.feature.globe.ui.ViewerItem
 import com.twinhearts.app.feature.globe.ui.components.GlobeTextArea
 import com.twinhearts.app.feature.globe.ui.components.GlobeVoicePlayer
 import com.twinhearts.app.feature.globe.ui.components.ReadOnlyChips
+import com.twinhearts.app.feature.globe.ui.components.SHEET_HALF_FRACTION
 import com.twinhearts.app.feature.globe.ui.components.SheetFrame
 import com.twinhearts.app.feature.globe.ui.components.SheetLabel
 import com.twinhearts.app.feature.globe.ui.components.SmallPill
@@ -102,7 +103,7 @@ fun BoxScope.DetailPanel(
     val journals = memory.mediaOf(MediaKind.Journal)
     val visual = viewerItemsOf(memory)
 
-    SheetFrame(wide = wide, title = memory.tripName.ifBlank { memory.city }, onClose = actions.onClose) {
+    SheetFrame(wide = wide, title = memory.tripName.ifBlank { memory.city }, onClose = actions.onClose, heightFraction = SHEET_HALF_FRACTION) {
         Column(
             modifier = Modifier
                 .weight(1f)

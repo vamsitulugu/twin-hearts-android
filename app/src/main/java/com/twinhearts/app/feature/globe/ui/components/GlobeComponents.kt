@@ -6,6 +6,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -55,7 +57,7 @@ import com.twinhearts.app.core.design.TwinTheme
  */
 
 /**
- * The sheet that slides over the globe: 82% of the height at the bottom on phones, a 400 dp
+ * The sheet that slides over the globe: 82% of the height (half for trip details over the map) at the bottom on phones, a 400 dp
  * side panel on wide screens (the web app does the same above 700 px).
  */
 @Composable
@@ -63,14 +65,21 @@ fun BoxScope.SheetFrame(
     wide: Boolean,
     title: String,
     onClose: () -> Unit,
+    heightFraction: Float = SHEET_FULL_FRACTION,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = TwinTheme.colors
+    // Half-height sheets (trip details over the map) grow to almost full height when the handle is tapped.
+    var expanded by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    val fraction by androidx.compose.animation.core.animateFloatAsState(
+        if (expanded) SHEET_EXPANDED_FRACTION else heightFraction,
+        label = "sheet-height",
+    )
     val shape = if (wide) RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp) else RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
     Column(
         modifier = Modifier
             .align(if (wide) Alignment.CenterEnd else Alignment.BottomCenter)
-            .then(if (wide) Modifier.fillMaxHeight().width(400.dp) else Modifier.fillMaxWidth().fillMaxHeight(0.82f))
+            .then(if (wide) Modifier.fillMaxHeight().width(400.dp) else Modifier.fillMaxWidth().fillMaxHeight(fraction))
             .clip(shape)
             .background(colors.card.copy(alpha = 0.97f))
             .border(1.dp, colors.line, shape)
@@ -82,9 +91,11 @@ fun BoxScope.SheetFrame(
                 modifier = Modifier
                     .padding(top = 10.dp)
                     .align(Alignment.CenterHorizontally)
-                    .size(width = 40.dp, height = 4.dp)
                     .clip(CircleShape)
-                    .background(colors.line),
+                    .clickable { expanded = !expanded }
+                    .padding(vertical = 8.dp)
+                    .size(width = 40.dp, height = 4.dp)
+                    .background(colors.line, CircleShape),
             )
         }
         Row(
@@ -296,3 +307,8 @@ fun SheetLabel(text: String, modifier: Modifier = Modifier) {
         modifier = modifier,
     )
 }
+
+/** Sheet heights on phones: normal, half (trip details over the map), and expanded by tapping the handle. */
+const val SHEET_FULL_FRACTION = 0.82f
+const val SHEET_HALF_FRACTION = 0.5f
+const val SHEET_EXPANDED_FRACTION = 0.9f

@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -27,6 +28,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -82,6 +84,14 @@ private const val LABEL_MIN_ZOOM = 2.4
 private const val MAX_FLING_DEG_PER_SEC = 240.0
 private const val FRICTION = 3.2
 private const val CLUSTER_ZOOM_STEP = 2.4
+internal const val STREET_HANDOFF_ZOOM = 2.8
+private const val MAP_TILE_PX = 512.0
+
+/** Globe zoom below which the satellite map hands back to the globe (lower than the way in, so it never flickers). */
+internal const val RETURN_TO_GLOBE_ZOOM = 2.3
+
+/** Globe zoom a tapped pin flies to before the satellite map takes over and zooms down to the city. */
+internal const val PIN_HANDOFF_GLOBE_ZOOM = 2.7
 
 /** Things that change every frame but must not cause a new composition. */
 private class GlobeAnim {
@@ -100,7 +110,7 @@ private class Star(val x: Float, val y: Float, val r: Float, val a: Float)
 
 private class LegPath(val xs: FloatArray, val ys: FloatArray, val zs: FloatArray, val lift: Float, val color: Color)
 
-private fun ballRadius(width: Float, height: Float, zoom: Double): Float =
+internal fun ballRadius(width: Float, height: Float, zoom: Double): Float =
     min(width, height) / 2f * BALL_FRACTION * zoom.toFloat()
 
 @Composable
@@ -115,8 +125,18 @@ fun GlobeCanvas(
     camera: CameraRequest?,
     onPinTap: (String) -> Unit,
     onCameraArrived: (Long) -> Unit,
+    onStreetLevel: (lat: Double, lng: Double, mapZoom: Double) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    val earth = remember { EarthGlState() }
+    val glSupported = remember { supportsEarthGl(context) }
+    var glFailed by remember { mutableStateOf(false) }
+    var glReady by remember { mutableStateOf(false) }
+    val glOn = glSupported && !glFailed
+    val showEarth = glOn && glReady
+    val currentStreet by rememberUpdatedState(onStreetLevel)
+    val handedOff = remember { booleanArrayOf(false) }
     val palette = rememberGlobePalette()
     val art = remember(palette) { PinArt(palette) }
     val density = LocalDensity.current.density
@@ -154,10 +174,23 @@ fun GlobeCanvas(
     // A request to fly somewhere (a tapped pin, a search result, "Reset view").
     LaunchedEffect(camera?.id) {
         val request = camera ?: return@LaunchedEffect
+        // The satellite map answers this one (it clears the request when it has moved there).
+        if (request.toStreet) return@LaunchedEffect
+        // Any flight (tapped pin, search) stops the idle spin; only "Reset view" starts it again.
+        if (!request.resetSpin) autoRotate = false
         if (request.resetSpin) {
             autoRotate = true
             anim.vLon = 0.0
             anim.vLat = 0.0
+        }
+        if (request.jump) {
+            // Handed back from the satellite map: appear at once, at the same spot and scale.
+            cam = GlobeCamera(request.lat, request.lng, request.globeZoom).normalized()
+            anim.flight = null
+            anim.vLon = 0.0
+            anim.vLat = 0.0
+            currentArrived(request.id)
+            return@LaunchedEffect
         }
         anim.flight = Flight(cam, GlobeCamera(request.lat, request.lng, request.globeZoom).normalized(), FLY_MS)
         anim.flightStartNanos = -1L
@@ -195,8 +228,12 @@ fun GlobeCanvas(
         }
     }
 
+    Box(modifier = modifier.fillMaxSize()) {
+    if (glOn) {
+        EarthGlView(state = earth, onReady = { glReady = true }, onFailed = { glFailed = true }, modifier = Modifier.fillMaxSize())
+    }
     Canvas(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
             .semantics { contentDescription = describe }
             .pointerInput(groups) {
@@ -209,6 +246,7 @@ fun GlobeCanvas(
                     anim.vLon = 0.0
                     anim.vLat = 0.0
                     autoRotate = false
+                    handedOff[0] = false // every new pinch may open the satellite map again
                     tracker.resetTracking()
                     tracker.addPosition(down.uptimeMillis, down.position)
                     var moved = 0f
@@ -228,6 +266,13 @@ fun GlobeCanvas(
                                 cam.zoom * zoomChange,
                             ).normalized()
                             event.changes.forEach { it.consume() }
+                            // Pinched in far enough: the satellite street map takes over, like the web app's street level.
+                            if (cam.zoom >= STREET_HANDOFF_ZOOM && zoomChange > 1f && !handedOff[0]) {
+                                handedOff[0] = true
+                                val rr = ballRadius(size.width.toFloat(), size.height.toFloat(), cam.zoom).toDouble()
+                                currentStreet(cam.lat, cam.lon, mapZoomFor(rr, density.toDouble()))
+                                break // the map takes over; lift your fingers and pinch on it to keep zooming
+                            }
                         }
                         event.changes.firstOrNull()?.let { tracker.addPosition(it.uptimeMillis, it.position) }
                     } while (event.changes.any { it.pressed })
@@ -270,11 +315,13 @@ fun GlobeCanvas(
         val radius = ballRadius(w, h, current.zoom)
         val view = GlobeView(current.lat, current.lon)
 
+        if (glOn) earth.push(center.x, center.y, radius, current.lat, current.lon, palette.background)
+
         // Stars
-        stars.forEach { s -> drawCircle(palette.star.copy(alpha = s.a * 0.5f), s.r * density, Offset(s.x * w, s.y * h)) }
+        if (!showEarth) stars.forEach { s -> drawCircle(palette.star.copy(alpha = s.a * 0.5f), s.r * density, Offset(s.x * w, s.y * h)) }
 
         // Atmosphere glow
-        drawCircle(
+        if (!showEarth) drawCircle(
             brush = Brush.radialGradient(
                 colorStops = arrayOf(0.0f to Color.Transparent, 0.79f to Color.Transparent, 0.82f to palette.atmosphere.copy(alpha = 0.5f), 1f to Color.Transparent),
                 center = center,
@@ -285,7 +332,7 @@ fun GlobeCanvas(
         )
 
         // Ocean
-        drawCircle(
+        if (!showEarth) drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(palette.oceanLight, palette.oceanDeep),
                 center = Offset(center.x - radius * 0.3f, center.y - radius * 0.35f),
@@ -295,11 +342,14 @@ fun GlobeCanvas(
             center = center,
         )
 
-        drawGraticule(graticule, view, center, radius, linePath, palette.graticule, density)
-        if (atlas != null) drawLand(atlas, visited, view, center, radius, clipper, landPath, visitedPath, palette, density)
+        if (!showEarth) drawGraticule(graticule, view, center, radius, linePath, palette.graticule, density)
+        if (atlas != null) drawLand(atlas, visited, view, center, radius, clipper, landPath, visitedPath, palette, density, showEarth)
+        if (showEarth) {
+            drawPlaceLabels(atlas, current.zoom, view, center, radius, labelFill, labelHalo, density)
+        }
 
-        // Round shading and rim light
-        drawCircle(
+        // Round shading and rim light (the 3D Earth shades itself)
+        if (!showEarth) drawCircle(
             brush = Brush.radialGradient(
                 colorStops = arrayOf(0.0f to Color.Transparent, 0.6f to Color.Transparent, 1f to palette.limbShade),
                 center = center,
@@ -308,7 +358,7 @@ fun GlobeCanvas(
             radius = radius,
             center = center,
         )
-        drawCircle(palette.atmosphere.copy(alpha = 0.35f), radius, center, style = Stroke(1.5f * density))
+        if (!showEarth) drawCircle(palette.atmosphere.copy(alpha = 0.35f), radius, center, style = Stroke(1.5f * density))
 
         drawGlows(glows, view, center, radius, palette, density)
         drawLegs(legPaths, view, center, radius, linePath, density)
@@ -326,6 +376,7 @@ fun GlobeCanvas(
         }
 
         anim.hits = drawPins(groups, selectedKey, current, view, center, radius, art, palette, labelFill, labelHalo, density)
+    }
     }
 }
 
@@ -389,6 +440,7 @@ private fun DrawScope.drawLand(
     visitedPath: Path,
     palette: GlobePalette,
     density: Float,
+    overEarth: Boolean,
 ) {
     landPath.rewind()
     visitedPath.rewind()
@@ -402,9 +454,11 @@ private fun DrawScope.drawLand(
             target.close()
         }
     }
-    drawPath(landPath, palette.land)
+    // Over the satellite picture only the borders and the visited countries are added, as on the web globe.
+    if (!overEarth) drawPath(landPath, palette.land)
     drawPath(visitedPath, palette.landVisited)
-    drawPath(landPath, palette.border, style = Stroke(0.7f * density, join = StrokeJoin.Round))
+    val borderColor = if (overEarth) palette.outline.copy(alpha = 0.38f) else palette.border
+    drawPath(landPath, borderColor, style = Stroke(0.7f * density, join = StrokeJoin.Round))
     drawPath(visitedPath, palette.border.copy(alpha = 0.45f), style = Stroke(0.9f * density, join = StrokeJoin.Round))
 }
 
@@ -566,4 +620,88 @@ private fun DrawScope.drawPins(
         }
     }
     return hits
+}
+
+/** The Map zoom that shows the same scale as a globe of [ballRadiusPx] (MapLibre world = 512 dp at zoom 0). */
+internal fun mapZoomFor(ballRadiusPx: Double, density: Double): Double =
+    kotlin.math.ln(2.0 * PI * ballRadiusPx / (MAP_TILE_PX * density)) / kotlin.math.ln(2.0)
+
+private class PlaceLabel(val name: String, val lat: Double, val lon: Double, val sea: Boolean)
+
+private val PLACE_LABELS = listOf(
+    PlaceLabel("AFRICA", 5.0, 20.0, false),
+    PlaceLabel("EUROPE", 50.0, 15.0, false),
+    PlaceLabel("ASIA", 47.0, 90.0, false),
+    PlaceLabel("NORTH AMERICA", 46.0, -100.0, false),
+    PlaceLabel("SOUTH AMERICA", -14.0, -60.0, false),
+    PlaceLabel("AUSTRALIA", -25.0, 134.0, false),
+    PlaceLabel("ANTARCTICA", -80.0, 0.0, false),
+    PlaceLabel("Atlantic Ocean", 5.0, -32.0, true),
+    PlaceLabel("Pacific Ocean", 0.0, -140.0, true),
+    PlaceLabel("Pacific Ocean", 5.0, 170.0, true),
+    PlaceLabel("Indian Ocean", -20.0, 80.0, true),
+    PlaceLabel("Arctic Ocean", 82.0, 0.0, true),
+    PlaceLabel("Southern Ocean", -60.0, 100.0, true),
+)
+
+/** Continent and ocean names far out, country names when closer: the labels the web globe's imagery has. */
+private fun DrawScope.drawPlaceLabels(
+    atlas: WorldAtlas?,
+    zoom: Double,
+    view: GlobeView,
+    center: Offset,
+    radius: Float,
+    fill: Paint,
+    halo: Paint,
+    density: Float,
+) {
+    val v = Vec3()
+    val canvas = drawContext.canvas.nativeCanvas
+    fun put(text: String, lat: Double, lon: Double, sizeDp: Float, alpha: Int, italic: Boolean) {
+        view.project(lat, lon, v)
+        if (v.z < 0.35f) return
+        val a = (alpha * ((v.z - 0.35f) / 0.65f).coerceIn(0f, 1f)).toInt()
+        val size = sizeDp * density
+        fill.textSize = size
+        halo.textSize = size
+        halo.strokeWidth = 3f * density
+        fill.typeface = if (italic) Typeface.create(Typeface.DEFAULT, Typeface.ITALIC) else Typeface.DEFAULT_BOLD
+        halo.typeface = fill.typeface
+        fill.alpha = a
+        halo.alpha = a
+        val x = center.x + v.x * radius
+        val y = center.y - v.y * radius
+        canvas.drawText(text, x, y, halo)
+        canvas.drawText(text, x, y, fill)
+        fill.alpha = 255
+        halo.alpha = 255
+    }
+    if (zoom < LABEL_MIN_ZOOM) {
+        val fade = (((LABEL_MIN_ZOOM - zoom) / 0.6).coerceIn(0.0, 1.0) * 235).toInt()
+        PLACE_LABELS.forEach { put(it.name, it.lat, it.lon, if (it.sea) 12f else 11f, fade, it.sea) }
+    } else if (atlas != null) {
+        for (c in atlas.countries) {
+            val ring = c.rings.maxByOrNull { it.size } ?: continue
+            if (ring.size < COUNTRY_LABEL_MIN_POINTS) continue
+            var sx = 0f
+            var sy = 0f
+            var sz = 0f
+            for (i in 0 until ring.size) { sx += ring.ux[i]; sy += ring.uy[i]; sz += ring.uz[i] }
+            val len = kotlin.math.sqrt(sx * sx + sy * sy + sz * sz)
+            if (len < 1e-3f) continue
+            val lat = Math.toDegrees(kotlin.math.asin((sz / len).toDouble()))
+            val lon = Math.toDegrees(kotlin.math.atan2(sy.toDouble(), sx.toDouble()))
+            put(c.name, lat, lon, 11f, 225, false)
+        }
+    }
+    fill.typeface = Typeface.DEFAULT_BOLD
+    halo.typeface = Typeface.DEFAULT_BOLD
+}
+
+private const val COUNTRY_LABEL_MIN_POINTS = 40
+
+/** The globe zoom that shows the same scale as a MapLibre map at [mapZoom] (inverse of [mapZoomFor]). */
+internal fun globeZoomForMap(mapZoom: Double, density: Double, width: Float, height: Float): Double {
+    val radius = MAP_TILE_PX * density * Math.pow(2.0, mapZoom) / (2.0 * PI)
+    return radius / (min(width, height) / 2f * BALL_FRACTION)
 }

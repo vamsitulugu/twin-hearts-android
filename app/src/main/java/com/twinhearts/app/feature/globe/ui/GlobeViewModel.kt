@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.globe.ui
 
+import com.twinhearts.app.feature.globe.ui.globe.PIN_HANDOFF_GLOBE_ZOOM
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -64,7 +65,7 @@ sealed interface GlobePanel {
 }
 
 /** "Fly the camera there". A new [id] is a new request, even to the same place. */
-data class CameraRequest(val id: Long, val lat: Double, val lng: Double, val globeZoom: Double, val mapZoom: Double, val resetSpin: Boolean = false)
+data class CameraRequest(val id: Long, val lat: Double, val lng: Double, val globeZoom: Double, val mapZoom: Double, val resetSpin: Boolean = false, val jump: Boolean = false, val toStreet: Boolean = false, val fromGlobe: Boolean = false)
 
 data class ViewerItem(val url: String, val isVideo: Boolean)
 
@@ -99,6 +100,10 @@ data class GlobeUiState(
     val filter: GlobeFilter = GlobeFilter.All,
     val years: List<String> = emptyList(),
     val view: GlobeViewMode = GlobeViewMode.Globe,
+    /** True while the satellite map is shown inside the Globe tab (zoomed in close). */
+    val street: Boolean = false,
+    /** Where the satellite map was opened; used to go back to the globe if the map cannot load. */
+    val streetAt: GeoPoint? = null,
     val visible: List<Memory> = emptyList(),
     val groups: List<CityGroup> = emptyList(),
     val summary: GlobeSummary = GlobeSummary(0, 0, 0, 0.0),
@@ -149,6 +154,7 @@ class GlobeViewModel @Inject constructor(
 
     private var sequence = 0L
     private var pendingOpen: Pair<Long, String>? = null
+    private var pendingZoomIn: Pair<Long, String>? = null
     private var isPro = false
     private var visible = true
     private var liveJob: Job? = null
@@ -210,7 +216,7 @@ class GlobeViewModel @Inject constructor(
     // ── views and filters ────────────────────────────────────────────────────────────────────
 
     fun setView(mode: GlobeViewMode) {
-        _state.update { it.copy(view = mode) }
+        _state.update { it.copy(view = mode, street = false) }
         if (mode == GlobeViewMode.Map) loadRoads()
     }
 
@@ -243,9 +249,24 @@ class GlobeViewModel @Inject constructor(
         return id
     }
 
+    /** The globe was pinched in far enough: the satellite 3D map fades in over it, still on the Globe tab. */
+    fun enterStreetLevel(lat: Double, lng: Double, mapZoom: Double) {
+        if (_state.value.street) return
+        val id = ++sequence
+        _state.update { it.copy(street = true, streetAt = GeoPoint(lat, lng), camera = CameraRequest(id, lat, lng, RESET_ZOOM, mapZoom, jump = true, toStreet = true)) }
+        loadRoads()
+    }
+
+    /** The map was zoomed back out: show the globe again at the same spot and scale. */
+    fun exitStreetLevel(lat: Double, lng: Double, globeZoom: Double) {
+        val id = ++sequence
+        _state.update { it.copy(street = false, camera = CameraRequest(id, lat, lng, globeZoom, MAP_WORLD_ZOOM, jump = true)) }
+    }
+
     fun resetView() {
         pendingOpen = null
-        _state.update { it.copy(selectedKey = null, searchPin = null) }
+        pendingZoomIn = null
+        _state.update { it.copy(selectedKey = null, searchPin = null, street = false) }
         fly(RESET_LAT, RESET_LNG, RESET_ZOOM, MAP_WORLD_ZOOM, resetSpin = true)
         say(R.string.globe_toast_reset)
     }
@@ -261,17 +282,47 @@ class GlobeViewModel @Inject constructor(
     fun onPinTap(key: String) {
         val group = _state.value.group(key) ?: return
         _state.update { it.copy(selectedKey = key) }
-        val id = fly(group.lat, group.lng, PIN_GLOBE_ZOOM, PIN_MAP_ZOOM)
-        pendingOpen = id to key
+        if (_state.value.view == GlobeViewMode.Globe && !_state.value.street) {
+            // Step 1: the globe turns to the city and closes in. Step 2 (onCameraArrived): the satellite 3D map
+            // takes over and zooms down to street level. Step 3: the trip sheet opens over the map.
+            pendingZoomIn = fly(group.lat, group.lng, PIN_HANDOFF_GLOBE_ZOOM, PIN_MAP_ZOOM) to key
+            pendingOpen = null
+        } else {
+            pendingZoomIn = null
+            val id = fly(group.lat, group.lng, PIN_GLOBE_ZOOM, PIN_MAP_ZOOM)
+            pendingOpen = id to key
+        }
+    }
+
+    /** What opens over the map: the trip itself when the city has one memory, else the city's list. */
+    private fun panelFor(key: String): GlobePanel {
+        val group = _state.value.group(key)
+        return if (group != null && group.count == 1) GlobePanel.Detail(group.memories[0].id) else GlobePanel.City(key)
     }
 
     fun onCameraArrived(id: Long) {
         // The request is done; clearing it stops it from replaying when the page is opened again.
         _state.update { if (it.camera?.id == id) it.copy(camera = null) else it }
+        val zoomIn = pendingZoomIn
+        if (zoomIn != null && zoomIn.first == id) {
+            pendingZoomIn = null
+            val group = _state.value.group(zoomIn.second) ?: return
+            val next = ++sequence
+            pendingOpen = next to zoomIn.second
+            _state.update {
+                it.copy(
+                    street = true,
+                    streetAt = GeoPoint(group.lat, group.lng),
+                    camera = CameraRequest(next, group.lat, group.lng, PIN_HANDOFF_GLOBE_ZOOM, PIN_MAP_ZOOM, toStreet = true, fromGlobe = true),
+                )
+            }
+            loadRoads()
+            return
+        }
         val pending = pendingOpen ?: return
         if (pending.first != id) return
         pendingOpen = null
-        _state.update { it.copy(panels = listOf(GlobePanel.City(pending.second))) }
+        _state.update { it.copy(panels = listOf(panelFor(pending.second))) }
     }
 
     // ── search box ───────────────────────────────────────────────────────────────────────────
@@ -313,7 +364,10 @@ class GlobeViewModel @Inject constructor(
         s.copy(panels = base + GlobePanel.Detail(id))
     }
 
-    fun closeTopPanel() = _state.update { it.copy(panels = it.panels.dropLast(1)) }
+    fun closeTopPanel() = _state.update {
+        val left = it.panels.dropLast(1)
+        it.copy(panels = left, selectedKey = if (left.isEmpty()) null else it.selectedKey)
+    }
 
     private fun closeAllPanels() = _state.update { it.copy(panels = emptyList(), selectedKey = null) }
 
@@ -509,6 +563,13 @@ class GlobeViewModel @Inject constructor(
     }
 
     /** Live updates run only while the page is on screen (R-66). */
+    /** The satellite map did not appear in time (offline?): tell the user and go back to the globe. */
+    fun satelliteUnavailable() {
+        val at = _state.value.streetAt
+        say(R.string.globe_map_unavailable)
+        if (at != null) exitStreetLevel(at.lat, at.lng, STREET_FALLBACK_GLOBE_ZOOM) else _state.update { it.copy(street = false) }
+    }
+
     fun onVisible() {
         visible = true
         applyLive()
@@ -580,8 +641,9 @@ class GlobeViewModel @Inject constructor(
         const val RESET_LNG = 0.0
         const val RESET_ZOOM = 1.0
         const val MAP_WORLD_ZOOM = 1.8
+        const val STREET_FALLBACK_GLOBE_ZOOM = 2.8
         const val PIN_GLOBE_ZOOM = 3.4
-        const val PIN_MAP_ZOOM = 11.0
+        const val PIN_MAP_ZOOM = 15.2
         const val SEARCH_GLOBE_ZOOM = 4.5
         const val SEARCH_MAP_ZOOM = 12.0
     }

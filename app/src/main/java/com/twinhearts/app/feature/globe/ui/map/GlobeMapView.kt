@@ -27,6 +27,10 @@ import com.twinhearts.app.feature.globe.ui.CameraRequest
 import com.twinhearts.app.feature.globe.ui.LiveUi
 import com.twinhearts.app.feature.globe.ui.globe.GlobePalette
 import com.twinhearts.app.feature.globe.ui.globe.PinArt
+import com.twinhearts.app.feature.globe.ui.globe.PIN_HANDOFF_GLOBE_ZOOM
+import com.twinhearts.app.feature.globe.ui.globe.STREET_HANDOFF_ZOOM
+import com.twinhearts.app.feature.globe.ui.globe.ballRadius
+import com.twinhearts.app.feature.globe.ui.globe.mapZoomFor
 import com.twinhearts.app.feature.globe.ui.globe.rememberGlobePalette
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
@@ -34,6 +38,7 @@ import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapLibreMap
+import org.maplibre.android.maps.MapLibreMapOptions
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.expressions.Expression
@@ -56,6 +61,13 @@ import org.maplibre.geojson.Point
 
 private const val STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
 private const val ANIM_MS = 1200
+private const val CITY_ZOOM_MS = 2800
+private const val TILT_FROM_ZOOM = 14.0
+private const val STREET_TILT = 50.0
+private const val AUTO_TILT_ZOOM = 14.0
+/** How far (in map zoom steps) you must zoom out from where the map started before the globe returns. */
+private const val RETURN_ZOOM_DROP = 0.7
+private const val AUTO_TILT_MS = 900
 private const val FIT_PADDING_PX = 140
 private const val WORLD_LAT = 20.0
 private const val WORLD_LNG = 0.0
@@ -82,6 +94,9 @@ fun GlobeMapView(
     onCameraArrived: (Long) -> Unit,
     onZoomChange: (Double) -> Unit,
     modifier: Modifier = Modifier,
+    onReady: () -> Unit = {},
+    bottomPaddingPx: Int = 0,
+    onReturnToGlobe: ((lat: Double, lng: Double, globeZoom: Double) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -90,7 +105,8 @@ fun GlobeMapView(
     val density = LocalDensity.current.density
     val mapView = remember {
         MapLibre.getInstance(context)
-        MapView(context)
+        // Texture mode so the map can fade in over the globe (a normal map surface cannot be made see-through).
+        MapView(context, MapLibreMapOptions.createFromAttributes(context, null).textureMode(true))
     }
     var map by remember { mutableStateOf<MapLibreMap?>(null) }
     var styleVersion by remember { mutableStateOf(0) }
@@ -99,6 +115,13 @@ fun GlobeMapView(
     val currentPinTap by rememberUpdatedState(onPinTap)
     val currentZoom by rememberUpdatedState(onZoomChange)
     val currentArrived by rememberUpdatedState(onCameraArrived)
+    val currentReady by rememberUpdatedState(onReady)
+    val currentReturn by rememberUpdatedState(onReturnToGlobe)
+    var returned by remember { mutableStateOf(false) }
+    var leaned by remember { mutableStateOf(false) }
+    // Map zoom (and the globe zoom it stands for) at the moment the map took over from the globe.
+    var entryMapZoom by remember { mutableStateOf<Double?>(null) }
+    var entryGlobeZoom by remember { mutableStateOf(STREET_HANDOFF_ZOOM) }
 
     // Forward the screen lifecycle to the MapView. Without this MapLibre leaks memory and stops drawing.
     DisposableEffect(lifecycle, mapView) {
@@ -139,15 +162,59 @@ fun GlobeMapView(
                 }
             }
             m.addOnCameraIdleListener { currentZoom(m.cameraPosition.zoom) }
+            // Zoomed back out far enough: give the screen back to the 3D globe, same spot and scale.
+            m.addOnCameraMoveListener {
+                // Zoomed in to city level by pinching: lean the camera over so the 3D buildings stand up.
+                val z = m.cameraPosition.zoom
+                if (z >= AUTO_TILT_ZOOM && !leaned && m.cameraPosition.tilt < 5.0) {
+                    leaned = true
+                    m.animateCamera(CameraUpdateFactory.tiltTo(STREET_TILT), AUTO_TILT_MS)
+                } else if (z < AUTO_TILT_ZOOM - 1.0) {
+                    leaned = false
+                }
+                val back = currentReturn
+                if (back == null || returned || mapView.width == 0) return@addOnCameraMoveListener
+                val pos = m.cameraPosition
+                val target = pos.target ?: return@addOnCameraMoveListener
+                // Relative to where the map started, so the exact scale formula cannot make it bounce back at once.
+                val entry = entryMapZoom ?: return@addOnCameraMoveListener
+                if (pos.zoom < entry - RETURN_ZOOM_DROP) {
+                    returned = true
+                    back(target.latitude, target.longitude, entryGlobeZoom * Math.pow(2.0, pos.zoom - entry))
+                }
+            }
         }
     }
 
     LaunchedEffect(map) {
         val m = map ?: return@LaunchedEffect
-        m.setStyle(Style.Builder().fromUri(STYLE_URL)) { loaded ->
+        // Satellite + names + roads + 3D buildings (the web app's look); the plain street style if that fails.
+        val json = SatelliteStyle.load()
+        val builder = if (json != null) Style.Builder().fromJson(json) else Style.Builder().fromUri(STYLE_URL)
+        m.setStyle(builder) { loaded ->
             installLayers(loaded, palette, density)
             styleVersion += 1
+            currentReady()
         }
+    }
+
+    // If the satellite style is refused by the map engine, use the plain street style instead of a blank map.
+    DisposableEffect(map, mapView) {
+        var fellBack = false
+        val listener = MapView.OnDidFailLoadingMapListener { message ->
+            android.util.Log.w("GlobeMap", "Map style failed: $message")
+            val m = map
+            if (m != null && !fellBack && m.style?.isFullyLoaded != true) {
+                fellBack = true
+                m.setStyle(Style.Builder().fromUri(STYLE_URL)) { loaded ->
+                    installLayers(loaded, palette, density)
+                    styleVersion += 1
+                    currentReady()
+                }
+            }
+        }
+        mapView.addOnDidFailLoadingMapListener(listener)
+        onDispose { mapView.removeOnDidFailLoadingMapListener(listener) }
     }
 
     LaunchedEffect(map, styleVersion, groups, legs, roads, selectedKey, live, searchPin, palette) {
@@ -159,7 +226,7 @@ fun GlobeMapView(
     // First time with pins: show them all, like a good map should.
     LaunchedEffect(map, groups.isNotEmpty()) {
         val m = map ?: return@LaunchedEffect
-        if (fitted || groups.isEmpty()) return@LaunchedEffect
+        if (fitted || groups.isEmpty() || camera?.jump == true) return@LaunchedEffect
         fitted = true
         if (groups.size == 1) {
             m.cameraPosition = CameraPosition.Builder().target(LatLng(groups[0].lat, groups[0].lng)).zoom(SINGLE_PIN_ZOOM).build()
@@ -169,13 +236,41 @@ fun GlobeMapView(
         }
     }
 
+    // Keep the looked-at city in the visible top part while a half-height sheet covers the bottom.
+    LaunchedEffect(map, bottomPaddingPx) {
+        map?.setPadding(0, 0, 0, bottomPaddingPx)
+    }
+
     LaunchedEffect(map, camera?.id) {
         val m = map ?: return@LaunchedEffect
         val request = camera ?: return@LaunchedEffect
-        val position = CameraPosition.Builder().target(LatLng(request.lat, request.lng)).zoom(request.mapZoom).tilt(0.0).build()
+        if (request.toStreet) {
+            returned = false
+            leaned = false
+            entryGlobeZoom = if (request.fromGlobe) PIN_HANDOFF_GLOBE_ZOOM else STREET_HANDOFF_ZOOM
+            entryMapZoom = if (request.fromGlobe && mapView.width > 0) {
+                mapZoomFor(ballRadius(mapView.width.toFloat(), mapView.height.toFloat(), PIN_HANDOFF_GLOBE_ZOOM).toDouble(), density.toDouble())
+            } else {
+                request.mapZoom
+            }
+        }
+        // Close in, tilt the camera so the 3D buildings stand up (the web app does the same at street level).
+        val tilt = if (request.mapZoom >= TILT_FROM_ZOOM) STREET_TILT else 0.0
+        val position = CameraPosition.Builder().target(LatLng(request.lat, request.lng)).zoom(request.mapZoom).tilt(tilt).build()
+        if (request.jump) {
+            m.moveCamera(CameraUpdateFactory.newCameraPosition(position))
+            currentArrived(request.id)
+            return@LaunchedEffect
+        }
+        if (request.fromGlobe && mapView.width > 0) {
+            // Start exactly where the globe was, then zoom down to the city: the "fly into the city" animation.
+            val r = ballRadius(mapView.width.toFloat(), mapView.height.toFloat(), PIN_HANDOFF_GLOBE_ZOOM).toDouble()
+            val start = CameraPosition.Builder().target(LatLng(request.lat, request.lng)).zoom(mapZoomFor(r, density.toDouble())).tilt(0.0).build()
+            m.moveCamera(CameraUpdateFactory.newCameraPosition(start))
+        }
         m.animateCamera(
             CameraUpdateFactory.newCameraPosition(position),
-            ANIM_MS,
+            if (request.fromGlobe) CITY_ZOOM_MS else ANIM_MS,
             object : MapLibreMap.CancelableCallback {
                 override fun onFinish() = currentArrived(request.id)
                 override fun onCancel() = Unit
