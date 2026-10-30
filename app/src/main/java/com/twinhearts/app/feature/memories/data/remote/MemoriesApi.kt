@@ -19,7 +19,7 @@ import retrofit2.http.Path
  */
 interface MemoriesApi {
     @GET("api/data/state/{coupleId}")
-    suspend fun getState(@Path("coupleId") coupleId: String): MemoriesStateResponse
+    suspend fun getState(@Path("coupleId") coupleId: String): JsonElement
 
     /** The server merges the top-level keys of `state` into the saved document. */
     @POST("api/data/state")
@@ -37,9 +37,6 @@ interface MemoriesApi {
     @HTTP(method = "DELETE", path = "api/media/delete", hasBody = true)
     suspend fun deleteFile(@Body body: DeleteFileBody): MemoriesSaveResponse
 }
-
-@Serializable
-data class MemoriesStateResponse(val state: JsonElement? = null)
 
 @Serializable
 data class MemoriesSaveBody(

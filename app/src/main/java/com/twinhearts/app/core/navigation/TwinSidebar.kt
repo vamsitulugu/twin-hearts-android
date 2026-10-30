@@ -112,10 +112,10 @@ internal val sidebarGroups = listOf(
         R.string.home_group_us,
         listOf(
             SidebarEntry(Routes.Profile, R.string.home_page_profile, Icons.Outlined.Group),
-            SidebarEntry(Routes.Us, R.string.home_page_love_counter, Icons.Outlined.FavoriteBorder),
+            SidebarEntry(Routes.Us(tab = 0), R.string.home_page_love_counter, Icons.Outlined.FavoriteBorder),
             SidebarEntry(Routes.Level, R.string.home_page_level, Icons.Outlined.EmojiEvents),
             SidebarEntry(Routes.Fights, R.string.home_page_fights, Icons.Outlined.Gavel),
-            SidebarEntry(null, R.string.home_page_dream_goals, Icons.Outlined.TrackChanges),
+            SidebarEntry(Routes.Us(tab = 2), R.string.home_page_dream_goals, Icons.Outlined.TrackChanges),
         ),
     ),
     SidebarGroup(

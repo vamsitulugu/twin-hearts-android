@@ -2,7 +2,6 @@ package com.twinhearts.app.core.navigation
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -37,6 +36,7 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import com.twinhearts.app.R
 import com.twinhearts.app.feature.calls.ui.CallBannerHost
 import com.twinhearts.app.feature.calls.ui.IncomingCallWatcher
@@ -57,15 +57,6 @@ private val bottomBarItems = listOf(
     BottomBarItem(Routes.TwinAi, R.string.core_nav_twin, TwinOrbIcon, isOrb = true),
     BottomBarItem(Routes.LiveMap, R.string.core_nav_map, Icons.Outlined.Place, selectedIcon = Icons.Rounded.Place),
     BottomBarItem(Routes.Settings, R.string.core_nav_settings, Icons.Outlined.Settings, selectedIcon = Icons.Rounded.Settings),
-)
-
-/** Pages that paint a flat near-black background (everything except Home, Get Started and their own tab handling). */
-private val flatRoutes: List<Any> = listOf(
-    Routes.Memories, Routes.Music, Routes.Movie, Routes.MeetPlanner, Routes.DailyRoutine,
-    Routes.SignIn, Routes.SignUp, Routes.ForgotPassword, Routes.Pairing, Routes.Money, Routes.Collection,
-    Routes.Places, Routes.Level, Routes.Profile, Routes.MySpace, Routes.BucketList, Routes.Us, Routes.Vault,
-    Routes.Fights, Routes.Globe, Routes.Surprises, Routes.Help, Routes.PeriodTracker, Routes.Games,
-    Routes.Calendar, Routes.Study,
 )
 
 /** The tab routes: moving between them keeps each tab's state (same rule the bottom bar uses). */
@@ -108,7 +99,13 @@ private fun TwinNavigation(startDestination: Any, session: com.twinhearts.app.co
     }
     // Which side-menu row is active: the first menu route the current screen belongs to.
     val sidebarKey = sidebarRouteKeys.firstOrNull { key ->
-        destination?.hierarchy?.any { it.hasRoute(key::class) } == true
+        if (key is Routes.Us) {
+            // Love Counter and Dream Goals are the same page on different tabs: match the open tab.
+            destination?.hasRoute<Routes.Us>() == true &&
+                (backStackEntry?.toRoute<Routes.Us>()?.tab == 2) == (key.tab == 2)
+        } else {
+            destination?.hierarchy?.any { it.hasRoute(key::class) } == true
+        }
     }
     // Twin has its own input dock with the orb, and Chat gives the whole bottom to the typing bar
     // (like WhatsApp), so the bar is hidden on both. Leave Chat with the back arrow.
@@ -185,7 +182,7 @@ private fun TwinNavigation(startDestination: Any, session: com.twinhearts.app.co
                             selectedKey = selectedItem?.key,
                             onItemClick = onBarClick,
                             // Settings and Live Map paint their page flat near-black, so the bar slot matches it.
-                            slotFill = if (selectedItem?.key == Routes.Settings || selectedItem?.key == Routes.LiveMap || onFights || onMySpace || onVault) Color(0xFF0A0A0C) else Color.Transparent,
+                            slotFill = if (selectedItem?.key == Routes.Settings || selectedItem?.key == Routes.LiveMap) Color(0xFF0A0A0C) else Color.Transparent,
                         )
                     }
                 },
@@ -195,10 +192,6 @@ private fun TwinNavigation(startDestination: Any, session: com.twinhearts.app.co
                 // it here too would leave an empty gap under the typing bar.
                 val ownsBottomInset = selectedItem?.key == Routes.Chat || selectedItem?.key == Routes.TwinAi
                 val insets = if (showBottomBar || ownsBottomInset) Modifier else Modifier.navigationBarsPadding()
-                // Every page except Home / Get Started paints their page flat near-black,
-                // so the strip above the gesture bar must match it (no wine-coloured band).
-                val flatPage = flatRoutes.any { destination?.hasRoute(it::class) == true }
-                val flatFill = if (flatPage) Modifier.background(Color(0xFF0A0A0C)) else Modifier
                 CallBannerHost(
                     onCallScreen = destination?.hasRoute<Routes.Call>() == true,
                     onOpen = { video ->
@@ -212,7 +205,6 @@ private fun TwinNavigation(startDestination: Any, session: com.twinhearts.app.co
                         startDestination = startDestination,
                         modifier = Modifier
                             .padding(innerPadding)
-                            .then(flatFill)
                             .then(insets),
                     )
                     if (floatBar) {

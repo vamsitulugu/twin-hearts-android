@@ -34,7 +34,8 @@ object Routes {
     @Serializable data object Fights
 
     // Pages opened from Home and Chat (restored: these were missing from the repo copy)
-    @Serializable data object Us
+    /** The Us page. [tab]: 0 = Love Counter, 1 = Collection, 2 = Dream Goals. */
+    @Serializable data class Us(val tab: Int = 0)
     @Serializable data object Collection
     @Serializable data object Money
     @Serializable data object Calendar

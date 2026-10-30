@@ -6,17 +6,16 @@ import androidx.navigation.compose.composable
 import com.twinhearts.app.core.navigation.Routes
 import com.twinhearts.app.feature.profile.ui.ProfileNavigation
 import com.twinhearts.app.feature.profile.ui.ProfileScreen
-import com.twinhearts.app.core.design.TwinNeutralPage
 
 /** Plugs the Our Profile page into the app (R-43). Other screens are opened only through [Routes] (R-83). */
 fun NavGraphBuilder.profileGraph(navController: NavHostController) {
-    composable<Routes.Profile> { TwinNeutralPage {
+    composable<Routes.Profile> {
         ProfileScreen(
             navigation = ProfileNavigation(
                 onBack = { navController.popBackStack() },
                 onOpenCalendar = { navController.navigate(Routes.Calendar) },
                 onOpenMemories = { navController.navigate(Routes.Collection) },
-                onOpenGoals = { navController.navigate(Routes.Us) },
+                onOpenGoals = { navController.navigate(Routes.Us(tab = 2)) },
                 onOpenChat = { navController.navigate(Routes.Chat) },
                 onOpenAppSettings = { navController.navigate(Routes.Settings) },
                 onSignedOut = {
@@ -24,6 +23,5 @@ fun NavGraphBuilder.profileGraph(navController: NavHostController) {
                 },
             ),
         )
-    }
     }
 }

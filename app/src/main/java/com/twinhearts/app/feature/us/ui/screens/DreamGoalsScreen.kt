@@ -1,5 +1,13 @@
 package com.twinhearts.app.feature.us.ui.screens
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,9 +20,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material3.Icon
@@ -36,89 +41,107 @@ import com.twinhearts.app.core.design.StatTile
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.feature.us.domain.model.DreamGoal
 
-/** Dream Goals screen (web: dreamgoals.html). Hero stats, goal cards grid, add FAB. */
+/**
+ * Dream Goals screen (web: dreamgoals.html). One scrolling page: stats, insight, progress cards,
+ * then the goal cards in two even columns.
+ */
 @Composable
 fun DreamGoalsScreen(
     goals: List<DreamGoal>,
     onDreamGoalAdded: () -> Unit,
 ) {
     val colors = TwinTheme.colors
-    Column(modifier = Modifier.fillMaxSize()) {
-        SectionHeader(title = "Dream Goals", modifier = Modifier.padding(horizontal = TwinTheme.spacing.l))
+    val edge = TwinTheme.spacing.l
+    val gap = TwinTheme.spacing.s
+    val totalProgress = if (goals.isEmpty()) 0 else goals.map { it.progress }.average().toInt()
+    val completed = goals.filter { it.completed }
+    val active = goals.filter { !it.completed }
 
-        // Hero stats
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = TwinTheme.spacing.l),
-            horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            StatTile(value = goals.size.toString(), label = "Goals", modifier = Modifier.weight(1f))
-            StatTile(value = goals.count { it.completed }.toString(), label = "Completed", modifier = Modifier.weight(1f))
-            StatTile(value = goals.count { it.priority == "high" }.toString(), label = "High Priority", modifier = Modifier.weight(1f))
-            val totalProgress = if (goals.isEmpty()) 0 else goals.map { it.progress }.average().toInt()
-            StatTile(value = "$totalProgress%", label = "Progress", modifier = Modifier.weight(1f))
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = edge, end = edge, top = TwinTheme.spacing.s, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(gap),
+    ) {
+        item { SectionHeader(title = "Dream Goals") }
+
+        // Hero stats: 2 x 2, every tile the same size, labels on one line.
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(gap)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+                    DreamStat(goals.size.toString(), "Goals", Modifier.weight(1f))
+                    DreamStat(completed.size.toString(), "Completed", Modifier.weight(1f))
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+                    DreamStat(goals.count { it.priority == "high" }.toString(), "High priority", Modifier.weight(1f))
+                    DreamStat("$totalProgress%", "Progress", Modifier.weight(1f))
+                }
+            }
         }
 
         // Insight card (web: ga-insight-card)
-        GlassCard(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = TwinTheme.spacing.l),
-        ) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier.size(32.dp).clip(TwinTheme.shapes.circle),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(Icons.Rounded.Psychology, contentDescription = null, tint = colors.accent)
-                }
-                Column(modifier = Modifier.weight(1f).padding(horizontal = TwinTheme.spacing.m)) {
-                    Text(
-                        text = "You've dreamed ${goals.size} times together",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colors.ink,
-                    )
-                    Text(
-                        text = "Keep adding goals — big or small.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = colors.inkMuted,
-                    )
+        item {
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Psychology, contentDescription = null, tint = colors.accent, modifier = Modifier.size(28.dp))
+                    Column(modifier = Modifier.weight(1f).padding(start = TwinTheme.spacing.m)) {
+                        Text(
+                            text = "You've dreamed ${goals.size} times together",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = colors.ink,
+                        )
+                        Text(
+                            text = "Keep adding goals — big or small.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colors.inkMuted,
+                        )
+                    }
                 }
             }
         }
 
         // Category cards with progress bars (web: ga-cat-card)
-        val completed = goals.filter { it.completed }
-        val active = goals.filter { !it.completed }
-        if (active.isNotEmpty()) {
-            CategoryProgressCard(title = "In Progress", items = active, accent = colors.accent)
-        }
-        if (completed.isNotEmpty()) {
-            CategoryProgressCard(title = "Completed", items = completed, accent = colors.success)
-        }
+        if (active.isNotEmpty()) item { CategoryProgressCard(title = "In Progress", items = active, accent = colors.accent) }
+        if (completed.isNotEmpty()) item { CategoryProgressCard(title = "Completed", items = completed, accent = colors.success) }
 
-        // Dream cards grid (web: dream-card)
-        SectionHeader(title = "All Goals", modifier = Modifier.padding(horizontal = TwinTheme.spacing.l))
+        item { Spacer(Modifier.height(TwinTheme.spacing.xs)) }
+        item { SectionHeader(title = "All Goals") }
+
         if (goals.isEmpty()) {
-            Text(
-                text = "No dream goals yet. Add your first goal below.",
-                color = colors.inkMuted,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = TwinTheme.spacing.l),
-                textAlign = TextAlign.Center,
-            )
+            item {
+                Text(
+                    text = "No dream goals yet. Add your first goal below.",
+                    color = colors.inkMuted,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = TwinTheme.spacing.l),
+                    textAlign = TextAlign.Center,
+                )
+            }
         } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = TwinTheme.spacing.l),
-            ) {
-                items(goals) { goal ->
-                    DreamCard(goal = goal)
+            // Two even columns: each row is as tall as its taller card.
+            items(goals.chunked(2)) { pair ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(gap),
+                ) {
+                    pair.forEach { goal -> DreamCard(goal = goal, modifier = Modifier.weight(1f).fillMaxHeight()) }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
                 }
             }
+        }
+    }
+}
+
+/** Stat tile with a one-line label (the shared StatTile lets long labels wrap and misalign). */
+@Composable
+private fun DreamStat(value: String, label: String, modifier: Modifier = Modifier) {
+    val colors = TwinTheme.colors
+    GlassCard(modifier = modifier) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(value, style = MaterialTheme.typography.headlineMedium, color = colors.ink, maxLines = 1)
+            Text(label, style = MaterialTheme.typography.bodySmall, color = colors.inkMuted, maxLines = 1, softWrap = false)
         }
     }
 }
@@ -128,7 +151,7 @@ fun DreamGoalsScreen(
 private fun CategoryProgressCard(title: String, items: List<DreamGoal>, accent: Color) {
     val colors = TwinTheme.colors
     val totalProgress = items.map { it.progress }.average().toFloat()
-    GlassCard(modifier = Modifier.fillMaxWidth().padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.s)) {
+    GlassCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = title,
@@ -185,114 +208,83 @@ private fun ProgressBar(fraction: Float, fill: Brush, modifier: Modifier = Modif
     }
 }
 
-/** Single dream card: emoji, title, badges, description, target, progress, actions. */
+/** Single dream card for the two-column grid: emoji + title, status, description, progress, actions. */
 @Composable
-private fun DreamCard(goal: DreamGoal) {
+private fun DreamCard(goal: DreamGoal, modifier: Modifier = Modifier) {
     val colors = TwinTheme.colors
-    GlassCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = TwinTheme.spacing.s),
-    ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            // Top: emoji + title
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                Box(
-                    modifier = Modifier.size(36.dp).clip(TwinTheme.shapes.small),
-                    contentAlignment = Alignment.Center,
+    GlassCard(modifier = modifier) {
+        Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
+            Column(verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.xs)) {
+                Text(text = goal.emoji, style = MaterialTheme.typography.headlineSmall)
+                Text(
+                    text = goal.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = colors.ink,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = if (goal.completed) "Done" else "Open",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (goal.completed) colors.success else colors.accent,
+                )
+                if (goal.targetDate != null) {
+                    Text(
+                        text = "Target: ${goal.targetDate}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.inkMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (goal.description != null) {
+                    Text(
+                        text = goal.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.inkMuted,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+
+            Column(modifier = Modifier.padding(top = TwinTheme.spacing.s)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    ProgressBar(
+                        fraction = goal.progress / 100f,
+                        fill = colors.primaryBrush,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = "${goal.progress}%",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.inkMuted,
+                        modifier = Modifier.padding(start = TwinTheme.spacing.s),
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = TwinTheme.spacing.s),
+                    horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
                 ) {
-                    Text(
-                        text = goal.emoji,
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
+                    if (!goal.completed) CardAction("Done", colors.success)
+                    CardAction("Edit", colors.accent)
+                    CardAction("Delete", colors.error)
                 }
-                Column(modifier = Modifier.weight(1f).padding(horizontal = TwinTheme.spacing.s)) {
-                    Text(
-                        text = goal.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = colors.ink,
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = TwinTheme.spacing.xs),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        if (goal.targetDate != null) {
-                            Text(
-                                text = "Target: ${goal.targetDate}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = colors.inkMuted,
-                            )
-                        }
-                        Text(
-                            text = if (goal.completed) "Done" else "Open",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (goal.completed) colors.success else colors.accent,
-                        )
-                    }
-                }
-            }
-
-            // Description
-            if (goal.description != null) {
-                Text(
-                    text = goal.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.inkMuted,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = TwinTheme.spacing.s),
-                )
-            }
-
-            // Progress bar
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = TwinTheme.spacing.s),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "Progress",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = colors.inkMuted,
-                    modifier = Modifier.width(48.dp),
-                )
-                ProgressBar(
-                    fraction = goal.progress / 100f,
-                    fill = colors.primaryBrush,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = "${goal.progress}%",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = colors.inkMuted,
-                    modifier = Modifier.width(32.dp),
-                )
-            }
-
-            // Action buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                if (!goal.completed) {
-                    TextButton(
-                        text = "Complete",
-                        onClick = {},
-                        color = colors.success,
-                    )
-                }
-                TextButton(text = "Edit", onClick = {}, color = colors.accent)
-                TextButton(text = "Delete", onClick = {}, color = colors.error)
             }
         }
     }
 }
 
-/** Simple text button. */
+/** Small text action inside a goal card (keeps three actions on one line in a half-width card). */
 @Composable
-private fun TextButton(text: String, onClick: () -> Unit, color: Color) {
-    androidx.compose.material3.TextButton(onClick = onClick) {
-        Text(text = text, style = MaterialTheme.typography.labelMedium, color = color)
-    }
+private fun CardAction(text: String, color: Color) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = color,
+        maxLines = 1,
+        modifier = Modifier.clickable(role = Role.Button, onClick = {}).padding(vertical = 4.dp),
+    )
 }
 
 // ┌─────────────────────────────────────────────────────────────────┐

@@ -3,6 +3,7 @@
      Wording copied from lovecounter.html, collection.html, dreamgoals.html. -->
 <resources>
     <!-- Love Counter (lovecounter.html) -->
+    <string name="us_page_title">Us</string>
     <string name="us_love_counter_title">Love Counter</string>
     <string name="us_days_together">days together</string>
     <string name="us_time_together">Time Together</string>

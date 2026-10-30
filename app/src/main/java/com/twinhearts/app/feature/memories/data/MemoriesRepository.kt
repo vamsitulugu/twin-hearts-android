@@ -175,7 +175,12 @@ class MemoriesRepositoryImpl @Inject constructor(
 
     private suspend fun readState(session: Session): AppResult<JsonObject> =
         when (val result = safeApiCall { api.getState(session.coupleId) }) {
-            is AppResult.Success -> AppResult.Success(result.data.state as? JsonObject ?: JsonObject(emptyMap()))
+            // The server answers the saved document itself (routes/data.js), or JSON null when there is
+            // none yet. A { "state": {...} } wrapper is also accepted, so either shape reads the album.
+            is AppResult.Success -> {
+                val root = result.data as? JsonObject
+                AppResult.Success((root?.get("state") as? JsonObject) ?: root ?: JsonObject(emptyMap()))
+            }
             is AppResult.Failure -> result
         }
 

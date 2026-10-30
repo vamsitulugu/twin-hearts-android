@@ -90,10 +90,21 @@ class MemoriesViewModel @Inject constructor(
 
     private fun busy() = _state.value.uploading != null || _state.value.working || writeLock.isLocked
 
+    /**
+     * Goes up at the start and at the end of every add / delete / favourite. A load that began before
+     * the latest change brings an OLDER album (the free server can take many seconds to answer), so
+     * its answer is thrown away instead of wiping the photos that were just added.
+     */
+    private var changes = 0
+
     private suspend fun fetch(silent: Boolean) {
+        val startedAt = changes
         val result = repository.load()
-        // A change that started while this was loading has newer data; do not overwrite it.
-        if (busy() && result is AppResult.Success) return
+        // A change that started or finished while this was loading has newer data; do not overwrite it.
+        if (result is AppResult.Success && (busy() || changes != startedAt)) {
+            _state.update { if (it.loading) it.copy(loading = false) else it }
+            return
+        }
         when (result) {
             is AppResult.Success -> _state.update {
                 it.copy(
@@ -119,6 +130,7 @@ class MemoriesViewModel @Inject constructor(
     fun upload(uris: List<Uri>) {
         if (uris.isEmpty() || _state.value.uploading != null) return
         viewModelScope.launch {
+            changes++
             _state.update { it.copy(uploading = UploadProgress(0, uris.size), failedUploads = emptyList()) }
             val gate = Semaphore(PARALLEL_UPLOADS)
             val results = coroutineScope {
@@ -137,12 +149,15 @@ class MemoriesViewModel @Inject constructor(
             val firstError = results.firstNotNullOfOrNull { (it.second as? AppResult.Failure)?.error }
 
             if (ok.isEmpty()) {
+                changes++
                 _state.update {
                     it.copy(uploading = null, failedUploads = failedUris, message = MemoriesMessage.Failed(firstError ?: AppError.Unknown))
                 }
                 return@launch
             }
-            when (val saved = writeLock.withLock { repository.addToAlbum(ok) }) {
+            val saved = writeLock.withLock { repository.addToAlbum(ok) }
+            changes++
+            when (saved) {
                 is AppResult.Success -> _state.update {
                     it.copy(
                         uploading = null,
@@ -179,8 +194,11 @@ class MemoriesViewModel @Inject constructor(
     fun delete(ids: Set<String>) {
         if (ids.isEmpty() || _state.value.working) return
         viewModelScope.launch {
+            changes++
             _state.update { it.copy(working = true) }
-            when (val result = writeLock.withLock { repository.delete(ids) }) {
+            val result = writeLock.withLock { repository.delete(ids) }
+            changes++
+            when (result) {
                 is AppResult.Success -> _state.update {
                     val removed = ids.size - result.data.failed
                     it.copy(
@@ -203,7 +221,10 @@ class MemoriesViewModel @Inject constructor(
 
     fun toggleFavorite(id: String) {
         viewModelScope.launch {
-            when (val result = writeLock.withLock { repository.toggleFavorite(id) }) {
+            changes++
+            val result = writeLock.withLock { repository.toggleFavorite(id) }
+            changes++
+            when (result) {
                 is AppResult.Success -> _state.update { it.copy(items = result.data) }
                 is AppResult.Failure -> _state.update { it.copy(message = MemoriesMessage.Failed(result.error)) }
             }
