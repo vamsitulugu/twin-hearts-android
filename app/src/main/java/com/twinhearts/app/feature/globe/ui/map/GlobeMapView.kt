@@ -3,6 +3,7 @@ package com.twinhearts.app.feature.globe.ui.map
 import android.os.Bundle
 import android.graphics.PointF
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -30,6 +31,7 @@ import com.twinhearts.app.feature.globe.domain.wrapLongitude
 import com.twinhearts.app.feature.globe.ui.globe.GlobePalette
 import com.twinhearts.app.feature.globe.ui.globe.MapDrive
 import com.twinhearts.app.feature.globe.ui.globe.globeZoomForMap
+import com.twinhearts.app.feature.globe.ui.globe.PIN_BURGUNDY_LIGHT
 import com.twinhearts.app.feature.globe.ui.globe.PinArt
 import com.twinhearts.app.feature.globe.ui.globe.PIN_HANDOFF_GLOBE_ZOOM
 import com.twinhearts.app.feature.globe.ui.globe.STREET_HANDOFF_ZOOM
@@ -93,6 +95,16 @@ private const val SRC_PINS = "gm-pins"
 private const val SRC_TRAILS = "gm-trails"
 private const val SRC_LIVE = "gm-live"
 private const val SRC_SEARCH = "gm-search"
+private const val SRC_SELECTED = "gm-selected"
+private const val SRC_PULSE = "gm-pulse"
+private const val LAYER_SELECTED = "gm-selected-layer"
+private const val LAYER_PULSE = "gm-pulse-ring"
+/** The globe starts turning again this long after your finger left it. */
+private const val SPIN_RESUME_MS = 2500L
+/** A tapped pin hops and ripples for this long before the camera flies down to it. */
+private const val PIN_POP_DELAY_MS = 420L
+private const val PIN_POP_ANIM_MS = 900f
+private const val SELECTED_PIN_SCALE = 1.2f
 private const val LAYER_PINS = "gm-pins-layer"
 
 @Composable
@@ -110,6 +122,7 @@ fun GlobeMapView(
     modifier: Modifier = Modifier,
     onReady: () -> Unit = {},
     bottomPaddingPx: Int = 0,
+    spinPaused: Boolean = false,
     onReturnToGlobe: ((lat: Double, lng: Double, globeZoom: Double) -> Unit)? = null,
     drive: MapDrive? = null,
 ) {
@@ -134,6 +147,10 @@ fun GlobeMapView(
     val currentReturn by rememberUpdatedState(onReturnToGlobe)
     var returned by remember { mutableStateOf(false) }
     var spinning by remember { mutableStateOf(drive != null) }
+    // Spin comes back by itself a moment after the last touch, whenever the Earth is what you see.
+    var fingerDown by remember { mutableStateOf(false) }
+    var lastTouchNanos by remember { mutableStateOf(0L) }
+    val currentSpinPaused by rememberUpdatedState(spinPaused)
     var leaned by remember { mutableStateOf(false) }
     // Map zoom (and the globe zoom it stands for) at the moment the map took over from the globe.
     var entryMapZoom by remember { mutableStateOf<Double?>(null) }
@@ -192,7 +209,11 @@ fun GlobeMapView(
                 }
                 // The first finger on the map stops the idle spin.
                 m.addOnCameraMoveStartedListener { reason ->
-                    if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) spinning = false
+                    if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) {
+                        spinning = false
+                        fingerDown = true
+                        lastTouchNanos = System.nanoTime()
+                    }
                 }
                 mapView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> syncDrive(m) }
                 syncDrive(m)
@@ -203,7 +224,7 @@ fun GlobeMapView(
                 if (drive != null && drive.mapMix < 0.5f) {
                     return@addOnMapClickListener drive.tap?.invoke(screen.x, screen.y) ?: false
                 }
-                val hit = m.queryRenderedFeatures(screen, LAYER_PINS).firstOrNull()
+                val hit = m.queryRenderedFeatures(screen, LAYER_SELECTED, LAYER_PINS).firstOrNull()
                 val key = hit?.getStringProperty("key")
                 if (key != null) {
                     currentPinTap(key)
@@ -212,7 +233,13 @@ fun GlobeMapView(
                     false
                 }
             }
-            m.addOnCameraIdleListener { currentZoom(m.cameraPosition.zoom) }
+            m.addOnCameraIdleListener {
+                currentZoom(m.cameraPosition.zoom)
+                if (fingerDown) {
+                    fingerDown = false
+                    lastTouchNanos = System.nanoTime()
+                }
+            }
             // Zoomed back out far enough: give the screen back to the 3D globe, same spot and scale.
             m.addOnCameraMoveListener {
                 if (drive != null) {
@@ -292,6 +319,41 @@ fun GlobeMapView(
         drawOverlay(loaded, art, palette, groups, legs, roads, selectedKey, live, searchPin)
     }
 
+    // The tapped pin pops in with a spring and a burgundy ripple spreads from its tip.
+    LaunchedEffect(map, styleVersion, selectedKey) {
+        val loaded = map?.style ?: return@LaunchedEffect
+        if (!loaded.isFullyLoaded) return@LaunchedEffect
+        val baseSize = PIN_DP * density / PinArt.PIN_PX
+        val pin = loaded.getLayerAs<SymbolLayer>(LAYER_SELECTED) ?: return@LaunchedEffect
+        val ring = loaded.getLayerAs<CircleLayer>(LAYER_PULSE)
+        if (selectedKey == null) {
+            ring?.setProperties(PropertyFactory.circleOpacity(0f), PropertyFactory.circleStrokeOpacity(0f))
+            return@LaunchedEffect
+        }
+        var startNanos = -1L
+        while (true) {
+            var done = false
+            androidx.compose.runtime.withFrameNanos { now ->
+                if (startNanos < 0) startNanos = now
+                val ms = (now - startNanos) / 1_000_000f
+                val t = (ms / PIN_POP_ANIM_MS).coerceIn(0f, 1f)
+                val seconds = ms / 1000f
+                // A damped spring: starts small, overshoots, settles at the selected size.
+                val spring = 1f - Math.exp(-6.0 * seconds).toFloat() * Math.cos(11.0 * seconds).toFloat() * 0.55f
+                pin.setProperties(PropertyFactory.iconSize(baseSize * SELECTED_PIN_SCALE * spring))
+                ring?.setProperties(
+                    PropertyFactory.circleRadius(10f + 56f * t),
+                    PropertyFactory.circleOpacity((1f - t) * 0.16f),
+                    PropertyFactory.circleStrokeOpacity((1f - t) * 0.65f),
+                )
+                if (t >= 1f) done = true
+            }
+            if (done) break
+        }
+        pin.setProperties(PropertyFactory.iconSize(baseSize * SELECTED_PIN_SCALE))
+        ring?.setProperties(PropertyFactory.circleOpacity(0f), PropertyFactory.circleStrokeOpacity(0f))
+    }
+
     // The slow idle spin of the Earth (the web globe turns too) until the first touch.
     LaunchedEffect(map, drive != null) {
         val m = map ?: return@LaunchedEffect
@@ -303,7 +365,13 @@ fun GlobeMapView(
                 last = now
                 val pos = m.cameraPosition
                 val target = pos.target
-                if (spinning && target != null && pos.zoom < MIX_LOW) {
+                val earthShowing = target != null && pos.zoom < MIX_LOW
+                if (!spinning && earthShowing && !fingerDown && !currentSpinPaused &&
+                    (System.nanoTime() - lastTouchNanos) / 1_000_000L >= SPIN_RESUME_MS
+                ) {
+                    spinning = true
+                }
+                if (spinning && target != null && earthShowing && !currentSpinPaused) {
                     m.moveCamera(CameraUpdateFactory.newLatLng(LatLng(target.latitude, wrapLongitude(target.longitude + SPIN_DEG_PER_SEC * dt))))
                 }
             }
@@ -332,7 +400,12 @@ fun GlobeMapView(
     LaunchedEffect(map, camera?.id) {
         val m = map ?: return@LaunchedEffect
         val request = camera ?: return@LaunchedEffect
-        if (drive != null) spinning = request.resetSpin
+        if (drive != null) {
+            spinning = request.resetSpin
+            lastTouchNanos = System.nanoTime()
+            // A tapped pin hops and ripples first, then the camera flies down to it.
+            if (!request.resetSpin && !request.jump && !request.toStreet && selectedKey != null) delay(PIN_POP_DELAY_MS)
+        }
         if (request.toStreet) {
             returned = false
             leaned = false
@@ -375,7 +448,7 @@ private fun empty() = FeatureCollection.fromFeatures(emptyList<Feature>())
 private fun hex(color: Color): String = "#%06X".format(color.toArgb() and 0xFFFFFF)
 
 private fun installLayers(style: Style, palette: GlobePalette, density: Float) {
-    listOf(SRC_ARCS, SRC_PINS, SRC_TRAILS, SRC_LIVE, SRC_SEARCH).forEach { style.addSource(GeoJsonSource(it, empty())) }
+    listOf(SRC_ARCS, SRC_PINS, SRC_TRAILS, SRC_LIVE, SRC_SEARCH, SRC_SELECTED, SRC_PULSE).forEach { style.addSource(GeoJsonSource(it, empty())) }
 
     style.addLayer(
         LineLayer("gm-arcs-glow", SRC_ARCS).withProperties(
@@ -419,6 +492,18 @@ private fun installLayers(style: Style, palette: GlobePalette, density: Float) {
             PropertyFactory.circleStrokeWidth(2f),
         ),
     )
+    // Ripple under the tapped pin (animated from Kotlin, hidden until a pin is tapped).
+    style.addLayer(
+        CircleLayer(LAYER_PULSE, SRC_PULSE).withProperties(
+            PropertyFactory.circleColor(PIN_BURGUNDY_LIGHT),
+            PropertyFactory.circleRadius(10f),
+            PropertyFactory.circleOpacity(0f),
+            PropertyFactory.circleStrokeColor(PIN_BURGUNDY_LIGHT),
+            PropertyFactory.circleStrokeWidth(2.5f),
+            PropertyFactory.circleStrokeOpacity(0f),
+            PropertyFactory.circlePitchAlignment(Property.CIRCLE_PITCH_ALIGNMENT_MAP),
+        ),
+    )
     style.addLayer(
         SymbolLayer(LAYER_PINS, SRC_PINS).withProperties(
             PropertyFactory.iconImage(Expression.get("icon")),
@@ -426,6 +511,25 @@ private fun installLayers(style: Style, palette: GlobePalette, density: Float) {
             PropertyFactory.iconAllowOverlap(true),
             PropertyFactory.iconIgnorePlacement(true),
             PropertyFactory.iconSize(PIN_DP * density / PinArt.PIN_PX),
+            PropertyFactory.textField(Expression.get("label")),
+            PropertyFactory.textFont(arrayOf("Noto Sans Regular")),
+            PropertyFactory.textSize(12f),
+            PropertyFactory.textAnchor(Property.TEXT_ANCHOR_TOP),
+            PropertyFactory.textOffset(arrayOf(0f, 0.2f)),
+            PropertyFactory.textOptional(true),
+            PropertyFactory.textColor(palette.pinOutline),
+            PropertyFactory.textHaloColor(palette.labelHalo),
+            PropertyFactory.textHaloWidth(1.6f),
+        ),
+    )
+    // The tapped pin sits on its own layer, above the others, so it can pop without redrawing every pin.
+    style.addLayer(
+        SymbolLayer(LAYER_SELECTED, SRC_SELECTED).withProperties(
+            PropertyFactory.iconImage(Expression.get("icon")),
+            PropertyFactory.iconAnchor(Property.ICON_ANCHOR_BOTTOM),
+            PropertyFactory.iconAllowOverlap(true),
+            PropertyFactory.iconIgnorePlacement(true),
+            PropertyFactory.iconSize(PIN_DP * density / PinArt.PIN_PX * SELECTED_PIN_SCALE),
             PropertyFactory.textField(Expression.get("label")),
             PropertyFactory.textFont(arrayOf("Noto Sans Regular")),
             PropertyFactory.textSize(12f),
@@ -471,17 +575,22 @@ private fun drawOverlay(
     }
     style.getSourceAs<GeoJsonSource>(SRC_ARCS)?.setGeoJson(FeatureCollection.fromFeatures(arcs))
 
-    val pins = groups.map { g ->
+    fun pinFeature(g: CityGroup): Feature {
         val selected = g.key == selectedKey
         val icon = "pin-${g.emoji}-${g.count}-$selected"
         if (style.getImage(icon) == null) style.addImage(icon, art.pin(g.emoji, g.count, selected))
-        Feature.fromGeometry(Point.fromLngLat(g.lng, g.lat)).also {
+        return Feature.fromGeometry(Point.fromLngLat(g.lng, g.lat)).also {
             it.addStringProperty("key", g.key)
             it.addStringProperty("icon", icon)
             it.addStringProperty("label", g.city)
         }
     }
-    style.getSourceAs<GeoJsonSource>(SRC_PINS)?.setGeoJson(FeatureCollection.fromFeatures(pins))
+    val (chosen, others) = groups.partition { it.key == selectedKey }
+    style.getSourceAs<GeoJsonSource>(SRC_PINS)?.setGeoJson(FeatureCollection.fromFeatures(others.map(::pinFeature)))
+    style.getSourceAs<GeoJsonSource>(SRC_SELECTED)?.setGeoJson(FeatureCollection.fromFeatures(chosen.map(::pinFeature)))
+    style.getSourceAs<GeoJsonSource>(SRC_PULSE)?.setGeoJson(
+        FeatureCollection.fromFeatures(chosen.map { Feature.fromGeometry(Point.fromLngLat(it.lng, it.lat)) }),
+    )
 
     val trails = buildList {
         if (live.enabled && live.myTrail.size >= 2) add(Feature.fromGeometry(lineOf(live.myTrail)).also { it.addStringProperty("color", hex(palette.me)) })

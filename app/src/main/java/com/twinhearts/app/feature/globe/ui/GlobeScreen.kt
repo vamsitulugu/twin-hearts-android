@@ -15,6 +15,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -205,6 +207,8 @@ fun GlobeScreen(
                     onCameraArrived = vm::onCameraArrived,
                     onZoomChange = { mapZoom = it },
                     bottomPaddingPx = sheetPaddingPx,
+                    // The Earth keeps turning by itself, except while a pin is open.
+                    spinPaused = s.panels.isNotEmpty() || s.selectedKey != null,
                     drive = drive,
                 )
             }
@@ -379,7 +383,15 @@ fun GlobeScreen(
         val top = s.panels.lastOrNull()
         AnimatedContent(
             targetState = top,
-            transitionSpec = { (slideInVertically { it / 4 } + fadeIn()) togetherWith fadeOut() },
+            transitionSpec = {
+                if (targetState == null) {
+                    // Closing: the card slides down off the screen.
+                    fadeIn(tween(1)) togetherWith (slideOutVertically(tween(SHEET_SLIDE_MS, easing = FastOutSlowInEasing)) { it } + fadeOut(tween(SHEET_SLIDE_MS)))
+                } else {
+                    // Opening: the card slides up from the bottom edge.
+                    (slideInVertically(tween(SHEET_SLIDE_MS + 120, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(SHEET_SLIDE_MS))) togetherWith fadeOut(tween(160))
+                }
+            },
             label = "globe-panel",
             modifier = Modifier.fillMaxSize(),
         ) { panel ->
@@ -499,6 +511,7 @@ fun GlobeScreen(
 }
 
 private const val VOICE_NOTE_SECONDS = 30
+private const val SHEET_SLIDE_MS = 320
 
 /** A number with a caption, tappable: opens the stats page (like the web chips). */
 @Composable

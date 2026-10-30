@@ -2,6 +2,7 @@ package com.twinhearts.app.feature.globe.ui.globe
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RadialGradient
@@ -24,6 +25,11 @@ import kotlin.math.sin
  * Why this file exists: every colour of the globe, map and pins, built only from the app's design
  * tokens (R-50), plus the artwork of the heart pins drawn once and reused.
  */
+
+/** The memory pins are always this deep burgundy, so they stand out on blue oceans and satellite maps. */
+const val PIN_BURGUNDY = 0xFF8E1230.toInt()
+const val PIN_BURGUNDY_LIGHT = 0xFFC2334F.toInt()
+const val PIN_BURGUNDY_DARK = 0xFF5A0A20.toInt()
 
 @Immutable
 data class GlobePalette(
@@ -73,9 +79,9 @@ fun rememberGlobePalette(): GlobePalette {
             search = c.accent,
             label = c.ink.toArgb(),
             labelHalo = c.background.toArgb(),
-            pinBody = c.brand.toArgb(),
+            pinBody = PIN_BURGUNDY,
             pinOutline = c.ink.toArgb(),
-            pinBadgeText = c.brand.toArgb(),
+            pinBadgeText = PIN_BURGUNDY,
         )
     }
 }
@@ -117,50 +123,69 @@ class PinArt(private val palette: GlobePalette) {
         cv.drawCircle(0f, 0f, r * 0.9f, paint)
         cv.restore()
 
-        // Glow around the head (bigger when the pin is selected).
-        val glowR = r * if (selected) 2.0f else 1.6f
-        val glowColor = palette.pinBody
-        val glowAlpha = if (selected) 0x8C else 0x66
+        // Burgundy glow around the head (bigger when the pin is selected).
+        val glowR = r * if (selected) 2.1f else 1.55f
+        val glowAlpha = if (selected) 0x99 else 0x55
         paint.shader = RadialGradient(
             cx, headCy, glowR,
-            (glowAlpha shl 24) or (glowColor and 0x00FFFFFF), glowColor and 0x00FFFFFF, Shader.TileMode.CLAMP,
+            (glowAlpha shl 24) or (PIN_BURGUNDY_LIGHT and 0x00FFFFFF), PIN_BURGUNDY_LIGHT and 0x00FFFFFF, Shader.TileMode.CLAMP,
         )
         cv.drawCircle(cx, headCy, glowR, paint)
         paint.shader = null
 
-        // The teardrop.
+        // The classic map-location pin: a round head that narrows to a point.
         val body = Path()
         body.arcTo(RectF(cx - r, headCy - r, cx + r, headCy + r), 189f, 162f, true)
         body.quadTo(cx + r * 0.95f, headCy + r * 0.75f, cx, tipY)
         body.quadTo(cx - r * 0.95f, headCy + r * 0.75f, cx - r * cos(Math.toRadians(9.0)).toFloat(), headCy - r * sin(Math.toRadians(9.0)).toFloat())
         body.close()
         paint.style = Paint.Style.FILL
-        paint.color = palette.pinBody
+        paint.shader = LinearGradient(
+            cx - r, headCy - r, cx + r * 0.9f, tipY,
+            intArrayOf(PIN_BURGUNDY_LIGHT, PIN_BURGUNDY, PIN_BURGUNDY_DARK),
+            floatArrayOf(0f, 0.55f, 1f),
+            Shader.TileMode.CLAMP,
+        )
         cv.drawPath(body, paint)
+        paint.shader = null
         paint.style = Paint.Style.STROKE
-        paint.strokeWidth = 2.5f
-        paint.color = withAlpha(palette.pinOutline, OUTLINE_ALPHA)
+        paint.strokeWidth = 2.4f
+        paint.color = if (selected) 0xFFFFFFFF.toInt() else 0xE6FFFFFF.toInt()
         cv.drawPath(body, paint)
 
-        // The mood emoji on the head.
+        // A soft gloss on the upper left of the head.
+        paint.style = Paint.Style.FILL
+        paint.shader = RadialGradient(cx - r * 0.42f, headCy - r * 0.55f, r * 0.7f, 0x55FFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP)
+        cv.drawCircle(cx - r * 0.42f, headCy - r * 0.55f, r * 0.7f, paint)
+        paint.shader = null
+
+        // The cream hole of the pin, with the mood emoji (or a small heart) inside.
+        val holeR = r * 0.62f
+        paint.style = Paint.Style.FILL
+        paint.color = 0xFFFFF4F6.toInt()
+        cv.drawCircle(cx, headCy, holeR, paint)
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = 1.6f
+        paint.color = 0x55400A18
+        cv.drawCircle(cx, headCy, holeR, paint)
         val text = Paint(Paint.ANTI_ALIAS_FLAG)
         text.textAlign = Paint.Align.CENTER
-        text.textSize = r * 1.05f
+        text.textSize = holeR * 1.15f
         val fm = text.fontMetrics
-        cv.drawText(emoji, cx, headCy - (fm.ascent + fm.descent) / 2f, text)
+        cv.drawText(emoji.ifBlank { "\u2764\uFE0F" }, cx, headCy - (fm.ascent + fm.descent) / 2f, text)
 
         // Number badge when a city has more than one memory.
         if (count > 1) {
             val bx = cx + r * 0.78f
             val by = headCy - r * 0.85f
             paint.style = Paint.Style.FILL
-            paint.color = withAlpha(palette.pinOutline, BADGE_ALPHA)
+            paint.color = 0xFFFFFFFF.toInt()
             cv.drawCircle(bx, by, BADGE_R, paint)
             paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 1.5f
-            paint.color = palette.pinBody
+            paint.strokeWidth = 1.8f
+            paint.color = PIN_BURGUNDY
             cv.drawCircle(bx, by, BADGE_R, paint)
-            text.color = palette.pinBadgeText
+            text.color = PIN_BURGUNDY
             text.typeface = Typeface.DEFAULT_BOLD
             text.textSize = 13f
             val tm = text.fontMetrics

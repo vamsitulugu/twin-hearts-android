@@ -2,6 +2,9 @@ package com.twinhearts.app.feature.globe.ui.globe
 
 import android.graphics.Paint
 import android.graphics.Typeface
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -80,6 +83,8 @@ private const val CLUSTER_DP = 60f
 private const val PIN_DP = 52f
 private const val PIN_SELECTED_DP = 66f
 private const val CLUSTER_ICON_DP = 54f
+private const val POP_MS = 950
+private const val HOP_DP = 20f
 private const val LABEL_MIN_ZOOM = 2.4
 private const val MAX_FLING_DEG_PER_SEC = 240.0
 private const val FRICTION = 3.2
@@ -163,6 +168,16 @@ fun GlobeCanvas(
 
     var cam by remember { mutableStateOf(GlobeCamera.Default) }
     var autoRotate by remember { mutableStateOf(true) }
+    // 0 -> 1 right after a pin is tapped: the pin hops and a burgundy ripple spreads from its tip.
+    val pop = remember { Animatable(1f) }
+    LaunchedEffect(selectedKey) {
+        if (selectedKey != null && !reduceMotion) {
+            pop.snapTo(0f)
+            pop.animateTo(1f, tween(POP_MS, easing = LinearEasing))
+        } else {
+            pop.snapTo(1f)
+        }
+    }
     val anim = remember { GlobeAnim() }
     val currentPinTap by rememberUpdatedState(onPinTap)
     val currentArrived by rememberUpdatedState(onCameraArrived)
@@ -423,7 +438,7 @@ fun GlobeCanvas(
             }
         }
 
-        anim.hits = if (drive != null && drive.mapMix >= 0.5f) emptyList() else drawPins(groups, selectedKey, current, view, center, radius, art, palette, labelFill, labelHalo, density)
+        anim.hits = if (drive != null && drive.mapMix >= 0.5f) emptyList() else drawPins(groups, selectedKey, current, view, center, radius, art, palette, labelFill, labelHalo, density, pop.value)
     }
     }
 }
@@ -616,6 +631,7 @@ private fun DrawScope.drawPins(
     labelFill: Paint,
     labelHalo: Paint,
     density: Float,
+    pop: Float,
 ): List<Hit> {
     val v = Vec3()
     val visible = ArrayList<PinPoint>(groups.size)
@@ -649,9 +665,18 @@ private fun DrawScope.drawPins(
             val m = c.members[0]
             val g = byKey[m.key] ?: continue
             val selected = m.key == selectedKey
-            val size = (if (selected) PIN_SELECTED_DP else PIN_DP) * density
+            val popping = selected && pop < 1f
+            // Tapped pin: a damped hop (squash and stretch) plus a ripple ring on the ground.
+            val hop = if (popping) abs(sin(pop * 2.6f * PI.toFloat())) * (1f - pop) * HOP_DP * density else 0f
+            val stretch = if (popping) 1f + 0.16f * sin(pop * 2.6f * PI.toFloat()) * (1f - pop) else 1f
+            val size = (if (selected) PIN_SELECTED_DP else PIN_DP) * density * stretch
             val img = art.pinImage(g.emoji, g.count, selected)
-            val top = c.y - size * PinArt.TIP_FRACTION
+            if (popping) {
+                val ringR = (10f + 54f * pop) * density
+                drawCircle(Color(palette.pinBody).copy(alpha = (1f - pop) * 0.55f), ringR, Offset(c.x, c.y), style = Stroke(2.5f * density))
+                drawCircle(Color(palette.pinBody).copy(alpha = (1f - pop) * 0.18f), ringR * 0.7f, Offset(c.x, c.y))
+            }
+            val top = c.y - size * PinArt.TIP_FRACTION - hop
             drawImage(
                 image = img,
                 srcOffset = IntOffset.Zero,

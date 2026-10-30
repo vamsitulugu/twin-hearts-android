@@ -2,6 +2,32 @@
 
 package com.twinhearts.app.feature.globe.ui.components
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Velocity
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -57,8 +83,12 @@ import com.twinhearts.app.core.design.TwinTheme
  */
 
 /**
- * The sheet that slides over the globe: 82% of the height (half for trip details over the map) at the bottom on phones, a 400 dp
+ * The sheet that slides over the globe: half the height (82% for forms) at the bottom on phones, a 400 dp
  * side panel on wide screens (the web app does the same above 700 px).
+ *
+ * On phones it is a sliding card: drag the handle or the title up to open it almost full screen, drag it
+ * down to bring it back to half, drag it down again (or pull down while its content is at the top) and it
+ * slides away and closes. The close button and the system back gesture still work.
  */
 @Composable
 fun BoxScope.SheetFrame(
@@ -69,61 +99,144 @@ fun BoxScope.SheetFrame(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = TwinTheme.colors
-    // Half-height sheets (trip details over the map) grow to almost full height when the handle is tapped.
-    var expanded by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
-    val fraction by androidx.compose.animation.core.animateFloatAsState(
+    val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
+    val currentClose by rememberUpdatedState(onClose)
+    // Half-height sheets (trip details over the map) grow to almost full height when pulled up or tapped.
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val fraction by animateFloatAsState(
         if (expanded) SHEET_EXPANDED_FRACTION else heightFraction,
         label = "sheet-height",
     )
+    // How far the card has been dragged down, in px. 0 = resting place.
+    val drag = remember { Animatable(0f) }
+    var sheetHeightPx by remember { mutableIntStateOf(0) }
+    var upTravel by remember { mutableFloatStateOf(0f) }
+    val upThresholdPx = with(density) { PULL_UP_DP.dp.toPx() }
+
+    // Let go of the card: collapse, slide away, or spring back, depending on how far and how fast.
+    val settle: suspend (Float) -> Unit = settle@{ velocity ->
+        val h = sheetHeightPx.toFloat().coerceAtLeast(1f)
+        val strong = drag.value > h * 0.5f || velocity > 2600f
+        val medium = drag.value > h * 0.18f || velocity > 900f
+        when {
+            expanded && medium && !strong -> {
+                expanded = false
+                drag.animateTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
+            }
+            (!expanded && (drag.value > h * 0.28f || velocity > 1500f)) || strong -> {
+                drag.animateTo(h, tween(SLIDE_AWAY_MS))
+                currentClose()
+            }
+            else -> drag.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow))
+        }
+    }
+    val dragState = rememberDraggableState { delta ->
+        if (!wide) {
+            if (delta < 0f && drag.value <= 0f) {
+                upTravel += -delta
+                if (!expanded && upTravel > upThresholdPx) {
+                    expanded = true
+                    upTravel = 0f
+                }
+            } else {
+                scope.launch(start = CoroutineStart.UNDISPATCHED) { drag.snapTo((drag.value + delta).coerceAtLeast(0f)) }
+            }
+        }
+    }
+    // Pulling the content down while it is already at the top drags the whole card down.
+    val nested = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (wide || available.y >= 0f || drag.value <= 0f) return Offset.Zero
+                val target = (drag.value + available.y).coerceAtLeast(0f)
+                val used = target - drag.value
+                scope.launch(start = CoroutineStart.UNDISPATCHED) { drag.snapTo(target) }
+                return Offset(0f, used)
+            }
+
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (wide || available.y <= 0f) return Offset.Zero
+                scope.launch(start = CoroutineStart.UNDISPATCHED) { drag.snapTo(drag.value + available.y) }
+                return Offset(0f, available.y)
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (wide || drag.value <= 0f) return Velocity.Zero
+                settle(available.y)
+                return available
+            }
+        }
+    }
+
     val shape = if (wide) RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp) else RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
     Column(
         modifier = Modifier
             .align(if (wide) Alignment.CenterEnd else Alignment.BottomCenter)
             .then(if (wide) Modifier.fillMaxHeight().width(400.dp) else Modifier.fillMaxWidth().fillMaxHeight(fraction))
+            .onSizeChanged { sheetHeightPx = it.height }
+            .graphicsLayer { translationY = drag.value }
+            .shadow(if (wide) 0.dp else 14.dp, shape, clip = false)
             .clip(shape)
             .background(colors.card.copy(alpha = 0.97f))
             .border(1.dp, colors.line, shape)
             .windowInsetsPadding(WindowInsets.navigationBars)
-            .imePadding(),
+            .imePadding()
+            .nestedScroll(nested),
     ) {
-        if (!wide) {
-            Box(
-                modifier = Modifier
-                    .padding(top = 10.dp)
-                    .align(Alignment.CenterHorizontally)
-                    .clip(CircleShape)
-                    .clickable { expanded = !expanded }
-                    .padding(vertical = 8.dp)
-                    .size(width = 40.dp, height = 4.dp)
-                    .background(colors.line, CircleShape),
-            )
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = TwinTheme.spacing.l, end = TwinTheme.spacing.s, top = TwinTheme.spacing.s),
-            verticalAlignment = Alignment.CenterVertically,
+        // The grab area: handle + title. Drag it to slide the card.
+        Column(
+            modifier = Modifier.draggable(
+                state = dragState,
+                orientation = Orientation.Vertical,
+                onDragStopped = { velocity ->
+                    upTravel = 0f
+                    settle(velocity)
+                },
+            ),
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                fontFamily = SerifFamily,
-                color = colors.ink,
-                modifier = Modifier.weight(1f),
-            )
-            Box(
+            if (!wide) {
+                Box(
+                    modifier = Modifier
+                        .padding(top = 10.dp)
+                        .align(Alignment.CenterHorizontally)
+                        .clip(CircleShape)
+                        .clickable { expanded = !expanded }
+                        .padding(vertical = 8.dp)
+                        .size(width = 44.dp, height = 5.dp)
+                        .background(colors.line, CircleShape),
+                )
+            }
+            Row(
                 modifier = Modifier
-                    .size(TwinTheme.shapes.minTouch)
-                    .clip(CircleShape)
-                    .clickable(role = Role.Button, onClick = onClose),
-                contentAlignment = Alignment.Center,
+                    .fillMaxWidth()
+                    .padding(start = TwinTheme.spacing.l, end = TwinTheme.spacing.s, top = TwinTheme.spacing.s),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.globe_close), tint = colors.inkMuted)
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontFamily = SerifFamily,
+                    color = colors.ink,
+                    modifier = Modifier.weight(1f),
+                )
+                Box(
+                    modifier = Modifier
+                        .size(TwinTheme.shapes.minTouch)
+                        .clip(CircleShape)
+                        .clickable(role = Role.Button, onClick = onClose),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.globe_close), tint = colors.inkMuted)
+                }
             }
         }
         content()
     }
 }
+
+private const val PULL_UP_DP = 36
+private const val SLIDE_AWAY_MS = 220
 
 /** A compact pill for card actions ("View", "Edit", "Delete"). The core buttons are 52 dp tall, too big here. */
 @Composable
