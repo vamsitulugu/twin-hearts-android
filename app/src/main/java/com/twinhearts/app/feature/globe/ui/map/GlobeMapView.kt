@@ -25,7 +25,11 @@ import com.twinhearts.app.feature.globe.domain.model.CityGroup
 import com.twinhearts.app.feature.globe.domain.model.GeoPoint
 import com.twinhearts.app.feature.globe.ui.CameraRequest
 import com.twinhearts.app.feature.globe.ui.LiveUi
+import com.twinhearts.app.feature.globe.domain.GlobeCamera
+import com.twinhearts.app.feature.globe.domain.wrapLongitude
 import com.twinhearts.app.feature.globe.ui.globe.GlobePalette
+import com.twinhearts.app.feature.globe.ui.globe.MapDrive
+import com.twinhearts.app.feature.globe.ui.globe.globeZoomForMap
 import com.twinhearts.app.feature.globe.ui.globe.PinArt
 import com.twinhearts.app.feature.globe.ui.globe.PIN_HANDOFF_GLOBE_ZOOM
 import com.twinhearts.app.feature.globe.ui.globe.STREET_HANDOFF_ZOOM
@@ -74,6 +78,16 @@ private const val WORLD_LNG = 0.0
 private const val WORLD_ZOOM = 1.8
 private const val SINGLE_PIN_ZOOM = 5.0
 private const val PIN_DP = 52f
+/** Where the 3D Earth hands over to the satellite map, as one smooth cross-fade while the fingers keep moving. */
+private const val MIX_LOW = 2.0
+private const val MIX_HIGH = 3.2
+private const val MIN_ZOOM_GLOBE = 0.9
+private const val GLOBE_START_ZOOM = 1.1
+private const val ROTATE_FROM_ZOOM = 3.2
+private const val TILT_GESTURE_FROM_ZOOM = 2.8
+private const val MAX_TILT = 60.0
+private const val SPIN_DEG_PER_SEC = 4.1
+private const val FAR_FLIGHT_MS = 2800
 private const val SRC_ARCS = "gm-arcs"
 private const val SRC_PINS = "gm-pins"
 private const val SRC_TRAILS = "gm-trails"
@@ -97,6 +111,7 @@ fun GlobeMapView(
     onReady: () -> Unit = {},
     bottomPaddingPx: Int = 0,
     onReturnToGlobe: ((lat: Double, lng: Double, globeZoom: Double) -> Unit)? = null,
+    drive: MapDrive? = null,
 ) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -118,10 +133,27 @@ fun GlobeMapView(
     val currentReady by rememberUpdatedState(onReady)
     val currentReturn by rememberUpdatedState(onReturnToGlobe)
     var returned by remember { mutableStateOf(false) }
+    var spinning by remember { mutableStateOf(drive != null) }
     var leaned by remember { mutableStateOf(false) }
     // Map zoom (and the globe zoom it stands for) at the moment the map took over from the globe.
     var entryMapZoom by remember { mutableStateOf<Double?>(null) }
     var entryGlobeZoom by remember { mutableStateOf(STREET_HANDOFF_ZOOM) }
+
+    // Keep the 3D Earth under the map in step with the map camera, and cross-fade the map in as you zoom.
+    fun syncDrive(m: MapLibreMap) {
+        val d = drive ?: return
+        val w = mapView.width.toFloat()
+        val h = mapView.height.toFloat()
+        if (w <= 0f || h <= 0f) return
+        val pos = m.cameraPosition
+        val target = pos.target ?: return
+        val t = ((pos.zoom - MIX_LOW) / (MIX_HIGH - MIX_LOW)).coerceIn(0.0, 1.0).toFloat()
+        val mix = t * t * (3f - 2f * t)
+        d.cam = GlobeCamera(target.latitude, wrapLongitude(target.longitude), globeZoomForMap(pos.zoom, density.toDouble(), w, h)).normalized()
+        d.mapMix = mix
+        // Never exactly 0: a view with zero alpha is not drawn at all, so it could not keep its picture ready.
+        mapView.alpha = maxOf(mix, 0.004f)
+    }
 
     // Forward the screen lifecycle to the MapView. Without this MapLibre leaks memory and stops drawing.
     DisposableEffect(lifecycle, mapView) {
@@ -149,9 +181,28 @@ fun GlobeMapView(
         mapView.getMapAsync { m ->
             map = m
             m.uiSettings.isCompassEnabled = true
-            m.cameraPosition = CameraPosition.Builder().target(LatLng(WORLD_LAT, WORLD_LNG)).zoom(WORLD_ZOOM).build()
+            m.cameraPosition = CameraPosition.Builder().target(LatLng(WORLD_LAT, WORLD_LNG)).zoom(if (drive != null) GLOBE_START_ZOOM else WORLD_ZOOM).build()
+            if (drive != null) {
+                m.setMinZoomPreference(MIN_ZOOM_GLOBE)
+                m.uiSettings.isRotateGesturesEnabled = false
+                m.uiSettings.isTiltGesturesEnabled = false
+                drive.flyTo = { lat, lng, zoom ->
+                    spinning = false
+                    m.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(lat, lng), zoom), ANIM_MS)
+                }
+                // The first finger on the map stops the idle spin.
+                m.addOnCameraMoveStartedListener { reason ->
+                    if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) spinning = false
+                }
+                mapView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> syncDrive(m) }
+                syncDrive(m)
+            }
             m.addOnMapClickListener { latLng ->
                 val screen: PointF = m.projection.toScreenLocation(latLng)
+                // While the Earth is what you see, the Earth's own pins answer the tap.
+                if (drive != null && drive.mapMix < 0.5f) {
+                    return@addOnMapClickListener drive.tap?.invoke(screen.x, screen.y) ?: false
+                }
                 val hit = m.queryRenderedFeatures(screen, LAYER_PINS).firstOrNull()
                 val key = hit?.getStringProperty("key")
                 if (key != null) {
@@ -164,6 +215,24 @@ fun GlobeMapView(
             m.addOnCameraIdleListener { currentZoom(m.cameraPosition.zoom) }
             // Zoomed back out far enough: give the screen back to the 3D globe, same spot and scale.
             m.addOnCameraMoveListener {
+                if (drive != null) {
+                    val pos = m.cameraPosition
+                    val zz = pos.zoom
+                    // Tilt and rotate only exist once the map is showing; zooming out smoothly flattens and straightens it.
+                    m.uiSettings.isRotateGesturesEnabled = zz >= ROTATE_FROM_ZOOM
+                    m.uiSettings.isTiltGesturesEnabled = zz >= TILT_GESTURE_FROM_ZOOM
+                    val maxTilt = ((zz - TILT_GESTURE_FROM_ZOOM) / 2.0).coerceIn(0.0, 1.0) * MAX_TILT
+                    val needTilt = pos.tilt > maxTilt + 0.5
+                    val needBearing = zz < ROTATE_FROM_ZOOM && Math.abs(pos.bearing) > 0.5
+                    if (needTilt || needBearing) {
+                        val fixed = CameraPosition.Builder(pos)
+                            .tilt(if (needTilt) maxTilt else pos.tilt)
+                            .bearing(if (needBearing) pos.bearing * 0.8 else pos.bearing)
+                            .build()
+                        m.moveCamera(CameraUpdateFactory.newCameraPosition(fixed))
+                    }
+                    syncDrive(m)
+                }
                 // Zoomed in to city level by pinching: lean the camera over so the 3D buildings stand up.
                 val z = m.cameraPosition.zoom
                 if (z >= AUTO_TILT_ZOOM && !leaned && m.cameraPosition.tilt < 5.0) {
@@ -223,9 +292,28 @@ fun GlobeMapView(
         drawOverlay(loaded, art, palette, groups, legs, roads, selectedKey, live, searchPin)
     }
 
+    // The slow idle spin of the Earth (the web globe turns too) until the first touch.
+    LaunchedEffect(map, drive != null) {
+        val m = map ?: return@LaunchedEffect
+        if (drive == null) return@LaunchedEffect
+        var last = 0L
+        while (true) {
+            androidx.compose.runtime.withFrameNanos { now ->
+                val dt = if (last == 0L) 0.0 else ((now - last) / 1_000_000_000.0).coerceAtMost(0.05)
+                last = now
+                val pos = m.cameraPosition
+                val target = pos.target
+                if (spinning && target != null && pos.zoom < MIX_LOW) {
+                    m.moveCamera(CameraUpdateFactory.newLatLng(LatLng(target.latitude, wrapLongitude(target.longitude + SPIN_DEG_PER_SEC * dt))))
+                }
+            }
+        }
+    }
+
     // First time with pins: show them all, like a good map should.
     LaunchedEffect(map, groups.isNotEmpty()) {
         val m = map ?: return@LaunchedEffect
+        if (drive != null) return@LaunchedEffect // the globe starts as the whole world, like the web app
         if (fitted || groups.isEmpty() || camera?.jump == true) return@LaunchedEffect
         fitted = true
         if (groups.size == 1) {
@@ -244,6 +332,7 @@ fun GlobeMapView(
     LaunchedEffect(map, camera?.id) {
         val m = map ?: return@LaunchedEffect
         val request = camera ?: return@LaunchedEffect
+        if (drive != null) spinning = request.resetSpin
         if (request.toStreet) {
             returned = false
             leaned = false
@@ -262,7 +351,7 @@ fun GlobeMapView(
             currentArrived(request.id)
             return@LaunchedEffect
         }
-        if (request.fromGlobe && mapView.width > 0) {
+        if (drive == null && request.fromGlobe && mapView.width > 0) {
             // Start exactly where the globe was, then zoom down to the city: the "fly into the city" animation.
             val r = ballRadius(mapView.width.toFloat(), mapView.height.toFloat(), PIN_HANDOFF_GLOBE_ZOOM).toDouble()
             val start = CameraPosition.Builder().target(LatLng(request.lat, request.lng)).zoom(mapZoomFor(r, density.toDouble())).tilt(0.0).build()
@@ -270,7 +359,7 @@ fun GlobeMapView(
         }
         m.animateCamera(
             CameraUpdateFactory.newCameraPosition(position),
-            if (request.fromGlobe) CITY_ZOOM_MS else ANIM_MS,
+            if (drive != null) (if (Math.abs(request.mapZoom - m.cameraPosition.zoom) > 5.0) FAR_FLIGHT_MS else ANIM_MS) else if (request.fromGlobe) CITY_ZOOM_MS else ANIM_MS,
             object : MapLibreMap.CancelableCallback {
                 override fun onFinish() = currentArrived(request.id)
                 override fun onCancel() = Unit

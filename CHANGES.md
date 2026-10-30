@@ -32,3 +32,9 @@ Calendar/Money/Study keep their offline copy, Vault delete no longer empties the
 * Push notifications (FCM): needs your own Firebase project + `google-services.json`; separate feature.
 * Not compiled or run here (no Android SDK / live server) — build in Android Studio and run the unit tests first.
 * Media upload still buffers in memory (150 MB cap); on Render's free tier keep videos small.
+
+## Globe: one continuous camera (native, no WebView)
+- Globe tab: the satellite map (MapLibre) now takes every finger from space to street level; the 3D Earth under it follows the map camera and cross-fades into satellite imagery between map zoom 2.0 and 3.2. No more hand-over where you had to lift your fingers.
+- Two-finger tilt and rotate switch on once the map shows (3D buildings stand up); zooming out flattens and straightens the map smoothly.
+- Idle spin of the Earth until the first touch; tapping a pin on the Earth flies there, then opens its sheet.
+- Files: GlobeCanvas.kt (MapDrive), GlobeMapView.kt, GlobeScreen.kt, GlobeViewModel.kt.

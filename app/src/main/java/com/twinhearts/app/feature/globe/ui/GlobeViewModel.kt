@@ -226,6 +226,9 @@ class GlobeViewModel @Inject constructor(
     }
 
     /** Real road routes for short legs, fetched one by one and remembered (the web app did the same). */
+    /** Real road lines for short trip legs; the Globe tab now shows the same map, so it needs them too. */
+    fun ensureRoads() = loadRoads()
+
     private fun loadRoads() {
         roadJob?.cancel()
         val legs = _state.value.legs.filter { it.driveable }
@@ -282,16 +285,10 @@ class GlobeViewModel @Inject constructor(
     fun onPinTap(key: String) {
         val group = _state.value.group(key) ?: return
         _state.update { it.copy(selectedKey = key) }
-        if (_state.value.view == GlobeViewMode.Globe && !_state.value.street) {
-            // Step 1: the globe turns to the city and closes in. Step 2 (onCameraArrived): the satellite 3D map
-            // takes over and zooms down to street level. Step 3: the trip sheet opens over the map.
-            pendingZoomIn = fly(group.lat, group.lng, PIN_HANDOFF_GLOBE_ZOOM, PIN_MAP_ZOOM) to key
-            pendingOpen = null
-        } else {
-            pendingZoomIn = null
-            val id = fly(group.lat, group.lng, PIN_GLOBE_ZOOM, PIN_MAP_ZOOM)
-            pendingOpen = id to key
-        }
+        // One smooth flight (the map camera is the only camera now), then the sheet opens when it arrives.
+        pendingZoomIn = null
+        val id = fly(group.lat, group.lng, PIN_GLOBE_ZOOM, PIN_MAP_ZOOM)
+        pendingOpen = id to key
     }
 
     /** What opens over the map: the trip itself when the city has one memory, else the city's list. */

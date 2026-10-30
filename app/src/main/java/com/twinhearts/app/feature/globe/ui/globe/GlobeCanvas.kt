@@ -93,6 +93,23 @@ internal const val RETURN_TO_GLOBE_ZOOM = 2.3
 /** Globe zoom a tapped pin flies to before the satellite map takes over and zooms down to the city. */
 internal const val PIN_HANDOFF_GLOBE_ZOOM = 2.7
 
+/**
+ * Links the 3D Earth to the satellite map. The map owns every finger (pinch, drag, tilt, rotate) from
+ * space down to street level; it writes its camera here, and the Earth below follows it, so the zoom
+ * is one continuous movement with no hand-over. [mapMix] is 0 when only the Earth shows and 1 when
+ * only the map shows.
+ */
+class MapDrive {
+    var cam by mutableStateOf(GlobeCamera.Default)
+    var mapMix by mutableStateOf(0f)
+
+    /** Set by the map: fly the camera to a place (lat, lng, mapZoom). */
+    var flyTo: ((Double, Double, Double) -> Unit)? = null
+
+    /** Set by the globe: a tap at a screen point; true when it hit a pin. */
+    var tap: ((Float, Float) -> Boolean)? = null
+}
+
 /** Things that change every frame but must not cause a new composition. */
 private class GlobeAnim {
     var flight: Flight? = null
@@ -127,6 +144,7 @@ fun GlobeCanvas(
     onCameraArrived: (Long) -> Unit,
     onStreetLevel: (lat: Double, lng: Double, mapZoom: Double) -> Unit,
     modifier: Modifier = Modifier,
+    drive: MapDrive? = null,
 ) {
     val context = LocalContext.current
     val earth = remember { EarthGlState() }
@@ -148,6 +166,29 @@ fun GlobeCanvas(
     val anim = remember { GlobeAnim() }
     val currentPinTap by rememberUpdatedState(onPinTap)
     val currentArrived by rememberUpdatedState(onCameraArrived)
+    val currentGroups by rememberUpdatedState(groups)
+    // When the map drives the camera, it forwards taps here and we answer with the pin that was hit.
+    if (drive != null) {
+        androidx.compose.runtime.SideEffect {
+            drive.tap = tap@{ x, y ->
+                val hit = anim.hits.minByOrNull { hypot(it.x - x, it.y - y) } ?: return@tap false
+                if (hypot(hit.x - x, hit.y - y) > HIT_DP * density) return@tap false
+                val key = hit.key
+                val cluster = hit.cluster
+                if (key != null) {
+                    currentPinTap(key)
+                    true
+                } else if (cluster != null) {
+                    val members = cluster.members.mapNotNull { m -> currentGroups.firstOrNull { it.key == m.key } }
+                    if (members.isEmpty()) return@tap false
+                    drive.flyTo?.invoke(members.map { it.lat }.average(), members.map { it.lng }.average(), 5.0)
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+    }
 
     val stars = remember {
         val rnd = kotlin.random.Random(STAR_SEED)
@@ -173,6 +214,7 @@ fun GlobeCanvas(
 
     // A request to fly somewhere (a tapped pin, a search result, "Reset view").
     LaunchedEffect(camera?.id) {
+        if (drive != null) return@LaunchedEffect // the map answers every camera request
         val request = camera ?: return@LaunchedEffect
         // The satellite map answers this one (it clears the request when it has moved there).
         if (request.toStreet) return@LaunchedEffect
@@ -199,6 +241,7 @@ fun GlobeCanvas(
 
     // One loop drives flights, inertia and the slow idle spin.
     LaunchedEffect(Unit) {
+        if (drive != null) return@LaunchedEffect // the map moves the camera
         var last = 0L
         while (true) {
             androidx.compose.runtime.withFrameNanos { now ->
@@ -236,7 +279,7 @@ fun GlobeCanvas(
         modifier = Modifier
             .fillMaxSize()
             .semantics { contentDescription = describe }
-            .pointerInput(groups) {
+            .then(if (drive != null) Modifier else Modifier.pointerInput(groups) {
                 val tracker = VelocityTracker()
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
@@ -306,12 +349,17 @@ fun GlobeCanvas(
                         anim.vLat = (v.y / r * RAD_TO_DEG).coerceIn(-MAX_FLING_DEG_PER_SEC, MAX_FLING_DEG_PER_SEC)
                     }
                 }
-            },
+            }),
     ) {
         val w = size.width
         val h = size.height
-        val center = Offset(w / 2f, h * CENTER_Y)
-        val current = cam
+        val center = Offset(w / 2f, h * (if (drive != null) 0.5f else CENTER_Y))
+        val current = drive?.cam ?: cam
+        // The map fully covers the Earth: draw nothing (saves the battery while zoomed in).
+        if (drive != null && drive.mapMix >= 0.98f) {
+            anim.hits = emptyList()
+            return@Canvas
+        }
         val radius = ballRadius(w, h, current.zoom)
         val view = GlobeView(current.lat, current.lon)
 
@@ -375,7 +423,7 @@ fun GlobeCanvas(
             }
         }
 
-        anim.hits = drawPins(groups, selectedKey, current, view, center, radius, art, palette, labelFill, labelHalo, density)
+        anim.hits = if (drive != null && drive.mapMix >= 0.5f) emptyList() else drawPins(groups, selectedKey, current, view, center, radius, art, palette, labelFill, labelHalo, density)
     }
     }
 }

@@ -94,6 +94,7 @@ import com.twinhearts.app.feature.globe.ui.components.MediaViewer
 import com.twinhearts.app.feature.globe.ui.components.rememberMediaPickers
 import com.twinhearts.app.feature.globe.ui.components.rememberVoiceControl
 import com.twinhearts.app.feature.globe.ui.globe.GlobeCanvas
+import com.twinhearts.app.feature.globe.ui.globe.MapDrive
 import com.twinhearts.app.feature.globe.ui.map.GlobeMapView
 import com.twinhearts.app.feature.globe.ui.map.STREET_LEVEL_ZOOM
 import com.twinhearts.app.feature.globe.ui.panels.CityPanel
@@ -174,6 +175,10 @@ fun GlobeScreen(
         // ── the three views ──────────────────────────────────────────────────────────────────
         when (s.view) {
             GlobeViewMode.Globe -> {
+                // One camera from space to street: the satellite map takes every finger (pinch, drag, tilt,
+                // rotate) and the 3D Earth under it follows and fades into the satellite picture.
+                val drive = remember { MapDrive() }
+                LaunchedEffect(Unit) { vm.ensureRoads() }
                 GlobeCanvas(
                     groups = s.groups,
                     legs = s.legs,
@@ -185,35 +190,23 @@ fun GlobeScreen(
                     camera = s.camera,
                     onPinTap = vm::onPinTap,
                     onCameraArrived = vm::onCameraArrived,
-                    onStreetLevel = vm::enterStreetLevel,
+                    onStreetLevel = { _, _, _ -> },
+                    drive = drive,
                 )
-                // Zoomed in close: the real satellite + 3D buildings map fades in on the same tab,
-                // so the globe feels like one continuous zoom (the web app's Cesium street level).
-                if (s.street) {
-                    var mapReady by remember { mutableStateOf(false) }
-                    // The map covers the globe, so never leave it blank: give up politely if it does not appear.
-                    LaunchedEffect(Unit) {
-                        delay(SATELLITE_TIMEOUT_MS)
-                        if (!mapReady) vm.satelliteUnavailable()
-                    }
-                    val fade by animateFloatAsState(if (mapReady) 1f else 0f, tween(SATELLITE_FADE_MS), label = "satelliteFade")
-                    GlobeMapView(
-                        groups = s.groups,
-                        legs = s.legs,
-                        roads = s.roads,
-                        selectedKey = s.selectedKey,
-                        live = s.live,
-                        searchPin = s.searchPin,
-                        camera = s.camera,
-                        onPinTap = vm::onPinTap,
-                        onCameraArrived = vm::onCameraArrived,
-                        onZoomChange = { mapZoom = it },
-                        modifier = Modifier.graphicsLayer { alpha = fade },
-                        onReady = { mapReady = true },
-                        onReturnToGlobe = vm::exitStreetLevel,
-                        bottomPaddingPx = sheetPaddingPx,
-                    )
-                }
+                GlobeMapView(
+                    groups = s.groups,
+                    legs = s.legs,
+                    roads = s.roads,
+                    selectedKey = s.selectedKey,
+                    live = s.live,
+                    searchPin = s.searchPin,
+                    camera = s.camera,
+                    onPinTap = vm::onPinTap,
+                    onCameraArrived = vm::onCameraArrived,
+                    onZoomChange = { mapZoom = it },
+                    bottomPaddingPx = sheetPaddingPx,
+                    drive = drive,
+                )
             }
             GlobeViewMode.Map -> GlobeMapView(
                 groups = s.groups,
@@ -335,7 +328,7 @@ fun GlobeScreen(
         if (s.live.enabled && s.view != GlobeViewMode.Timeline) {
             LiveInfo(s.live, s.partnerName, Modifier.align(Alignment.TopStart).padding(top = topPad + TwinTheme.spacing.s, start = TwinTheme.spacing.m))
         }
-        if ((s.view == GlobeViewMode.Map || s.street) && mapZoom >= STREET_LEVEL_ZOOM) {
+        if (s.view != GlobeViewMode.Timeline && mapZoom >= STREET_LEVEL_ZOOM) {
             Text(
                 text = stringResource(R.string.globe_street_badge),
                 style = MaterialTheme.typography.labelMedium,
