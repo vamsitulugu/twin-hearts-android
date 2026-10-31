@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pro page (web: public/pro.html). Prices are shown with the ₹ sign from the plan enum. -->
+<resources>
+    <string name="pro_title">Twin Hearts Pro</string>
+    <string name="pro_headline">Go Pro together</string>
+    <string name="pro_unlock_feature">Unlock %1$s</string>
+    <string name="pro_sub">One payment unlocks Pro for you and your partner. Everything else stays free.</string>
+    <string name="pro_choose">Choose your plan</string>
+
+    <string name="pro_plan_monthly">Monthly</string>
+    <string name="pro_plan_monthly_d">30 days · one-time payment, no auto-renew</string>
+    <string name="pro_plan_yearly">Yearly</string>
+    <string name="pro_plan_yearly_d">365 days · save 58% vs monthly</string>
+    <string name="pro_plan_lifetime">Lifetime</string>
+    <string name="pro_plan_lifetime_d">Pay once, keep Pro forever</string>
+    <string name="pro_badge_popular">Popular</string>
+    <string name="pro_badge_best">Best value</string>
+
+    <string name="pro_btn_pay">Pay ₹%1$d securely</string>
+    <string name="pro_btn_extend">Extend Pro · ₹%1$d</string>
+    <string name="pro_have_lifetime">You have Lifetime Pro</string>
+    <string name="pro_secure">Secured by Razorpay · UPI, cards, netbanking and wallets. Nothing renews automatically.</string>
+
+    <string name="pro_status_on">Pro is active for you both</string>
+    <string name="pro_status_off">You are on the free plan</string>
+    <string name="pro_status_off_d">Pick a plan below to unlock Pro.</string>
+    <string name="pro_status_lifetime">Lifetime · never expires</string>
+    <string name="pro_status_until">Active until %1$s</string>
+
+    <string name="pro_unlocks">What Pro unlocks</string>
+    <string name="pro_f_both">Twin AI · Both mode</string>
+    <string name="pro_f_both_d">Answer separately and get one shared result.</string>
+    <string name="pro_f_globe">Memory Globe · Pin a memory</string>
+    <string name="pro_f_globe_d">Pin trips, dates and moments on your shared globe.</string>
+    <string name="pro_f_music">Music · Add songs</string>
+    <string name="pro_f_music_d">Build your own shared library and playlists.</string>
+    <string name="pro_f_movie">Watch Together · Cloud upload</string>
+    <string name="pro_f_movie_d">Upload a movie once and stream it in sync.</string>
+    <string name="pro_free_note">Chat, calls, Live Map, Vault, Calendar and the rest stay free. Your memories, songs and movies are never deleted if Pro ends.</string>
+
+    <string name="pro_history">Payment history</string>
+    <string name="pro_toast_welcome">You\'re Pro! Thank you 💎</string>
+    <string name="pro_err_open">Could not open the payment window. Please try again.</string>
+    <string name="pro_err_verify">Payment received, but confirming it took too long. It will activate shortly. Pull down or reopen this page to check.</string>
+
+    <string name="side_group_pro">Pro</string>
+    <string name="side_pro">Twin Hearts Pro</string>
+</resources>

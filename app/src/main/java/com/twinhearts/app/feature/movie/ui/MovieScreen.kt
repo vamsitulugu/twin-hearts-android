@@ -35,6 +35,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.twinhearts.app.R
+import com.twinhearts.app.core.pro.rememberProGate
 import com.twinhearts.app.core.common.UiState
 import com.twinhearts.app.core.common.asText
 import com.twinhearts.app.core.design.ErrorState
@@ -71,6 +72,8 @@ private fun MovieScreenContent(
     val state by watchVm.state.collectAsStateWithLifecycle()
     val upload by watchVm.upload.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val proGate = rememberProGate()
+    val proFeature = stringResource(R.string.pro_f_movie)
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var showHistory by rememberSaveable { mutableStateOf(false) }
     var tab by rememberSaveable { mutableIntStateOf(0) }
@@ -149,7 +152,7 @@ private fun MovieScreenContent(
                         onLoadCloud = watchVm::loadCloud,
                         onPickLocal = { uri, title, sec -> changing = false; watchVm.pickLocalMovie(uri, title, sec) },
                         onPickShared = { movie -> changing = false; watchVm.pickSharedMovie(movie) },
-                        onUpload = watchVm::uploadMovie,
+                        onUpload = { video -> proGate.require(proFeature) { watchVm.uploadMovie(video) } },
                         onCancelUpload = watchVm::cancelUpload,
                         onDismissUpload = watchVm::dismissUpload,
                         onDeleteShared = watchVm::deleteShared,

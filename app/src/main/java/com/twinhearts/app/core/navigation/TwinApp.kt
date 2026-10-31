@@ -38,6 +38,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.twinhearts.app.R
+import com.twinhearts.app.core.pro.rememberProGate
 import com.twinhearts.app.feature.calls.ui.CallBannerHost
 import com.twinhearts.app.feature.calls.ui.IncomingCallWatcher
 import com.twinhearts.app.core.design.BottomBarItem
@@ -84,6 +85,14 @@ private fun TwinNavigation(startDestination: Any, session: com.twinhearts.app.co
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val openSidebar: () -> Unit = remember(drawerState) { { scope.launch { drawerState.open() } } }
+
+    // A free couple tapped a Pro feature anywhere in the app: open the Pro page for it.
+    val proGate = rememberProGate()
+    LaunchedEffect(proGate) {
+        proGate.paywall.collect { feature ->
+            navController.navigate(Routes.Pro(feature)) { launchSingleTop = true }
+        }
+    }
 
     // A call from my partner opens the call page on any screen (the app must be open).
     IncomingCallWatcher(

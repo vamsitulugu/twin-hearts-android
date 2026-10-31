@@ -101,6 +101,7 @@ dependencies {
     implementation(libs.androidx.media3.ui)
     implementation(libs.maplibre.android)
     implementation(libs.stream.webrtc)
+    implementation(libs.razorpay.checkout)
 
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

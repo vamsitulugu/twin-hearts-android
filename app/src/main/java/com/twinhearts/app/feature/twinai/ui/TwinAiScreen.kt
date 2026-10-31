@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.twinai.ui
 
+import com.twinhearts.app.core.pro.rememberProGate
 import com.twinhearts.app.core.design.twinPage
 import android.widget.Toast
 import com.twinhearts.app.feature.twinai.ui.components.rememberVoiceController
@@ -72,6 +73,7 @@ fun TwinAiScreen(
     bothViewModel: BothViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
+    val proGate = rememberProGate()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val both by bothViewModel.state.collectAsStateWithLifecycle()
 
@@ -212,7 +214,12 @@ fun TwinAiScreen(
             TwinModeTabs(
                 options = listOf(stringResource(R.string.twinai_tab_you), stringResource(R.string.twinai_tab_both)),
                 selectedIndex = state.tab.ordinal,
-                onSelect = { index -> viewModel.selectTab(TwinTab.entries[index]) },
+                onSelect = { index ->
+                    val tab = TwinTab.entries[index]
+                    // BOTH is a Pro feature; YOU stays free.
+                    if (tab == TwinTab.Both) proGate.require(context.getString(R.string.pro_f_both)) { viewModel.selectTab(tab) }
+                    else viewModel.selectTab(tab)
+                },
                 modifier = Modifier
                     .padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.s)
                     .fillMaxWidth(),

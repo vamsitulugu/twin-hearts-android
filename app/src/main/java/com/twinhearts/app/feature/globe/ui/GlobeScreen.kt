@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.globe.ui
 
+import com.twinhearts.app.core.pro.rememberProGate
 import com.twinhearts.app.feature.globe.ui.map.SatelliteStyle
 import kotlinx.coroutines.delay
 import com.twinhearts.app.feature.globe.ui.components.SHEET_HALF_FRACTION
@@ -123,6 +124,8 @@ fun GlobeScreen(
     val s by vm.state.collectAsStateWithLifecycle()
     val form by formVm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val proGate = rememberProGate()
+    val proFeature = stringResource(R.string.globe_pin_memory)
     val colors = TwinTheme.colors
     val density = LocalDensity.current
     val wide = LocalConfiguration.current.screenWidthDp >= WIDE_SCREEN_DP
@@ -365,7 +368,7 @@ fun GlobeScreen(
             }
             GlassButton(
                 text = stringResource(R.string.globe_pin_memory),
-                onClick = vm::requestPin,
+                onClick = { proGate.require(proFeature) { vm.requestPin() } },
                 modifier = Modifier.fillMaxWidth(),
             )
         }

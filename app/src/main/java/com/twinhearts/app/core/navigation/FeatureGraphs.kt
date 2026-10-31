@@ -26,6 +26,7 @@ import com.twinhearts.app.feature.twinai.twinAiGraph
 import com.twinhearts.app.feature.places.ui.placesGraph
 import com.twinhearts.app.feature.level.levelGraph
 import com.twinhearts.app.feature.profile.profileGraph
+import com.twinhearts.app.feature.pro.proGraph
 import com.twinhearts.app.feature.settings.settingsGraph
 import com.twinhearts.app.feature.memories.memoriesGraph
 import com.twinhearts.app.feature.bucket.bucketGraph
@@ -65,6 +66,7 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
     levelGraph(navController) // 3.2 Couple Level
     placesGraph(navController) // Places
     profileGraph(navController) // 2.6 Our Profile
+    proGraph(navController) // Pro (Razorpay)
     settingsGraph(navController) // 2.5 Settings
     memoriesGraph(navController) // Memories
     bucketGraph(navController) // 4.x Bucket List

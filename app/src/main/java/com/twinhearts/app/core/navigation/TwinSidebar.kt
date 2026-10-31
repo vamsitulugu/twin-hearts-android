@@ -26,6 +26,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.WorkspacePremium
 import androidx.compose.material.icons.outlined.CardGiftcard
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Celebration
@@ -145,6 +146,10 @@ internal val sidebarGroups = listOf(
             SidebarEntry(Routes.Calendar, R.string.home_page_calendar, Icons.Outlined.CalendarMonth),
             SidebarEntry(null, R.string.home_page_bucket_list, Icons.Outlined.Checklist),
         ),
+    ),
+    SidebarGroup(
+        R.string.side_group_pro,
+        listOf(SidebarEntry(Routes.Pro(), R.string.side_pro, Icons.Outlined.WorkspacePremium)),
     ),
 )
 

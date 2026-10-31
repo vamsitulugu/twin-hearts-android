@@ -8,11 +8,27 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.core.navigation.TwinApp
+import com.razorpay.Checkout
+import com.razorpay.PaymentData
+import com.razorpay.PaymentResultWithDataListener
+import com.twinhearts.app.core.pro.PaymentBridge
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 /** The single Activity (R-05). Draws edge-to-edge and hosts the whole Compose app. */
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
+    @Inject lateinit var paymentBridge: PaymentBridge
+
+    // Razorpay reports the payment result here; the Pro screen listens through the bridge.
+    override fun onPaymentSuccess(razorpayPaymentId: String?, data: PaymentData?) {
+        paymentBridge.success(data?.orderId, razorpayPaymentId ?: data?.paymentId, data?.signature)
+    }
+
+    override fun onPaymentError(code: Int, response: String?, data: PaymentData?) {
+        paymentBridge.error(code, response)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // Transparent bars with light icons: the app background is always dark.
         enableEdgeToEdge(
@@ -20,6 +36,7 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
         super.onCreate(savedInstanceState)
+        Checkout.preload(applicationContext) // opens the payment window faster later
         setContent {
             TwinTheme {
                 TwinApp()

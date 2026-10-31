@@ -24,6 +24,9 @@ object Routes {
     // Phase 2: opened from Home / Settings
     @Serializable data object Profile
 
+    /** Pro page (Razorpay). [feature] is the locked feature that sent the person here, or null from the menu. */
+    @Serializable data class Pro(val feature: String? = null)
+
     // Phase 5: Watch Together (movies), opened from the Home "Movie" chip
     @Serializable data object Movie
 

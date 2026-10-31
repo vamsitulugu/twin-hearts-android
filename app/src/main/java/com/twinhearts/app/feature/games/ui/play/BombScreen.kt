@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -149,7 +150,7 @@ private fun RoleBanner(guide: Boolean, countdown: Boolean, partnerName: String) 
         modifier = Modifier
             .fillMaxWidth()
             .clip(TwinTheme.shapes.pill)
-            .background(if (guide) colors.glass else colors.primaryBrush)
+            .background(if (guide) SolidColor(colors.glass) else colors.primaryBrush)
             .border(1.dp, if (guide) colors.lineSoft else colors.accent, TwinTheme.shapes.pill)
             .padding(horizontal = TwinTheme.spacing.l, vertical = TwinTheme.spacing.m),
     )

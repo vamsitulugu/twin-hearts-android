@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.music.ui
 
+import com.twinhearts.app.core.pro.rememberProGate
 import com.twinhearts.app.core.design.LocalOpenSidebar
 import com.twinhearts.app.feature.music.ui.components.MusicStyle
 import com.twinhearts.app.feature.music.ui.components.MusicTabs
@@ -144,7 +145,9 @@ private fun MusicScreenContent(
     val pickSongs = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         viewModel.addFromDevice(uris)
     }
-    val openPicker = { pickSongs.launch(arrayOf("audio/*")) }
+    val proGate = rememberProGate()
+    val proFeature = stringResource(R.string.pro_f_music)
+    val openPicker = { proGate.require(proFeature) { pickSongs.launch(arrayOf("audio/*")) } }
 
     BackHandler { if (!viewModel.back()) onBack() }
 
