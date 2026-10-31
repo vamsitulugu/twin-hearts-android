@@ -1,5 +1,7 @@
 package com.twinhearts.app.feature.globe.ui
 
+import androidx.compose.runtime.CompositionLocalProvider
+import com.twinhearts.app.core.design.LocalDarkGlass
 import com.twinhearts.app.core.pro.rememberProGate
 import com.twinhearts.app.feature.globe.ui.map.SatelliteStyle
 import kotlinx.coroutines.delay
@@ -120,6 +122,15 @@ fun GlobeScreen(
     onBack: () -> Unit,
     vm: GlobeViewModel = hiltViewModel(),
     formVm: MemoryFormViewModel = hiltViewModel(),
+) {
+    CompositionLocalProvider(LocalDarkGlass provides true) { GlobeScreenContent(onBack, vm, formVm) }
+}
+
+@Composable
+private fun GlobeScreenContent(
+    onBack: () -> Unit,
+    vm: GlobeViewModel,
+    formVm: MemoryFormViewModel,
 ) {
     val s by vm.state.collectAsStateWithLifecycle()
     val form by formVm.state.collectAsStateWithLifecycle()

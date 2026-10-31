@@ -9,6 +9,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import com.twinhearts.app.core.design.TwinLook
+import com.twinhearts.app.core.design.twinGlassDark
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -86,12 +91,14 @@ fun LmMapFab(
     Box(
         modifier = modifier
             .size(48.dp)
-            .background(if (active) colors.accent else colors.card, CircleShape)
+            .clip(CircleShape)
+            .background(if (active) Brush.linearGradient(listOf(colors.accent, colors.accent)) else TwinLook.DarkGlassFill)
+            .border(1.dp, if (active) colors.accent else Color.White.copy(alpha = 0.18f), CircleShape)
             .clickable(role = Role.Button, onClick = onClick)
             .semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = null, tint = if (active) colors.background else colors.ink, modifier = Modifier.size(22.dp))
+        Icon(icon, contentDescription = null, tint = if (active) Color.White else Color.White.copy(alpha = 0.92f), modifier = Modifier.size(22.dp))
     }
 }
 
@@ -123,7 +130,8 @@ fun LmBanner(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(color.copy(alpha = 0.18f), TwinTheme.shapes.small)
+            .twinGlassDark(TwinTheme.shapes.small)
+            .background(color.copy(alpha = 0.22f))
             .padding(TwinTheme.spacing.m),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),

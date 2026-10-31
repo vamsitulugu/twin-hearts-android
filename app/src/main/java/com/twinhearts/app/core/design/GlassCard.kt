@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
@@ -21,13 +22,14 @@ fun GlassCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     contentPadding: Dp = TwinTheme.spacing.l,
+    dark: Boolean = LocalDarkGlass.current,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val shape = TwinTheme.shapes.card
     val tap = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
     Column(
         modifier = modifier
-            .twinGlass(shape)
+            .then(if (dark) Modifier.twinGlassDark(shape) else Modifier.twinGlass(shape))
             .then(tap)
             .padding(contentPadding),
         content = content,

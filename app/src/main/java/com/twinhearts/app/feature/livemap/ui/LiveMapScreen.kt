@@ -18,7 +18,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import com.twinhearts.app.core.design.LocalDarkGlass
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -131,6 +133,7 @@ fun LiveMapScreen(
 
     val screen = state.screen
     NeutralLiveMapColors {
+    CompositionLocalProvider(LocalDarkGlass provides true) {
     Box(Modifier.twinPage()) {
         Column(Modifier.fillMaxSize()) {
             if (!navigating) TwinTopBar(
@@ -183,6 +186,7 @@ fun LiveMapScreen(
                 }
             }
         }
+    }
     }
     }
 }

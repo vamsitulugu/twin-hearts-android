@@ -1,5 +1,7 @@
 package com.twinhearts.app.feature.meetplanner.ui
 
+import androidx.compose.runtime.CompositionLocalProvider
+import com.twinhearts.app.core.design.LocalDarkGlass
 import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -122,5 +124,7 @@ private fun openUrl(context: Context, url: String) {
 /** Public entry: the page body wrapped in the shared near-black glass look. */
 @Composable
 fun MeetPlannerScreen(onExit: () -> Unit, vm: MeetPlannerViewModel = hiltViewModel()) {
-    MeetPlannerStyled { MeetPlannerScreenContent(onExit = onExit, vm = vm) }
+    CompositionLocalProvider(LocalDarkGlass provides true) {
+        MeetPlannerStyled { MeetPlannerScreenContent(onExit = onExit, vm = vm) }
+    }
 }

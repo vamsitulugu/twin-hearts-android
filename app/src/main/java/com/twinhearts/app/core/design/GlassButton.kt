@@ -44,7 +44,7 @@ fun GlassButton(
         .clip(shapes.pill)
     val styled = when (style) {
         GlassButtonStyle.Primary -> base.twinWine(shapes.pill)
-        GlassButtonStyle.Secondary -> base.twinGlass(shapes.pill)
+        GlassButtonStyle.Secondary -> base.then(if (LocalDarkGlass.current) Modifier.twinGlassDark(shapes.pill) else Modifier.twinGlass(shapes.pill))
         GlassButtonStyle.Ghost -> base.border(1.dp, colors.line, shapes.pill)
     }
     Row(
@@ -82,7 +82,7 @@ fun GlassIconButton(
     Box(
         modifier = modifier
             .size(shapes.minTouch)
-            .twinGlass(shapes.circle)
+            .then(if (LocalDarkGlass.current) Modifier.twinGlassDark(shapes.circle) else Modifier.twinGlass(shapes.circle))
             .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
