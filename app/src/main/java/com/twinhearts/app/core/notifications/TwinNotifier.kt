@@ -1,6 +1,7 @@
 package com.twinhearts.app.core.notifications
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.PendingIntent
 import android.content.Context
@@ -23,7 +24,11 @@ import com.twinhearts.app.MainActivity
 import com.twinhearts.app.R
 import com.twinhearts.app.core.data.SessionStore
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import java.net.HttpURLConnection
+import java.net.URL
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -41,6 +46,8 @@ data class TwinNotification(
  * the app logo (status-bar icon + large icon), the burgundy accent, grouped by feature,
  * with the right buttons (Reply, Answer, Send back …), quiet hours and lock-screen privacy.
  */
+// Every notify() below is behind canPost(), which checks the POST_NOTIFICATIONS permission.
+@SuppressLint("MissingPermission")
 @Singleton
 class TwinNotifier @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -70,7 +77,7 @@ class TwinNotifier @Inject constructor(
 
     fun canPost(): Boolean {
         val granted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
         return granted && manager.areNotificationsEnabled()
     }
 
@@ -93,6 +100,11 @@ class TwinNotifier @Inject constructor(
         val showDetails = prefs.previewAllowed() && !type.sensitive
         val id = idFor(event)
 
+        // The partner's profile photo (sent by the server as senderAvatar); falls back to the round logo.
+        val avatar = if (type == NotificationType.CHAT_MESSAGE || type == NotificationType.CALL_INCOMING) {
+            loadAvatar(event.data["senderAvatar"]) ?: roundLogo
+        } else roundLogo
+
         val builder = base(type, id, event)
             .setContentTitle(title)
             .setContentText(body)
@@ -101,8 +113,8 @@ class TwinNotifier @Inject constructor(
         if (!showDetails) builder.setPublicVersion(publicVersion(type))
 
         when (type) {
-            NotificationType.CHAT_MESSAGE -> applyChat(builder, partner, body, showDetails)
-            NotificationType.CALL_INCOMING -> applyIncomingCall(builder, partner, event)
+            NotificationType.CHAT_MESSAGE -> applyChat(builder, partner, body, showDetails, avatar)
+            NotificationType.CALL_INCOMING -> applyIncomingCall(builder, partner, event, avatar)
             NotificationType.PARTNER_HUG, NotificationType.PARTNER_MISS, NotificationType.PARTNER_TOUCH ->
                 builder.addAction(0, context.getString(R.string.notif_action_send_back), actionIntent(NotificationActionReceiver.ACTION_SEND_BACK, id, type))
             NotificationType.LOCATION_SOS -> {
@@ -131,7 +143,17 @@ class TwinNotifier @Inject constructor(
     /** After a reply from the notification: show it in the thread so the spinner goes away. */
     fun showReplySent(text: String) {
         val active = activeNotification(ID_CHAT) ?: return
-        val builder = NotificationCompat.Builder.recoverBuilder(context, active)
+        // Same look as the notification on screen: copy its channel, group, tap action and buttons.
+        val builder = NotificationCompat.Builder(context, NotificationCompat.getChannelId(active) ?: TwinChannel.ACTIVITY.id)
+            .setSmallIcon(R.drawable.ic_stat_twin)
+            .setColor(NotificationChannels.ACCENT)
+            .setLargeIcon(logo)
+            .setAutoCancel(true)
+            .setContentIntent(active.contentIntent)
+            .setGroup(NotificationCompat.getGroup(active))
+        for (i in 0 until NotificationCompat.getActionCount(active)) {
+            NotificationCompat.getAction(active, i)?.let { builder.addAction(it) }
+        }
         val style = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(active) ?: return
         style.addMessage(text, System.currentTimeMillis(), null as Person?)
         builder.setStyle(style).setOnlyAlertOnce(true).setSilent(true)
@@ -172,9 +194,37 @@ class TwinNotifier @Inject constructor(
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
     }
 
-    private fun applyChat(builder: NotificationCompat.Builder, partner: String, text: String, showDetails: Boolean) {
+    /** Downloads the partner's photo and crops it round. Null (so the logo is used) on any problem. */
+    private suspend fun loadAvatar(url: String?): Bitmap? {
+        if (url.isNullOrBlank() || !url.startsWith("http")) return null
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 4000
+                    readTimeout = 4000
+                }
+                try {
+                    val src = conn.inputStream.use { BitmapFactory.decodeStream(it) } ?: return@runCatching null
+                    val side = minOf(src.width, src.height)
+                    val square = Bitmap.createBitmap(src, (src.width - side) / 2, (src.height - side) / 2, side, side)
+                    val scaled = Bitmap.createScaledBitmap(square, LOGO_PX, LOGO_PX, true)
+                    val out = Bitmap.createBitmap(LOGO_PX, LOGO_PX, Bitmap.Config.ARGB_8888)
+                    val canvas = Canvas(out)
+                    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+                    canvas.drawCircle(LOGO_PX / 2f, LOGO_PX / 2f, LOGO_PX / 2f, paint)
+                    paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+                    canvas.drawBitmap(scaled, 0f, 0f, paint)
+                    out
+                } finally {
+                    conn.disconnect()
+                }
+            }.getOrNull()
+        }
+    }
+
+    private fun applyChat(builder: NotificationCompat.Builder, partner: String, text: String, showDetails: Boolean, avatar: Bitmap) {
         val shown = if (showDetails) text else context.getString(R.string.notif_private_body)
-        val partnerPerson = Person.Builder().setName(partner).setIcon(IconCompat.createWithBitmap(roundLogo)).setKey("partner").build()
+        val partnerPerson = Person.Builder().setName(partner).setIcon(IconCompat.createWithBitmap(avatar)).setKey("partner").build()
         val me = Person.Builder().setName(context.getString(R.string.notif_you)).setKey("me").build()
         val existing = activeNotification(ID_CHAT)
             ?.let { NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(it) }
@@ -196,7 +246,7 @@ class TwinNotifier @Inject constructor(
         builder.addAction(reply).addAction(read)
     }
 
-    private fun applyIncomingCall(builder: NotificationCompat.Builder, partner: String, event: TwinNotification) {
+    private fun applyIncomingCall(builder: NotificationCompat.Builder, partner: String, event: TwinNotification, avatar: Bitmap) {
         val video = event.data["video"] == "true"
         val answer = openIntent(NotifScreen.CALL, ID_CALL + 1, video = video)
         val decline = actionIntent(NotificationActionReceiver.ACTION_DECLINE_CALL, ID_CALL, NotificationType.CALL_INCOMING, extra = if (video) "video" else "voice")
@@ -207,7 +257,7 @@ class TwinNotifier @Inject constructor(
             .setFullScreenIntent(answer, true)
             .setColorized(false)
         runCatching {
-            val caller = Person.Builder().setName(partner).setIcon(IconCompat.createWithBitmap(roundLogo)).setImportant(true).build()
+            val caller = Person.Builder().setName(partner).setIcon(IconCompat.createWithBitmap(avatar)).setImportant(true).build()
             builder.setStyle(NotificationCompat.CallStyle.forIncomingCall(caller, decline, answer))
         }.onFailure {
             builder.addAction(0, context.getString(R.string.notif_action_decline), decline)

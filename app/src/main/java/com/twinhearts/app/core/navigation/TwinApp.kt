@@ -20,7 +20,22 @@ import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.rememberDrawerState
+import androidx.compose.material3.DrawerState
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.navigation.navOptions
+import com.twinhearts.app.core.design.TwinLook
+import kotlinx.coroutines.delay
+import kotlin.reflect.KClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -63,6 +78,17 @@ private val bottomBarItems = listOf(
 /** The tab routes: moving between them keeps each tab's state (same rule the bottom bar uses). */
 private val tabRoutes: List<Any> = bottomBarItems.map { it.key }
 
+/**
+ * Screens where pulling down must not reload the page: they own their own scroll or gestures (map, globe,
+ * chat), keep something running (calls, movie, music, games) or hold unsaved input (sign-in, Pro, Vault).
+ */
+private val noPullRefreshRoutes: List<KClass<out Any>> = listOf(
+    Routes.GetStarted::class, Routes.SignIn::class, Routes.SignUp::class, Routes.ForgotPassword::class,
+    Routes.Pairing::class, Routes.Chat::class, Routes.TwinAi::class, Routes.LiveMap::class,
+    Routes.Globe::class, Routes.Call::class, Routes.Movie::class, Routes.Music::class,
+    Routes.Games::class, Routes.Vault::class, Routes.Pro::class,
+)
+
 /** Root composable: background, side menu, bottom bar (only on the five tab screens) and the nav graph. */
 @Composable
 fun TwinApp(viewModel: AppViewModel = hiltViewModel()) {
@@ -77,6 +103,7 @@ fun TwinApp(viewModel: AppViewModel = hiltViewModel()) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TwinNavigation(
     startDestination: Any,
@@ -85,8 +112,19 @@ private fun TwinNavigation(
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    // Not rememberSaveable: the menu must never come back OPEN after the app was closed or restarted.
+    val drawerState = remember { DrawerState(DrawerValue.Closed) }
     val scope = rememberCoroutineScope()
+    LaunchedEffect(Unit) { drawerState.snapTo(DrawerValue.Closed) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, drawerState) {
+        // Leaving the app closes the menu, so the next open lands on the page (Home), not the menu.
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) scope.launch { drawerState.snapTo(DrawerValue.Closed) }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     val openSidebar: () -> Unit = remember(drawerState) { { scope.launch { drawerState.open() } } }
 
     // A free couple tapped a Pro feature anywhere in the app: open the Pro page for it.
@@ -117,6 +155,24 @@ private fun TwinNavigation(
     AdBreakWatcher(navController)
 
     val destination = backStackEntry?.destination
+
+    // Pull down to reload the current page (whole app). The page is opened again fresh, so it loads its data again.
+    var refreshing by remember { mutableStateOf(false) }
+    val pullState = rememberPullToRefreshState()
+    val canPullRefresh = destination != null &&
+            noPullRefreshRoutes.none { route -> destination.hierarchy.any { it.hasRoute(route) } }
+    val onPullRefresh: () -> Unit = {
+        val entry = navController.currentBackStackEntry
+        if (canPullRefresh && entry != null && !refreshing) {
+            refreshing = true
+            scope.launch {
+                val dest = entry.destination
+                navController.navigate(dest.id, entry.arguments, navOptions { popUpTo(dest.id) { inclusive = true } })
+                delay(800)
+                refreshing = false
+            }
+        }
+    }
     val selectedItem = bottomBarItems.firstOrNull { item ->
         destination?.hierarchy?.any { it.hasRoute(item.key::class) } == true
     }
@@ -125,7 +181,7 @@ private fun TwinNavigation(
         if (key is Routes.Us) {
             // Love Counter and Dream Goals are the same page on different tabs: match the open tab.
             destination?.hasRoute<Routes.Us>() == true &&
-                (backStackEntry?.toRoute<Routes.Us>()?.tab == 2) == (key.tab == 2)
+                    (backStackEntry?.toRoute<Routes.Us>()?.tab == 2) == (key.tab == 2)
         } else {
             destination?.hierarchy?.any { it.hasRoute(key::class) } == true
         }
@@ -138,8 +194,8 @@ private fun TwinNavigation(
     val onMySpace = destination?.hasRoute<Routes.MySpace>() == true
     val onVault = destination?.hasRoute<Routes.Vault>() == true
     val showBottomBar = (selectedItem != null &&
-        selectedItem.key != Routes.TwinAi &&
-        selectedItem.key != Routes.Chat) || onFights || onMySpace || onVault
+            selectedItem.key != Routes.TwinAi &&
+            selectedItem.key != Routes.Chat) || onFights || onMySpace || onVault
 
     // Back closes the menu first.
     BackHandler(enabled = drawerState.isOpen) { scope.launch { drawerState.close() } }
@@ -220,23 +276,39 @@ private fun TwinNavigation(
                         navController.navigate(Routes.Call(video = video, incoming = true)) { launchSingleTop = true }
                     },
                 ) {
-                androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
-                    AppNavHost(
-                        navController = navController,
-                        startDestination = startDestination,
-                        modifier = Modifier
-                            .padding(innerPadding)
-                            .then(insets),
-                    )
-                    if (floatBar) {
-                        TwinBottomBar(
-                            items = bottomBarItems,
-                            selectedKey = selectedItem?.key,
-                            onItemClick = onBarClick,
-                            modifier = Modifier.align(Alignment.BottomCenter),
+                    PullToRefreshBox(
+                        isRefreshing = refreshing,
+                        onRefresh = onPullRefresh,
+                        state = pullState,
+                        modifier = Modifier.fillMaxSize(),
+                        indicator = {
+                            if (canPullRefresh) {
+                                PullToRefreshDefaults.Indicator(
+                                    state = pullState,
+                                    isRefreshing = refreshing,
+                                    modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding(),
+                                    containerColor = Color(0xFF1A1014),
+                                    color = TwinLook.Accent,
+                                )
+                            }
+                        },
+                    ) {
+                        AppNavHost(
+                            navController = navController,
+                            startDestination = startDestination,
+                            modifier = Modifier
+                                .padding(innerPadding)
+                                .then(insets),
                         )
+                        if (floatBar) {
+                            TwinBottomBar(
+                                items = bottomBarItems,
+                                selectedKey = selectedItem?.key,
+                                onItemClick = onBarClick,
+                                modifier = Modifier.align(Alignment.BottomCenter),
+                            )
+                        }
                     }
-                }
                 }
             }
         }
