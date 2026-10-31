@@ -13,7 +13,7 @@ import com.twinhearts.app.feature.home.ui.HomeShortcut
 
 /**
  * Plugs Home into the app (R-43). Our Profile already has a (stand-in) screen, so it navigates.
- * Every other shortcut opens a feature that is built in a later step, so it shows a short note
+ * The search bar opens the global Search page. Any shortcut without a screen yet shows a short note
  * instead of a dead tap. When a feature arrives, its line moves into the `when` below.
  */
 fun NavGraphBuilder.homeGraph(navController: NavHostController) {
@@ -24,6 +24,7 @@ fun NavGraphBuilder.homeGraph(navController: NavHostController) {
             onShortcut = { shortcut ->
                 when (shortcut) {
                     HomeShortcut.Menu -> openSidebar()
+                    HomeShortcut.Search -> navController.navigate(Routes.Search)
                     HomeShortcut.OurProfile -> navController.navigate(Routes.Profile)
                     HomeShortcut.Movie -> navController.navigate(Routes.Movie)
                     HomeShortcut.MeetPlanner -> navController.navigate(Routes.MeetPlanner)

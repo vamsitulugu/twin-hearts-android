@@ -24,6 +24,9 @@ object Routes {
     // Phase 2: opened from Home / Settings
     @Serializable data object Profile
 
+    /** Global search, opened from the Home search bar (pages, features, messages, page content). */
+    @Serializable data object Search
+
     /** Pro page (Razorpay). [feature] is the locked feature that sent the person here, or null from the menu. */
     @Serializable data class Pro(val feature: String? = null)
 

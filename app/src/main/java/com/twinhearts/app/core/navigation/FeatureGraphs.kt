@@ -39,6 +39,7 @@ import com.twinhearts.app.feature.globe.globeGraph
 import com.twinhearts.app.feature.games.gamesGraph
 import com.twinhearts.app.feature.dailyroutine.dailyRoutineGraph
 import com.twinhearts.app.feature.us.UsRoute.usGraph
+import com.twinhearts.app.feature.search.searchGraph
 
 /**
  * THE one place where finished features are plugged in (R-43).
@@ -78,6 +79,7 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
     globeGraph(navController) // 6.x Memory Globe
     gamesGraph(navController) // Games
     dailyRoutineGraph(navController) // 4.x Daily Routine
+    searchGraph(navController) // Global search (Home search bar)
 }
 
 /**
