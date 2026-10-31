@@ -1,7 +1,15 @@
 package com.twinhearts.app.feature.games.ui
 
-import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -27,7 +35,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -55,8 +62,12 @@ import com.twinhearts.app.feature.games.ui.components.GameBadge
 import com.twinhearts.app.feature.games.ui.components.GameCatalog
 import com.twinhearts.app.feature.games.ui.components.GameInfo
 import com.twinhearts.app.feature.games.ui.components.gameBrush
+import com.twinhearts.app.feature.games.ui.play.BombScreen
+import com.twinhearts.app.feature.games.ui.play.DrawScreen
 import com.twinhearts.app.feature.games.ui.play.LudoScreen
 import com.twinhearts.app.feature.games.ui.play.MemoryScreen
+import com.twinhearts.app.feature.games.ui.play.MindReaderScreen
+import com.twinhearts.app.feature.games.ui.play.PuzzleScreen
 import com.twinhearts.app.feature.games.ui.play.TicTacToeScreen
 import com.twinhearts.app.feature.games.ui.play.TruthOrDareScreen
 
@@ -72,6 +83,10 @@ fun GamesScreen(onBack: () -> Unit, viewModel: GamesViewModel = hiltViewModel())
         GameId.Ludo -> LudoScreen(onExit = exit)
         GameId.TicTacToe -> TicTacToeScreen(onExit = exit)
         GameId.Memory -> MemoryScreen(onExit = exit)
+        GameId.MindReader -> MindReaderScreen(onExit = exit)
+        GameId.Draw -> DrawScreen(onExit = exit)
+        GameId.Bomb -> BombScreen(onExit = exit)
+        GameId.Puzzle -> PuzzleScreen(onExit = exit)
         else -> HubScreen(
             viewModel = viewModel,
             onBack = onBack,
@@ -87,8 +102,6 @@ fun GamesScreen(onBack: () -> Unit, viewModel: GamesViewModel = hiltViewModel())
 private fun HubScreen(viewModel: GamesViewModel, onBack: () -> Unit, onOpen: (GameId) -> Unit) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
-    val context = LocalContext.current
-    val soon = stringResource(R.string.games_soon)
 
     LaunchedEffect(viewModel) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) { viewModel.run() }
@@ -102,9 +115,7 @@ private fun HubScreen(viewModel: GamesViewModel, onBack: () -> Unit, onOpen: (Ga
             is UiState.Content -> HubContent(
                 players = current.data,
                 onFavorite = viewModel::toggleFavorite,
-                onOpen = { info ->
-                    if (info.playable) onOpen(info.id) else Toast.makeText(context, soon, Toast.LENGTH_SHORT).show()
-                },
+                onOpen = { info -> onOpen(info.id) },
             )
         }
     }
@@ -159,22 +170,17 @@ private fun HubContent(players: Players, onFavorite: (GameId) -> Unit, onOpen: (
                 Box(modifier = Modifier.weight(1f).height(1.dp).background(colors.lineSoft))
             }
         }
-        items(GameCatalog.all.chunked(2)) { pair ->
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m)) {
-                pair.forEach { info ->
-                    GameCard(
-                        info = info,
-                        favorite = info.id.key in players.me.favorites,
-                        continuing = info.id.key in players.me.history,
-                        partnerHere = players.partnerOnline && players.partnerPresence.game == info.id.key,
-                        partnerName = players.partnerName,
-                        onFavorite = { onFavorite(info.id) },
-                        onOpen = { onOpen(info) },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                if (pair.size == 1) Box(modifier = Modifier.weight(1f))
-            }
+        items(GameCatalog.all) { info ->
+            GameCard(
+                info = info,
+                favorite = info.id.key in players.me.favorites,
+                continuing = info.id.key in players.me.history,
+                partnerHere = players.partnerOnline && players.partnerPresence.game == info.id.key,
+                partnerName = players.partnerName,
+                onFavorite = { onFavorite(info.id) },
+                onOpen = { onOpen(info) },
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
@@ -189,18 +195,20 @@ private fun RankCard(
     modifier: Modifier = Modifier,
 ) {
     val colors = TwinTheme.colors
-    val shape = TwinTheme.shapes.card
+    val shape = RoundedCornerShape(20.dp)
+    // Web .rank-card: a soft pink wash fading to glass, with the stronger magenta outline.
+    val wash = Brush.linearGradient(listOf(colors.accent.copy(alpha = 0.18f), Color.White.copy(alpha = 0.03f)))
     Column(
         modifier = modifier
             .clip(shape)
-            .background(colors.glass)
-            .border(1.dp, colors.line, shape)
+            .background(wash)
+            .border(1.dp, colors.line2, shape)
             .padding(TwinTheme.spacing.m),
         verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
             Box {
-                Avatar(name = name, size = 36.dp, imageUrl = avatar)
+                Avatar(name = name, size = 46.dp, imageUrl = avatar)
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -245,38 +253,28 @@ private fun GameCard(
     modifier: Modifier = Modifier,
 ) {
     val colors = TwinTheme.colors
-    val shape = TwinTheme.shapes.card
+    val shape = RoundedCornerShape(22.dp)
+    val brush = gameBrush(info.id)
     val favLabel = stringResource(if (favorite) R.string.games_fav_remove else R.string.games_fav_add)
     Column(
         modifier = modifier
             .clip(shape)
             .background(colors.glass)
-            .border(1.dp, colors.line, shape)
+            .border(1.dp, colors.line2, shape)
             .clickable(onClick = onOpen),
     ) {
-        Box(
-            modifier = Modifier.fillMaxWidth().height(104.dp).background(gameBrush(info.id)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(stringResource(info.emoji), fontSize = 44.sp)
-            val badge = when {
-                !info.playable -> R.string.games_soon_badge
-                info.badge == GameBadge.New -> R.string.games_badge_new
-                info.badge == GameBadge.Trending -> R.string.games_badge_trending
-                else -> null
-            }
-            if (badge != null) {
-                Text(
-                    stringResource(badge),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = colors.ink,
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(TwinTheme.spacing.s)
-                        .clip(TwinTheme.shapes.pill)
-                        .background(colors.scrim)
-                        .padding(horizontal = TwinTheme.spacing.s, vertical = 2.dp),
-                )
+        // Picture on the game's gradient (web .gcard-art.has-img: 16:9).
+        Box(modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(brush)) {
+            Image(
+                painter = painterResource(info.art),
+                contentDescription = stringResource(info.title),
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            when (info.badge) {
+                GameBadge.New -> CardBadge(stringResource(R.string.games_badge_new), colors.accent, Color.White, Modifier.align(Alignment.TopStart))
+                GameBadge.Trending -> CardBadge(stringResource(R.string.games_badge_trending), GoldBadge, GoldBadgeText, Modifier.align(Alignment.TopStart))
+                GameBadge.None -> Unit
             }
             Box(
                 modifier = Modifier
@@ -287,7 +285,16 @@ private fun GameCard(
                     .semantics { contentDescription = favLabel },
                 contentAlignment = Alignment.Center,
             ) {
-                Text(if (favorite) "❤️" else "🤍", fontSize = 18.sp)
+                Box(
+                    modifier = Modifier
+                        .size(30.dp)
+                        .clip(CircleShape)
+                        .background(if (favorite) colors.primaryStart.copy(alpha = 0.55f) else Color.Black.copy(alpha = 0.35f))
+                        .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(if (favorite) "❤️" else "🤍", fontSize = 14.sp)
+                }
             }
             if (partnerHere) {
                 Text(
@@ -298,30 +305,61 @@ private fun GameCard(
                         .align(Alignment.BottomStart)
                         .padding(TwinTheme.spacing.s)
                         .clip(TwinTheme.shapes.pill)
-                        .background(colors.scrim)
+                        .background(colors.success.copy(alpha = 0.25f))
+                        .border(1.dp, colors.success.copy(alpha = 0.4f), TwinTheme.shapes.pill)
                         .padding(horizontal = TwinTheme.spacing.s, vertical = 2.dp),
                 )
             }
         }
-        Column(modifier = Modifier.padding(TwinTheme.spacing.m), verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
-            Text(stringResource(info.title), style = MaterialTheme.typography.titleSmall, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(stringResource(info.description), style = MaterialTheme.typography.bodySmall, color = colors.inkMuted, maxLines = 4, overflow = TextOverflow.Ellipsis)
-            Text(
-                info.tags.map { stringResource(it) }.joinToString(" · "),
-                style = MaterialTheme.typography.labelSmall,
-                color = colors.inkFaint,
-            )
+        Column(modifier = Modifier.padding(TwinTheme.spacing.l), verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
+            Text(stringResource(info.title), style = MaterialTheme.typography.titleLarge, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(stringResource(info.description), style = MaterialTheme.typography.bodySmall, color = colors.inkMuted)
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.xs + 2.dp),
+            ) {
+                info.tags.forEach { tag ->
+                    Text(
+                        stringResource(tag),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.inkMuted,
+                        modifier = Modifier
+                            .clip(TwinTheme.shapes.pill)
+                            .background(colors.glass)
+                            .border(1.dp, colors.line, TwinTheme.shapes.pill)
+                            .padding(horizontal = TwinTheme.spacing.s, vertical = 3.dp),
+                    )
+                }
+            }
             Text(
                 stringResource(if (continuing) R.string.games_continue else R.string.games_play_now),
                 style = MaterialTheme.typography.titleSmall,
-                color = colors.ink,
+                color = Color.White,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(TwinTheme.shapes.pill)
-                    .background(gameBrush(info.id))
-                    .padding(vertical = TwinTheme.spacing.s),
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(brush)
+                    .border(1.dp, colors.line2, RoundedCornerShape(13.dp))
+                    .padding(vertical = TwinTheme.spacing.m),
             )
         }
     }
+}
+
+private val GoldBadge = Color(0xFFFFC94A)
+private val GoldBadgeText = Color(0xFF3A2600)
+
+@Composable
+private fun CardBadge(text: String, background: Color, textColor: Color, modifier: Modifier = Modifier) {
+    Text(
+        text.uppercase(),
+        style = MaterialTheme.typography.labelSmall,
+        color = textColor,
+        modifier = modifier
+            .padding(TwinTheme.spacing.s + 1.dp)
+            .clip(TwinTheme.shapes.pill)
+            .background(background)
+            .padding(horizontal = TwinTheme.spacing.s, vertical = 3.dp),
+    )
 }

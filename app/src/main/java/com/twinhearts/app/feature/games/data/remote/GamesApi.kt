@@ -1,9 +1,13 @@
 package com.twinhearts.app.feature.games.data.remote
 
 import kotlinx.serialization.json.JsonElement
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Path
 
 /**
@@ -27,4 +31,12 @@ interface GamesApi {
     /** `GET /api/profile/:userId/partner`: `{ profile: row | null }`. */
     @GET("api/profile/{userId}/partner")
     suspend fun getPartnerProfile(@Path("userId") userId: String): PartnerProfileDto
+
+    /** routes/media.js `POST /upload` (multipart `file`, `coupleId`): the Picture Puzzle photo. */
+    @Multipart
+    @POST("api/media/upload")
+    suspend fun upload(
+        @Part file: MultipartBody.Part,
+        @Part("coupleId") coupleId: RequestBody,
+    ): UploadDto
 }

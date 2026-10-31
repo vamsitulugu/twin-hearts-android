@@ -61,6 +61,8 @@ private fun prizeLineText(line: PrizeLine): String = when (line) {
     is PrizeLine.Xp -> stringResource(R.string.games_prize_xp, line.amount)
     is PrizeLine.Coins -> stringResource(R.string.games_prize_coins, line.amount)
     is PrizeLine.Level -> stringResource(R.string.games_prize_level, line.level)
+    is PrizeLine.Streak -> stringResource(R.string.games_prize_streak, line.count)
+    is PrizeLine.Formatted -> stringResource(line.res, line.arg)
     is PrizeLine.Text -> stringResource(line.res)
     is PrizeLine.Final -> stringResource(R.string.games_prize_final, line.scoreOne, line.scoreTwo)
     is PrizeLine.Penalty -> stringArrayResource(R.array.games_tod_penalties)[line.index]

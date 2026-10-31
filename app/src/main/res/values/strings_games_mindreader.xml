@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mind Reader question bank, copied from the web app (games.html MR_QUESTIONS). -->
+<resources>
+    <string name="games_mr_q_01">What movie do you think your partner loves the most?</string>
+    <string name="games_mr_q_02">What\'s one word your partner would use to describe their love for you?</string>
+    <string name="games_mr_q_03">What small gesture makes your partner feel most loved?</string>
+    <string name="games_mr_q_04">What do you think your partner finds most attractive about you?</string>
+    <string name="games_mr_q_05">How does your partner prefer to receive love?</string>
+    <string-array name="games_mr_opts_05">
+        <item>Words of affirmation</item>
+        <item>Quality time</item>
+        <item>Physical touch</item>
+        <item>Acts of service</item>
+        <item>Gifts</item>
+    </string-array>
+    <string name="games_mr_q_06">What\'s the biggest lesson your partner has taught you?</string>
+    <string name="games_mr_q_07">What do you think your partner\'s love language is?</string>
+    <string name="games_mr_q_08">What\'s one thing you two argue about most?</string>
+    <string name="games_mr_q_09">What does your partner think is the key to a happy relationship?</string>
+    <string name="games_mr_q_10">Who do you think says \'I love you\' first more often?</string>
+    <string-array name="games_mr_opts_10">
+        <item>Me</item>
+        <item>My partner</item>
+        <item>About equal</item>
+    </string-array>
+    <string name="games_mr_q_11">What\'s your partner\'s all-time favorite movie?</string>
+    <string name="games_mr_q_12">What movie genre does your partner secretly love but rarely admits?</string>
+    <string name="games_mr_q_13">Which movie character reminds your partner of you?</string>
+    <string name="games_mr_q_14">What genre would your partner pick for movie night tonight?</string>
+    <string-array name="games_mr_opts_14">
+        <item>Romance</item>
+        <item>Action</item>
+        <item>Comedy</item>
+        <item>Horror</item>
+        <item>Documentary</item>
+    </string-array>
+    <string name="games_mr_q_15">What\'s your partner\'s favorite song right now?</string>
+    <string name="games_mr_q_16">What artist does your partner listen to the most?</string>
+    <string name="games_mr_q_17">What song would your partner say describes your relationship?</string>
+    <string name="games_mr_q_18">What genre is your partner\'s guilty pleasure?</string>
+    <string-array name="games_mr_opts_18">
+        <item>Pop</item>
+        <item>Country</item>
+        <item>K-pop</item>
+        <item>Rock</item>
+        <item>EDM</item>
+    </string-array>
+    <string name="games_mr_q_19">What\'s the #1 place on your partner\'s travel bucket list?</string>
+    <string name="games_mr_q_20">What kind of vacation does your partner enjoy most — beach, mountains, or city?</string>
+    <string name="games_mr_q_21">What\'s the best trip you two have taken together, according to your partner?</string>
+    <string name="games_mr_q_22">How does your partner prefer to travel?</string>
+    <string-array name="games_mr_opts_22">
+        <item>Spontaneous road trip</item>
+        <item>Fully planned itinerary</item>
+        <item>All-inclusive resort</item>
+        <item>Backpacking adventure</item>
+    </string-array>
+    <string name="games_mr_q_23">What\'s a dream your partner has never told anyone but you?</string>
+    <string name="games_mr_q_24">If your partner could have any job in the world, what would it be?</string>
+    <string name="games_mr_q_25">What does your partner dream about most often?</string>
+    <string name="games_mr_q_26">What\'s your partner\'s ultimate comfort food?</string>
+    <string name="games_mr_q_27">What food can your partner absolutely not stand?</string>
+    <string name="games_mr_q_28">What\'s the one meal your partner would want on their last day on Earth?</string>
+    <string name="games_mr_q_29">What would your partner order right now?</string>
+    <string-array name="games_mr_opts_29">
+        <item>Pizza</item>
+        <item>Sushi</item>
+        <item>Tacos</item>
+        <item>Burger</item>
+        <item>Pasta</item>
+    </string-array>
+    <string name="games_mr_q_30">Where does your partner see the two of you in 10 years?</string>
+    <string name="games_mr_q_31">What\'s one goal your partner wants to achieve this year?</string>
+    <string name="games_mr_q_32">What does your partner think our biggest challenge will be in the future?</string>
+    <string name="games_mr_q_33">What\'s your partner\'s most annoying habit (be honest)?</string>
+    <string name="games_mr_q_34">What\'s one habit your partner is trying to break?</string>
+    <string name="games_mr_q_35">Is your partner a morning person or night owl?</string>
+    <string-array name="games_mr_opts_35">
+        <item>Morning person</item>
+        <item>Night owl</item>
+        <item>Neither — always tired</item>
+    </string-array>
+    <string name="games_mr_q_36">How would your partner describe their own personality in 3 words?</string>
+    <string name="games_mr_q_37">What does your partner think is their biggest strength?</string>
+    <string name="games_mr_q_38">What does your partner think is their biggest flaw?</string>
+    <string name="games_mr_q_39">What\'s the weirdest thing your partner has ever eaten?</string>
+    <string name="games_mr_q_40">What\'s your partner\'s most embarrassing moment?</string>
+    <string name="games_mr_q_41">If your partner were an animal, which one would they be?</string>
+    <string name="games_mr_q_42">What does your partner think is the meaning of life?</string>
+    <string name="games_mr_q_43">What\'s a fear your partner rarely talks about?</string>
+    <string name="games_mr_q_44">What does your partner think love really means?</string>
+    <string name="games_mr_q_45">What\'s your partner\'s favorite memory of the two of you?</string>
+    <string name="games_mr_q_46">What was your partner\'s first impression of you?</string>
+    <string name="games_mr_q_47">What\'s the funniest memory your partner has of you?</string>
+    <string name="games_mr_q_48">What\'s your partner\'s idea of the perfect date night?</string>
+    <string name="games_mr_q_49">Where did your partner want to go on your first date?</string>
+    <string name="games_mr_q_50">What\'s your partner\'s ideal way to spend a lazy Sunday?</string>
+    <string name="games_mr_q_51">Is your partner more of a homebody or a social butterfly?</string>
+    <string name="games_mr_q_52">Who is your partner closest to in their family?</string>
+    <string name="games_mr_q_53">How many kids does your partner want (if any)?</string>
+    <string name="games_mr_q_54">What\'s the next big goal your partner wants to hit together?</string>
+    <string name="games_mr_q_55">What\'s one thing your partner wants to learn this year?</string>
+    <string name="games_mr_q_56">If your partner won the lottery tomorrow, what\'s the first thing they\'d buy?</string>
+    <string name="games_mr_q_57">What superpower would your partner pick if they could have one?</string>
+    <string name="games_mr_q_58">What\'s your partner\'s spirit animal?</string>
+</resources>

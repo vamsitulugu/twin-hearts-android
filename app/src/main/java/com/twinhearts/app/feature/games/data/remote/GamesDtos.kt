@@ -25,3 +25,7 @@ data class ProfileRowDto(
 
 @Serializable
 data class PartnerProfileDto(val profile: ProfileRowDto? = null)
+
+/** `POST /api/media/upload` answer: where the photo now lives. */
+@Serializable
+data class UploadDto(val url: String)

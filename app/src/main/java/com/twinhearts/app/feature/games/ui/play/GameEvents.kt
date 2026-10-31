@@ -10,6 +10,12 @@ sealed interface PrizeLine {
     data class Xp(val amount: Int) : PrizeLine
     data class Coins(val amount: Int) : PrizeLine
     data class Level(val level: Int) : PrizeLine
+
+    /** "🔥 3 streak" (co-op games) */
+    data class Streak(val count: Int) : PrizeLine
+
+    /** A string resource with one argument, e.g. "The word was “%1$s”". */
+    data class Formatted(@StringRes val res: Int, val arg: String) : PrizeLine
     data class Text(@StringRes val res: Int) : PrizeLine
 
     /** "Final: 5 - 3" */
