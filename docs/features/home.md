@@ -23,11 +23,11 @@ The server merges top-level keys, so the app sends only the keys it changes:
 - Touch → `touch: {from, ts}`
 - Miss You → `missYou: {id, from, ts, status:"sent"}` and `missCounts` (+1 for me)
 - Hug → `hug: {id, from, ts, status:"pending"}`; partner accepts → `status:"accepted"`, `acceptedTs`, `acceptedBy` and `hugStats` (+1)
-The card shows the newest of touch / missYou / accepted hug (or my own pending hug), and picks the matching picture (idle / hug / touch / miss). Looks for news every 8 s while Home is visible. The caption ("🤗 Hug received · 5m ago") refreshes every 30 s.
+The card shows the newest of touch / missYou / accepted hug (or my own pending hug), and picks the matching picture (hug / touch / miss). Nothing sent yet, or still loading, shows the hug picture right away (there is no idle picture). Looks for news every 8 s while Home is visible. The caption ("🤗 Hug received · 5m ago") refreshes every 30 s.
 Buttons are disabled until a partner is connected; a "Connect with your partner ❤️" card opens Pairing instead.
 
 ## States
-Loading is silent (the card shows the idle picture first). If a refresh fails the screen keeps what it has. Send errors show in a red box (server wording); good news in a green box that disappears after 3.5 s (replaces the web's toast).
+Loading is silent (the card shows the hug picture first). If a refresh fails the screen keeps what it has. Send errors show in a red box (server wording); good news in a green box that disappears after 3.5 s (replaces the web's toast).
 
 ## Not ported yet (and why)
 - Vibration, sound, notification and "petals" animation when my partner sends something (web: vibrate 10 s on touch). Needs permissions and Firebase — Phase 2.5.
@@ -71,7 +71,7 @@ Sources read: `public/dashboard-widgets.js` (photo editor, 3-dots menu), `public
 - Chip label "Memories".
 
 ### Card photos editor (full screen, opens from "Set my own image")
-Idle / Hug / Touch / Miss You tabs, 16:9 frame with "16:9" badge, **Change photo** (system photo picker, no permission), drag to move, pinch or slider to zoom (1x to 4x), rule-of-thirds guide, **Save**, **Use default picture**. Same limits as the web: image files only, max 30 MB, saved as a 1280x720 JPEG (quality 88).
+Hug / Touch / Miss You tabs, 16:9 frame with "16:9" badge, **Change photo** (system photo picker, no permission), drag to move, pinch or slider to zoom (1x to 4x), rule-of-thirds guide, **Save**, **Use default picture**. Same limits as the web: image files only, max 30 MB, saved as a 1280x720 JPEG (quality 88).
 Each tab keeps its own picked photo until you save (like the web).
 
 ### API calls (R-65, read from the old routes)
@@ -81,8 +81,8 @@ Each tab keeps its own picked photo until you save (like the web).
 | Save photo, step 2 | `POST api/data/state` | `state: { dashImgs: { ...old, <slot>: {url, path} } }`, `senderRole`, `myName` | `{ok: true}`. The server merges only top-level keys, so the whole `dashImgs` is sent. |
 | Save photo, step 3 | `DELETE api/media/delete` | `{path, coupleId}` of the OLD file | `{ok: true}`. Best effort: if it fails we ignore it (an unused file stays in storage). 403 if path is not under the couple's folder. |
 | Use default | `POST api/data/state` then `DELETE api/media/delete` | `dashImgs` without that slot | same as above |
-| Read | `GET api/data/state/:coupleId` (already used) | | `dashImgs.{idle,hug,touch,miss}.{url,path}` |
-Slot names saved on the server: `idle`, `hug`, `touch`, `miss` (same as the web, so both apps show the same pictures).
+| Read | `GET api/data/state/:coupleId` (already used) | | `dashImgs.{hug,touch,miss}.{url,path}` |
+Slot names saved on the server: `hug`, `touch`, `miss` (same as the web, so both apps show the same pictures). An old `idle` entry saved by the web is ignored.
 
 ### States
 Card: the built-in picture shows while a custom one loads or if it fails to load (never a blank card, R-24). Editor: picture / cropping / saving (buttons disabled, "Saving…") / green "Photo saved 💕" / red error (server wording or "Please choose an image", "That photo is too large (max 30 MB)", "Couldn't open that image", "Could not save the photo").

@@ -11,6 +11,7 @@ import com.twinhearts.app.feature.home.data.HomeRepository
 import com.twinhearts.app.feature.home.domain.model.CardPhoto
 import com.twinhearts.app.feature.home.domain.model.CardPhotoSlot
 import com.twinhearts.app.feature.home.domain.model.LoveCardState
+import com.twinhearts.app.feature.home.domain.model.LoveInteraction
 import com.twinhearts.app.feature.home.domain.model.HomeOverview
 import com.twinhearts.app.feature.home.domain.model.LoveKind
 import com.twinhearts.app.feature.home.domain.model.MoodKind
@@ -64,6 +65,17 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun serverError_putsTheOldCardBack() {
+        val old = LoveInteraction(kind = LoveKind.Touch, fromMe = false, timestampMillis = 1L)
+        every { sessionStore.session } returns flowOf(testSession().copy(paired = true))
+        coEvery { repository.overview() } returns AppResult.Success(HomeOverview(loveCard = LoveCardState(last = old)))
+        coEvery { repository.send(LoveKind.MissYou) } returns AppResult.Failure(AppError.Network)
+        val vm = HomeViewModel(repository, sessionStore)
+        vm.send(LoveKind.MissYou)
+        assertEquals(old, vm.state.value.loveCard.last)
+    }
+
+    @Test
     fun acceptHug_showsHuggedMessage_andLaterHidesIt() {
         coEvery { repository.acceptHug() } returns AppResult.Success(Unit)
         coEvery { repository.overview() } returns AppResult.Success(HomeOverview(loveCard = LoveCardState(pendingIncomingHugId = 7L)))
@@ -107,7 +119,7 @@ class HomeViewModelTest {
         val error = AppError.Network
         coEvery { repository.resetCardPhoto(any()) } returns AppResult.Failure(error)
         val vm = viewModel(testSession().copy(paired = true))
-        vm.useDefaultCardPhoto(CardPhotoSlot.Idle)
+        vm.useDefaultCardPhoto(CardPhotoSlot.Hug)
         assertEquals(HomeMessage.Failure(error), vm.state.value.message)
     }
 

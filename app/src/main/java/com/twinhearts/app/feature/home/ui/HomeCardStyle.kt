@@ -46,6 +46,13 @@ internal object HomeCardStyle {
     // Today's event: a brighter neutral white edge instead of the old pink accent.
     val GrayGlassBorderStrong = Color.White.copy(alpha = 0.36f)
 
+    // Stay Connected: the button that matches the newest signal is dark glass (the others stay light glass).
+    val ActionActiveFill = Color.Black.copy(alpha = 0.52f)
+    val ActionActiveSheen = androidx.compose.ui.graphics.Brush.verticalGradient(
+        listOf(Color.White.copy(alpha = 0.16f), Color.White.copy(alpha = 0.02f)),
+    )
+    val ActionActiveBorder = Color.White.copy(alpha = 0.42f)
+
     val CardRadius = 24.dp
     val MenuRadius = 14.dp
     val ActionHeight = 46.dp

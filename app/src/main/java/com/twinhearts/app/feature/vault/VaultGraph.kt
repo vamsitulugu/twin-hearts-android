@@ -10,7 +10,10 @@ import com.twinhearts.app.core.design.TwinNeutralPage
 /** Plugs the Secret Vault into the app (R-43). Opened from the Home "Vault" tile. */
 fun NavGraphBuilder.vaultGraph(navController: NavHostController) {
     composable<Routes.Vault> { TwinNeutralPage {
-        VaultScreen(onBack = { navController.popBackStack() })
+        VaultScreen(
+            onBack = { navController.popBackStack() },
+            onSearch = { navController.navigate(Routes.Search) },
+        )
     }
     }
 }

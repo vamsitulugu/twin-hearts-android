@@ -89,14 +89,12 @@ private val slots = CardPhotoSlot.entries
 
 /** The built-in picture of a slot (shown until the couple saves their own). */
 internal fun defaultCardImage(slot: CardPhotoSlot): Int = when (slot) {
-    CardPhotoSlot.Idle -> R.drawable.home_card_idle
     CardPhotoSlot.Hug -> R.drawable.home_card_hug
     CardPhotoSlot.Touch -> R.drawable.home_card_touch
     CardPhotoSlot.MissYou -> R.drawable.home_card_miss
 }
 
 private fun slotLabel(slot: CardPhotoSlot): Int = when (slot) {
-    CardPhotoSlot.Idle -> R.string.home_photo_slot_idle
     CardPhotoSlot.Hug -> R.string.home_photo_slot_hug
     CardPhotoSlot.Touch -> R.string.home_photo_slot_touch
     CardPhotoSlot.MissYou -> R.string.home_photo_slot_miss
@@ -373,7 +371,7 @@ private val previewPhoto = CardPhoto(url = "", path = "")
 private fun EditorIdlePreview() {
     TwinTheme {
         TwinBackground {
-            CardPhotoEditorContent(CardPhotoEditorUiState(), mapOf(CardPhotoSlot.Idle to previewPhoto), {}, {}, { _, _, _ -> }, { _, _, _ -> }, {}, {}, {})
+            CardPhotoEditorContent(CardPhotoEditorUiState(), mapOf(CardPhotoSlot.Hug to previewPhoto), {}, {}, { _, _, _ -> }, { _, _, _ -> }, {}, {}, {})
         }
     }
 }
@@ -386,7 +384,7 @@ private fun EditorCroppingPreview() {
     TwinTheme {
         TwinBackground {
             CardPhotoEditorContent(
-                CardPhotoEditorUiState(pending = mapOf(CardPhotoSlot.Idle to pending)),
+                CardPhotoEditorUiState(pending = mapOf(CardPhotoSlot.Hug to pending)),
                 emptyMap(), {}, {}, { _, _, _ -> }, { _, _, _ -> }, {}, {}, {},
             )
         }

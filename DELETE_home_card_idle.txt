@@ -1,0 +1,2 @@
+Delete this file from your project (the idle picture was removed):
+app/src/main/res/drawable-nodpi/home_card_idle.webp

@@ -15,6 +15,7 @@ fun NavGraphBuilder.fightsGraph(navController: NavHostController) {
                 if (!navController.popBackStack()) navController.navigate(Routes.Home)
             },
             onOpenTwin = { navController.navigate(Routes.TwinAi) },
+            onSearch = { navController.navigate(Routes.Search) },
         )
     }
     }

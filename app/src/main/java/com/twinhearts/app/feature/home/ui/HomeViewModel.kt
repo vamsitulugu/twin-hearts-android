@@ -15,6 +15,7 @@ import com.twinhearts.app.feature.home.data.HomeRepository
 import com.twinhearts.app.feature.home.domain.model.CardPhoto
 import com.twinhearts.app.feature.home.domain.model.CardPhotoSlot
 import com.twinhearts.app.feature.home.domain.model.LoveCardState
+import com.twinhearts.app.feature.home.domain.model.LoveInteraction
 import com.twinhearts.app.feature.home.domain.model.LoveKind
 import com.twinhearts.app.feature.home.domain.model.MoodBoard
 import com.twinhearts.app.feature.home.domain.model.MoodKind
@@ -83,7 +84,8 @@ class HomeViewModel @Inject constructor(
             (repository.overview() as? AppResult.Success)?.let { result ->
                 _state.update {
                     it.copy(
-                        loveCard = result.data.loveCard,
+                        // While a tap is being saved, keep the card showing it (a poll must not flip it back).
+                        loveCard = if (it.isSending) it.loveCard else result.data.loveCard,
                         events = result.data.events,
                         mood = result.data.mood,
                         cardPhotos = result.data.cardPhotos,
@@ -97,7 +99,11 @@ class HomeViewModel @Inject constructor(
         val current = _state.value
         val session = current.session ?: return
         if (current.isSending || !session.paired) return
-        _state.update { it.copy(isSending = true, message = null) }
+        // The card changes at once (picture + caption); the server answer only confirms it, and a
+        // failure puts the old card back.
+        val before = current.loveCard
+        val sentNow = LoveInteraction(kind = kind, fromMe = true, timestampMillis = System.currentTimeMillis())
+        _state.update { it.copy(isSending = true, message = null, loveCard = it.loveCard.copy(last = sentNow)) }
         viewModelScope.launch {
             when (val result = repository.send(kind)) {
                 is AppResult.Success -> {
@@ -110,7 +116,7 @@ class HomeViewModel @Inject constructor(
                     refresh()
                 }
                 is AppResult.Failure -> _state.update {
-                    it.copy(isSending = false, message = HomeMessage.Failure(result.error))
+                    it.copy(isSending = false, loveCard = before, message = HomeMessage.Failure(result.error))
                 }
             }
         }

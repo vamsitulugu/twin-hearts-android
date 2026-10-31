@@ -70,6 +70,7 @@ import com.twinhearts.app.feature.vault.domain.model.VaultKind
 @Composable
 fun VaultScreen(
     onBack: () -> Unit,
+    onSearch: () -> Unit,
     viewModel: VaultViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -78,9 +79,6 @@ fun VaultScreen(
     var deleteTarget by remember { mutableStateOf<VaultItem?>(null) }
 
     SecurePageEffect()
-
-    // Menu and search are built in a later step everywhere, so they say so (same as Fights).
-    val pending = { Toast.makeText(context, R.string.core_pending_message, Toast.LENGTH_SHORT).show() }
 
     // One-off messages: toast once, then clear.
     val message = state.message
@@ -105,7 +103,7 @@ fun VaultScreen(
         TwinTopBar(
             title = stringResource(R.string.vault_title),
             showSidebarButton = true,
-            onSearchClick = pending,
+            onSearchClick = onSearch,
             onSyncClick = viewModel::refresh,
         )
         when (state.stage) {

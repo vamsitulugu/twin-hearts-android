@@ -79,7 +79,6 @@
     <string name="fights_msg_logged">Fight logged. Remember: you both love each other 💕</string>
     <string name="fights_msg_resolved">Fight resolved! 💚</string>
     <string name="fights_msg_failed">Could not save. Check your connection and try again.</string>
-    <string name="fights_msg_pending">This is built in a later step.</string>
     <string name="fights_starter_me">Me</string>
     <string name="fights_starter_partner">Partner</string>
     <string name="fights_starter_both">Both</string>

@@ -47,12 +47,12 @@ class CardPhotoEditorViewModelTest {
     @Test
     fun eachSlotKeepsItsOwnPendingPhoto() {
         val vm = viewModel()
-        vm.open(CardPhotoSlot.Idle)
+        vm.open(CardPhotoSlot.Hug)
         vm.onPhotoPicked("content://photo")
         vm.selectSlot(CardPhotoSlot.Touch)
         assertNull(vm.state.value.pending[CardPhotoSlot.Touch])
-        vm.selectSlot(CardPhotoSlot.Idle)
-        assertNotNull(vm.state.value.pending[CardPhotoSlot.Idle])
+        vm.selectSlot(CardPhotoSlot.Hug)
+        assertNotNull(vm.state.value.pending[CardPhotoSlot.Hug])
     }
 
     @Test
@@ -83,13 +83,13 @@ class CardPhotoEditorViewModelTest {
     @Test
     fun save_success_clearsPending_andCountsTheChange() {
         coEvery { processor.render(any(), any()) } returns byteArrayOf(1, 2, 3)
-        coEvery { repository.saveCardPhoto(CardPhotoSlot.Idle, any()) } returns AppResult.Success(Unit)
+        coEvery { repository.saveCardPhoto(CardPhotoSlot.Hug, any()) } returns AppResult.Success(Unit)
         val vm = viewModel()
         vm.onPhotoPicked("content://photo")
         vm.save()
         assertEquals(HomeMessage.Info(R.string.home_photo_saved), vm.state.value.message)
         assertEquals(1, vm.state.value.changeCount)
-        assertNull(vm.state.value.pending[CardPhotoSlot.Idle])
+        assertNull(vm.state.value.pending[CardPhotoSlot.Hug])
         assertFalse(vm.state.value.isBusy)
     }
 
@@ -101,7 +101,7 @@ class CardPhotoEditorViewModelTest {
         vm.onPhotoPicked("content://photo")
         vm.save()
         assertEquals(HomeMessage.Failure(AppError.Network), vm.state.value.message)
-        assertNotNull(vm.state.value.pending[CardPhotoSlot.Idle])
+        assertNotNull(vm.state.value.pending[CardPhotoSlot.Hug])
         assertEquals(0, vm.state.value.changeCount)
     }
 
@@ -138,7 +138,7 @@ class CardPhotoEditorViewModelTest {
         vm.onPhotoPicked("content://photo")
         vm.zoomTo(2f, 0.5f, 0.5f)
         vm.pan(dx = 50f, dy = 0f, stageWidthPx = 400f)
-        val crop = vm.state.value.pending[CardPhotoSlot.Idle]?.crop
+        val crop = vm.state.value.pending[CardPhotoSlot.Hug]?.crop
         assertEquals(2f, crop?.zoom ?: 0f, 0.01f)
         assertEquals(700f, crop?.centerX ?: 0f, 0.01f)
     }

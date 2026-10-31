@@ -37,7 +37,7 @@ class CardPhotoMapperTest {
 
     @Test
     fun newestSignal_choosesThePicture() {
-        assertEquals(CardPhotoSlot.Idle, null.toCardSlot())
+        assertEquals(CardPhotoSlot.Hug, null.toCardSlot())
         assertEquals(CardPhotoSlot.Hug, LoveKind.Hug.toCardSlot())
         assertEquals(CardPhotoSlot.Touch, LoveKind.Touch.toCardSlot())
         assertEquals(CardPhotoSlot.MissYou, LoveKind.MissYou.toCardSlot())
@@ -45,6 +45,6 @@ class CardPhotoMapperTest {
 
     @Test
     fun slotKeys_matchTheWeb() {
-        assertEquals(listOf("idle", "hug", "touch", "miss"), CardPhotoSlot.entries.map { it.key })
+        assertEquals(listOf("hug", "touch", "miss"), CardPhotoSlot.entries.map { it.key })
     }
 }

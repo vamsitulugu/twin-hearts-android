@@ -23,7 +23,7 @@ import javax.inject.Inject
 data class PendingPhoto(val photo: LoadedPhoto, val crop: CropState)
 
 data class CardPhotoEditorUiState(
-    val slot: CardPhotoSlot = CardPhotoSlot.Idle,
+    val slot: CardPhotoSlot = CardPhotoSlot.Hug,
     /** Picked but not yet saved photos; each slot keeps its own (like the web editor). */
     val pending: Map<CardPhotoSlot, PendingPhoto> = emptyMap(),
     val isBusy: Boolean = false,

@@ -122,7 +122,7 @@ private fun JsonObject.moodsOf(key: String): Map<String, MoodKind> {
     }
 }
 
-/** `dashImgs`: `{ idle|hug|touch|miss: { url, path } }`. A slot without a usable url is ignored. */
+/** `dashImgs`: `{ hug|touch|miss: { url, path } }` (an old `idle` entry from the web is ignored). A slot without a usable url is ignored. */
 fun JsonElement?.toCardPhotos(): Map<CardPhotoSlot, CardPhoto> {
     val images = (this as? JsonObject)?.get("dashImgs") as? JsonObject ?: return emptyMap()
     return buildMap {

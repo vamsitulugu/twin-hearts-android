@@ -1,6 +1,5 @@
 package com.twinhearts.app.core.navigation
 
-import android.widget.Toast
 import androidx.compose.runtime.LaunchedEffect
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.WindowInsets
@@ -29,7 +28,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -83,7 +81,6 @@ fun TwinApp(viewModel: AppViewModel = hiltViewModel()) {
 private fun TwinNavigation(startDestination: Any, session: com.twinhearts.app.core.data.Session?) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
-    val context = LocalContext.current
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val openSidebar: () -> Unit = remember(drawerState) { { scope.launch { drawerState.open() } } }
@@ -155,9 +152,7 @@ private fun TwinNavigation(startDestination: Any, session: com.twinhearts.app.co
                         onNavigate = { entry ->
                             scope.launch { drawerState.close() }
                             val key = entry.key
-                            if (key == null) {
-                                Toast.makeText(context, R.string.core_pending_message, Toast.LENGTH_SHORT).show()
-                            } else if (key in tabRoutes) {
+                            if (key in tabRoutes) {
                                 navController.navigate(key) {
                                     popUpTo<Routes.Home> { saveState = true }
                                     launchSingleTop = true

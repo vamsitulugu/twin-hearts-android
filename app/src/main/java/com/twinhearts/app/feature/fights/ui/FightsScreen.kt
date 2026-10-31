@@ -50,6 +50,7 @@ import java.time.LocalDate
 fun FightsScreen(
     onBack: () -> Unit,
     onOpenTwin: () -> Unit,
+    onSearch: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: FightsViewModel = hiltViewModel(),
 ) {
@@ -67,7 +68,6 @@ fun FightsScreen(
 
     BackHandler(enabled = state.view != FightView.Dashboard) { viewModel.handleBack() }
 
-    val pending = { Toast.makeText(context, R.string.fights_msg_pending, Toast.LENGTH_SHORT).show() }
     val scroll = rememberScrollState()
     LaunchedEffect(state.view, state.step) { scroll.scrollTo(0) }
 
@@ -76,7 +76,7 @@ fun FightsScreen(
             title = stringResource(R.string.fights_title),
             onBackClick = if (state.view != FightView.Dashboard) ({ if (!viewModel.handleBack()) onBack() }) else null,
             showSidebarButton = state.view == FightView.Dashboard,
-            onSearchClick = pending,
+            onSearchClick = onSearch,
             onSyncClick = viewModel::load,
         )
         when (val load = state.load) {

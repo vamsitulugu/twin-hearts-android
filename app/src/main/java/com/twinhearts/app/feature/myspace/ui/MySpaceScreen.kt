@@ -70,6 +70,7 @@ import com.twinhearts.app.core.reminders.rememberNotificationPermissionRequest
 @Composable
 fun MySpaceScreen(
     onBack: () -> Unit,
+    onSearch: () -> Unit,
     viewModel: MySpaceViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -82,9 +83,6 @@ fun MySpaceScreen(
 
     // Back leaves select mode first, then the page.
     BackHandler(enabled = state.selectMode) { viewModel.exitSelecting() }
-
-    // Menu and search are built in a later step everywhere, so they say so (same as Fights).
-    val pending = { Toast.makeText(context, R.string.core_pending_message, Toast.LENGTH_SHORT).show() }
 
     // One-off messages: toast once, then clear. A successful add also empties its form.
     val message = state.message
@@ -105,7 +103,7 @@ fun MySpaceScreen(
         TwinTopBar(
             title = stringResource(R.string.myspace_title),
             showSidebarButton = true,
-            onSearchClick = pending,
+            onSearchClick = onSearch,
             onSyncClick = viewModel::load,
         )
         val data = state.data

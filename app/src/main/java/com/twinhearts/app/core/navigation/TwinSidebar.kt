@@ -2,7 +2,6 @@ package com.twinhearts.app.core.navigation
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -10,15 +9,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -60,7 +56,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
@@ -74,11 +69,14 @@ import com.twinhearts.app.R
 import com.twinhearts.app.core.data.Session
 import com.twinhearts.app.core.design.SerifFamily
 import com.twinhearts.app.core.design.TwinTheme
+import com.twinhearts.app.core.design.twinGlass
+import com.twinhearts.app.core.design.twinPage
+import com.twinhearts.app.core.design.twinWine
 
-/** One row of the side menu. A null [key] means the page is not built yet (a short note shows). */
+/** One row of the side menu. [key] is the route the row opens. */
 @Immutable
 internal data class SidebarEntry(
-    val key: Any?,
+    val key: Any,
     @StringRes val labelRes: Int,
     val icon: ImageVector,
 )
@@ -106,7 +104,7 @@ internal val sidebarGroups = listOf(
             SidebarEntry(Routes.Music, R.string.home_chip_music, Icons.Outlined.MusicNote),
             SidebarEntry(Routes.Movie, R.string.home_chip_movie, Icons.Outlined.MovieCreation),
             SidebarEntry(Routes.MeetPlanner, R.string.home_chip_meet_planner, Icons.Outlined.Navigation),
-            SidebarEntry(null, R.string.home_chip_daily_routine, Icons.Outlined.WbSunny),
+            SidebarEntry(Routes.DailyRoutine, R.string.home_chip_daily_routine, Icons.Outlined.WbSunny),
         ),
     ),
     SidebarGroup(
@@ -122,29 +120,29 @@ internal val sidebarGroups = listOf(
     SidebarGroup(
         R.string.home_group_explore,
         listOf(
-            SidebarEntry(null, R.string.home_page_globe, Icons.Outlined.Public),
+            SidebarEntry(Routes.Globe, R.string.home_page_globe, Icons.Outlined.Public),
             SidebarEntry(Routes.Places, R.string.home_page_places, Icons.Outlined.Place),
             SidebarEntry(Routes.Collection, R.string.home_page_collection, Icons.Outlined.CardGiftcard),
-            SidebarEntry(null, R.string.home_page_games, Icons.Outlined.SportsEsports),
+            SidebarEntry(Routes.Games, R.string.home_page_games, Icons.Outlined.SportsEsports),
             SidebarEntry(Routes.Study, R.string.home_page_study, Icons.Outlined.MenuBook),
         ),
     ),
     SidebarGroup(
         R.string.home_group_my_space,
         listOf(
-            SidebarEntry(null, R.string.home_page_my_space, Icons.Outlined.LocalFlorist),
-            SidebarEntry(null, R.string.home_page_period, Icons.Outlined.WaterDrop),
-            SidebarEntry(null, R.string.home_page_vault, Icons.Outlined.Lock),
-            SidebarEntry(null, R.string.home_page_help, Icons.Outlined.HelpOutline),
+            SidebarEntry(Routes.MySpace, R.string.home_page_my_space, Icons.Outlined.LocalFlorist),
+            SidebarEntry(Routes.PeriodTracker, R.string.home_page_period, Icons.Outlined.WaterDrop),
+            SidebarEntry(Routes.Vault, R.string.home_page_vault, Icons.Outlined.Lock),
+            SidebarEntry(Routes.Help, R.string.home_page_help, Icons.Outlined.HelpOutline),
         ),
     ),
     SidebarGroup(
         R.string.home_group_plans,
         listOf(
-            SidebarEntry(null, R.string.home_page_surprises, Icons.Outlined.Celebration),
+            SidebarEntry(Routes.Surprises, R.string.home_page_surprises, Icons.Outlined.Celebration),
             SidebarEntry(Routes.Money, R.string.home_page_money, Icons.Outlined.AccountBalanceWallet),
             SidebarEntry(Routes.Calendar, R.string.home_page_calendar, Icons.Outlined.CalendarMonth),
-            SidebarEntry(null, R.string.home_page_bucket_list, Icons.Outlined.Checklist),
+            SidebarEntry(Routes.BucketList, R.string.home_page_bucket_list, Icons.Outlined.Checklist),
         ),
     ),
     SidebarGroup(
@@ -157,7 +155,7 @@ private val settingsEntry = SidebarEntry(Routes.Settings, R.string.core_nav_sett
 
 /** Every route that has a row in the side menu, so TwinApp can tell which row is active. */
 internal val sidebarRouteKeys: List<Any> =
-    (sidebarGroups.flatMap { it.entries } + settingsEntry).mapNotNull { it.key }
+    (sidebarGroups.flatMap { it.entries } + settingsEntry).map { it.key }
 
 /**
  * The slide-in side menu (web: `aside.sidebar`): logo, couple widget with sync state, grouped page
@@ -174,12 +172,12 @@ internal fun TwinSidebar(
     val colors = TwinTheme.colors
     // Several rows can share one route (Love Counter / Dream Goals -> Us): light up only the first.
     val activeLabel = remember(selectedKey) {
-        (sidebarGroups.flatMap { it.entries } + settingsEntry).firstOrNull { it.key != null && it.key == selectedKey }?.labelRes
+        (sidebarGroups.flatMap { it.entries } + settingsEntry).firstOrNull { it.key == selectedKey }?.labelRes
     }
+    // Same page look as Movie, Music and Home: near-black with the soft wine glow at the top.
     Column(
         modifier = modifier
-            .fillMaxHeight()
-            .background(Brush.verticalGradient(listOf(colors.sidebarTop, colors.sidebarBottom)))
+            .twinPage()
             .statusBarsPadding(),
     ) {
         Column(
@@ -243,7 +241,7 @@ private fun SidebarHeader() {
             text = stringResource(R.string.side_tagline).uppercase(),
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp, letterSpacing = 2.sp),
             fontWeight = FontWeight.Bold,
-            color = colors.pinkSoft,
+            color = colors.inkFaint,
             modifier = Modifier.padding(start = 2.dp, top = 4.dp),
         )
     }
@@ -252,16 +250,14 @@ private fun SidebarHeader() {
 @Composable
 private fun CoupleWidget(session: Session?, onClick: () -> Unit) {
     val colors = TwinTheme.colors
-    val shape = RoundedCornerShape(16.dp)
+    val shape = TwinTheme.shapes.card
     val me = session?.myName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.side_you)
     val partner = session?.partnerName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.side_partner)
     val paired = session?.paired == true
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(shape)
-            .background(colors.glass)
-            .border(1.dp, colors.line, shape)
+            .twinGlass(shape)
             .clickable(role = Role.Button, onClick = onClick)
             .padding(12.dp),
     ) {
@@ -299,9 +295,7 @@ private fun Avatar(name: String) {
     Box(
         modifier = Modifier
             .size(34.dp)
-            .clip(CircleShape)
-            .background(TwinTheme.colors.primaryBrush)
-            .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape),
+            .twinWine(CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -314,37 +308,43 @@ private fun Avatar(name: String) {
 
 @Composable
 private fun SidebarRow(entry: SidebarEntry, active: Boolean, onClick: () -> Unit) {
-    val colors = TwinTheme.colors
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(16.dp)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(46.dp)
-            .clip(shape)
-            .background(if (active) colors.burgundy.copy(alpha = 0.30f) else Color.Transparent)
-            .then(if (active) Modifier.border(1.dp, colors.line, shape) else Modifier)
+            .height(TwinTheme.shapes.minTouch)
+            // Active page = burgundy glass (like the active tab on Movie and Music); the rest stay clear.
+            .then(if (active) Modifier.twinWine(shape) else Modifier.clip(shape))
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Icon(
-            imageVector = entry.icon,
-            contentDescription = null,
-            tint = if (active) colors.pinkSoft else colors.inkMuted,
-            modifier = Modifier.size(21.dp),
-        )
+        // Same icon circle as the Home "all pages" tiles: neutral glass, white icon (never pink).
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .twinGlass(CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = entry.icon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(19.dp),
+            )
+        }
         Text(
             text = stringResource(entry.labelRes),
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-            color = if (active) colors.ink else colors.inkMuted,
+            color = if (active) Color.White else RowText,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        if (active) {
-            Box(Modifier.width(3.dp).height(18.dp).clip(RoundedCornerShape(2.dp)).background(colors.accent))
-        }
     }
 }
+
+/** Page names in the menu: soft white, like the labels under the Home page tiles. */
+private val RowText = Color.White.copy(alpha = 0.78f)

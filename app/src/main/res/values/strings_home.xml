@@ -170,7 +170,6 @@
     <string name="home_card_use_default">Use default image</string>
     <string name="home_photo_title">Card photos</string>
     <string name="home_photo_close">Close</string>
-    <string name="home_photo_slot_idle">Idle</string>
     <string name="home_photo_slot_hug">Hug</string>
     <string name="home_photo_slot_touch">Touch</string>
     <string name="home_photo_slot_miss">Miss You</string>

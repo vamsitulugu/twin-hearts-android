@@ -1,9 +1,9 @@
 package com.twinhearts.app.feature.home.ui
 
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -328,10 +328,25 @@ private fun ShortcutChip(shortcut: HomeShortcut, onClick: () -> Unit, modifier: 
     }
 }
 
-/** What the card shows: a built-in picture, or the couple's own photo from the server. */
-private sealed interface CardImage {
-    data class Builtin(@DrawableRes val res: Int) : CardImage
-    data class Remote(val url: String, @DrawableRes val fallback: Int) : CardImage
+/** Length of the fade between the card pictures: short enough to feel instant. */
+private const val SLOT_FADE_MS = 100
+
+/** One picture of the card: the couple's own photo when they set one, otherwise the built-in picture. */
+@Composable
+private fun CardSlotImage(photo: CardPhoto?, @DrawableRes fallback: Int, modifier: Modifier = Modifier) {
+    val builtin = painterResource(fallback)
+    if (photo == null) {
+        Image(painter = builtin, contentDescription = null, contentScale = ContentScale.Crop, modifier = modifier)
+    } else {
+        AsyncImage(
+            model = photo.url,
+            contentDescription = null,
+            placeholder = builtin,
+            error = builtin,
+            contentScale = ContentScale.Crop,
+            modifier = modifier,
+        )
+    }
 }
 
 /**
@@ -353,11 +368,6 @@ internal fun StayConnectedCard(
     val colors = TwinTheme.colors
     val slot = last?.kind.toCardSlot()
     val custom = photos[slot]
-    val source: CardImage = if (custom != null) {
-        CardImage.Remote(custom.url, defaultCardImage(slot))
-    } else {
-        CardImage.Builtin(defaultCardImage(slot))
-    }
     var menuOpen by rememberSaveable { mutableStateOf(false) }
     val caption = if (last == null) {
         stringResource(R.string.home_caption_idle)
@@ -378,26 +388,19 @@ internal fun StayConnectedCard(
             .background(HomeCardStyle.CardBase)
             .border(1.dp, HomeCardStyle.CardBorder, shape),
     ) {
-        Crossfade(targetState = source, label = "loveCardImage", modifier = Modifier.fillMaxSize()) { image ->
-            when (image) {
-                is CardImage.Builtin -> Image(
-                    painter = painterResource(image.res),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
-                is CardImage.Remote -> {
-                    val fallback = painterResource(image.fallback)
-                    AsyncImage(
-                        model = image.url,
-                        contentDescription = null,
-                        placeholder = fallback,
-                        error = fallback,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-            }
+        // All three pictures stay loaded behind each other and only their alpha changes, so a tap never
+        // waits for an image to download or decode (R-55: only alpha is animated).
+        CardPhotoSlot.entries.forEach { entry ->
+            val alpha by animateFloatAsState(
+                targetValue = if (entry == slot) 1f else 0f,
+                animationSpec = tween(durationMillis = SLOT_FADE_MS),
+                label = "loveCardImage",
+            )
+            CardSlotImage(
+                photo = photos[entry],
+                fallback = defaultCardImage(entry),
+                modifier = Modifier.fillMaxSize().graphicsLayer { this.alpha = alpha },
+            )
         }
         // Two soft shades like the web: dark at the bottom (for the buttons) and a little at the top.
         Box(
@@ -544,19 +547,16 @@ private fun LoveActionButton(
 ) {
     val colors = TwinTheme.colors
     val shape = TwinTheme.shapes.field
-    // Web: glass buttons; the one that matches the newest signal turns solid white (`is-active`).
-    val fill = if (active) colors.ink else HomeCardStyle.ActionFill
-    val border = if (active) colors.ink else HomeCardStyle.ActionBorder
-    val textColor = when {
-        active -> colors.primaryEnd
-        enabled -> colors.ink
-        else -> colors.inkFaint
-    }
+    // Glass buttons; the one that matches the newest signal is dark glass (dark tint + soft sheen + bright rim).
+    val fill = if (active) HomeCardStyle.ActionActiveFill else HomeCardStyle.ActionFill
+    val border = if (active) HomeCardStyle.ActionActiveBorder else HomeCardStyle.ActionBorder
+    val textColor = if (enabled || active) colors.ink else colors.inkFaint
     Box(
         modifier = modifier
             .heightIn(min = HomeCardStyle.ActionHeight)
             .clip(shape)
             .background(fill)
+            .then(if (active) Modifier.background(HomeCardStyle.ActionActiveSheen) else Modifier)
             .border(1.dp, border, shape)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = TwinTheme.spacing.xs),
@@ -565,6 +565,7 @@ private fun LoveActionButton(
         Text(
             text = label,
             style = MaterialTheme.typography.titleSmall,
+            fontWeight = if (active) FontWeight.Bold else null,
             color = textColor,
             maxLines = 1,
         )
