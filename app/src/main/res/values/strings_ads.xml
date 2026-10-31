@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ads feature strings. Pro couples never see ads. -->
+<resources>
+    <string name="ads_label">Sponsored</string>
+</resources>

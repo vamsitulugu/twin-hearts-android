@@ -40,6 +40,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.twinhearts.app.R
 import com.twinhearts.app.core.pro.rememberProGate
+import com.twinhearts.app.feature.ads.ui.AdBreakWatcher
 import com.twinhearts.app.feature.calls.ui.CallBannerHost
 import com.twinhearts.app.feature.calls.ui.IncomingCallWatcher
 import com.twinhearts.app.core.design.BottomBarItem
@@ -103,6 +104,9 @@ private fun TwinNavigation(startDestination: Any, session: com.twinhearts.app.co
             }
         },
     )
+    // Ads: notices "used a feature, came back Home" and lets AdsManager decide if an ad is fair.
+    AdBreakWatcher(navController)
+
     val destination = backStackEntry?.destination
     val selectedItem = bottomBarItems.firstOrNull { item ->
         destination?.hierarchy?.any { it.hasRoute(item.key::class) } == true

@@ -28,6 +28,8 @@ espressoCore = "3.7.0"
 mockk = "1.13.13"
 turbine = "1.2.0"
 razorpay = "1.6.40"
+# AdMob. 24.0.0 is the newest line that builds with Kotlin 2.0.21 (24.1.0 and up need Kotlin 2.1+).
+playServicesAds = "24.0.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -69,6 +71,7 @@ androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "a
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 razorpay-checkout = { group = "com.razorpay", name = "checkout", version.ref = "razorpay" }
+play-services-ads = { group = "com.google.android.gms", name = "play-services-ads", version.ref = "playServicesAds" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 
 [plugins]

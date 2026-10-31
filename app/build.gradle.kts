@@ -18,6 +18,17 @@ val localProps = Properties().apply {
 }
 val apiBaseUrl: String = localProps.getProperty("API_BASE_URL") ?: "https://us-app-av6d.onrender.com/"
 
+// Ads (AdMob). Google's public TEST ids: debug builds always use these, so tapping ads while testing is safe.
+// Real ids go in local.properties (ADMOB_APP_ID, ADMOB_BANNER_ID, ADMOB_INTERSTITIAL_ID). They are not secrets,
+// but keeping them out of git lets you switch accounts without editing code. Release builds show ads ONLY when all three exist.
+val admobTestAppId = "ca-app-pub-3940256099942544~3347511713"
+val admobTestBannerId = "ca-app-pub-3940256099942544/9214589741"
+val admobTestInterstitialId = "ca-app-pub-3940256099942544/1033173712"
+val admobAppId: String? = localProps.getProperty("ADMOB_APP_ID")
+val admobBannerId: String? = localProps.getProperty("ADMOB_BANNER_ID")
+val admobInterstitialId: String? = localProps.getProperty("ADMOB_INTERSTITIAL_ID")
+val adsReleaseReady = admobAppId != null && admobBannerId != null && admobInterstitialId != null
+
 android {
     namespace = "com.twinhearts.app"
     compileSdk = 36
@@ -35,11 +46,19 @@ android {
     buildTypes {
         debug {
             isMinifyEnabled = false
+            buildConfigField("boolean", "ADS_ENABLED", "true")
+            buildConfigField("String", "ADMOB_BANNER_ID", "\"$admobTestBannerId\"")
+            buildConfigField("String", "ADMOB_INTERSTITIAL_ID", "\"$admobTestInterstitialId\"")
+            manifestPlaceholders["admobAppId"] = admobTestAppId
         }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             isDebuggable = false
+            buildConfigField("boolean", "ADS_ENABLED", adsReleaseReady.toString())
+            buildConfigField("String", "ADMOB_BANNER_ID", "\"${admobBannerId ?: admobTestBannerId}\"")
+            buildConfigField("String", "ADMOB_INTERSTITIAL_ID", "\"${admobInterstitialId ?: admobTestInterstitialId}\"")
+            manifestPlaceholders["admobAppId"] = admobAppId ?: admobTestAppId
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -102,6 +121,7 @@ dependencies {
     implementation(libs.maplibre.android)
     implementation(libs.stream.webrtc)
     implementation(libs.razorpay.checkout)
+    implementation(libs.play.services.ads)
 
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

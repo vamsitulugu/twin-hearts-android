@@ -42,6 +42,7 @@ import com.twinhearts.app.core.design.TwinBackground
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.feature.home.domain.model.CardPhotoSlot
 import com.twinhearts.app.feature.home.domain.model.LoveCardState
+import com.twinhearts.app.feature.ads.ui.AdSlot
 import com.twinhearts.app.feature.home.domain.model.LoveInteraction
 import com.twinhearts.app.feature.home.domain.model.LoveKind
 import com.twinhearts.app.feature.home.domain.model.MoodKind
@@ -206,6 +207,7 @@ internal fun HomeContent(
         )
         Spacer(Modifier.height(TwinTheme.spacing.s))
         HomeAllPages(onShortcut)
+        AdSlot() // a small "Sponsored" card; draws nothing for Pro couples or until an ad has loaded
         HomeFooterQuote(nowMillis)
         // Room for the floating bottom bar (62 dp bar + orb headroom) so the last items scroll clear of it.
         Spacer(Modifier.navigationBarsPadding().height(112.dp))

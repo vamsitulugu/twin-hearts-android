@@ -12,6 +12,7 @@ import com.razorpay.Checkout
 import com.razorpay.PaymentData
 import com.razorpay.PaymentResultWithDataListener
 import com.twinhearts.app.core.pro.PaymentBridge
+import com.twinhearts.app.feature.ads.data.AdsManager
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -19,6 +20,7 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     @Inject lateinit var paymentBridge: PaymentBridge
+    @Inject lateinit var adsManager: AdsManager
 
     // Razorpay reports the payment result here; the Pro screen listens through the bridge.
     override fun onPaymentSuccess(razorpayPaymentId: String?, data: PaymentData?) {
@@ -42,5 +44,11 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                 TwinApp()
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // Ads: checks Pro first, then consent, then starts the ad SDK. Does nothing for Pro couples.
+        adsManager.onAppStart(this)
     }
 }

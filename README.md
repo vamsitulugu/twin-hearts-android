@@ -374,3 +374,4 @@ Error: <paste text>. Fix it and send only the changed files as th-<...>-v2.zip.
 | Study | v2 delivered (not compiled) | same zip; see docs/features/study.md |
 | Phone reminders (core) | v1 delivered (not compiled) | same zip; see docs/features/reminders.md |
 | 2026-10-31 | Phase 6 — Memory Globe v2: real 3D Earth + satellite street level | th-p6-globe-3d-v5.zip | Not compiled in sandbox. See docs/features/globe-3d.md. |
+| 2026-10-31 | Ads (AdMob): Home banner + full-screen ad at natural breaks, Pro-aware | th-ads-v1.zip | Not compiled in sandbox; AdPolicy compiled and 13 checks pass with kotlinc 2.0.21. See docs/features/ads.md and SHARED_CHANGES_ads.md. Needs your AdMob ids for release. |

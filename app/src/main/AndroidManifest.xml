@@ -34,6 +34,11 @@
         android:supportsRtl="true"
         android:usesCleartextTraffic="false"
         android:theme="@style/Theme.TwinHearts">
+        <!-- AdMob app id. Comes from build.gradle.kts: Google's test id in debug, your real id in release. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="${admobAppId}" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
