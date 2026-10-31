@@ -52,6 +52,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 import com.twinhearts.app.core.common.rememberReduceMotion
 
 /** One bottom-bar entry. [key] is whatever the navigation layer uses to identify the tab. */
@@ -151,9 +157,10 @@ private val PlateTopOffset = 22.dp // 6 dp above the bar's top edge (the bar sta
 private val PlateCorner = 40.dp
 
 /**
- * The bar pill (62 dp tall, 30 dp corners) with a U-shaped dip in the top edge, centred on the orb.
- * The orb's centre sits about 8 dp below the bar's top edge, so the U is a half circle of radius
- * [NotchRadius] around that point, with soft shoulders where it meets the top edge.
+ * The bar pill (62 dp tall, 30 dp corners) with a round cut-out in the top edge, centred on the orb.
+ * The cut-out is a circle drawn around the orb's centre (8 dp below the bar's top edge) and is only
+ * [NotchRadius] - orb radius (about 4 dp) bigger than the orb, so a thin line of space follows the orb.
+ * The two top corners of the cut-out are softened with a tiny curve.
  */
 private class NotchedBarShape : Shape {
     override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline = with(density) {
@@ -163,13 +170,29 @@ private class NotchedBarShape : Shape {
         val cx = w / 2f
         val nr = NotchRadius.toPx()
         val cy = NotchCenterY.toPx()
-        val shoulder = 12.dp.toPx()
+        val shoulder = 5.dp.toPx()   // length of the soft corner on the top edge
+        val fillet = 3.dp.toPx()     // how far below the top edge the circle starts
+        val relY = cy - fillet       // start height of the circle, relative to its centre
+        val half = sqrt(nr * nr - relY * relY)
+        val theta = atan2(relY, half)                  // radians
+        val thetaDeg = Math.toDegrees(theta.toDouble()).toFloat()
+        val k = shoulder * 0.5f
+        // direction the outline travels at the left start point of the arc (down and slightly outward)
+        val dx = sin(Math.PI + theta.toDouble()).toFloat()
+        val dy = -cos(Math.PI + theta.toDouble()).toFloat()
+        val leftX = cx - half
+        val rightX = cx + half
         Path().apply {
             moveTo(r, 0f)
-            lineTo(cx - nr - shoulder, 0f)
-            cubicTo(cx - nr - shoulder * 0.35f, 0f, cx - nr, cy * 0.25f, cx - nr, cy)
-            arcTo(Rect(cx - nr, cy - nr, cx + nr, cy + nr), 180f, -180f, false)
-            cubicTo(cx + nr, cy * 0.25f, cx + nr + shoulder * 0.35f, 0f, cx + nr + shoulder, 0f)
+            lineTo(leftX - shoulder, 0f)
+            cubicTo(leftX - shoulder * 0.45f, 0f, leftX - dx * k, fillet - dy * k, leftX, fillet)
+            arcTo(Rect(cx - nr, cy - nr, cx + nr, cy + nr), 180f + thetaDeg, -(180f + 2f * thetaDeg), false)
+            // direction at the right end of the arc (up and slightly inward) is (-sin t, -cos t)
+            cubicTo(
+                rightX - sin(theta) * k, fillet - cos(theta) * k,
+                rightX + shoulder * 0.45f, 0f,
+                rightX + shoulder, 0f,
+            )
             lineTo(w - r, 0f)
             arcTo(Rect(w - 2 * r, 0f, w, 2 * r), -90f, 90f, false)
             lineTo(w, h - r)
@@ -183,8 +206,13 @@ private class NotchedBarShape : Shape {
     }
 }
 
-private val NotchRadius = 42.dp
+// Orb is 60 dp (radius 30): 34 dp leaves a ~4 dp line of space around it.
+private val NotchRadius = 34.dp
 private val NotchCenterY = 8.dp
+
+// Without the "Twin" label the orb's 24 dp slot is centred in the bar: its centre is 31 dp below the
+// bar's top edge (5 dp item padding + 14 dp + 12 dp). This moves the orb's centre up to NotchCenterY.
+private val OrbOffsetY = NotchCenterY - 31.dp
 
 @Composable
 private fun BarItem(
@@ -195,12 +223,15 @@ private fun BarItem(
 ) {
     val colors = TwinTheme.colors
     val tint = if (selected) Color.White else Color.White.copy(alpha = 0.52f)
+    val label = stringResource(item.labelRes)
     Column(
         modifier = modifier
             .padding(vertical = 5.dp, horizontal = 2.dp)
             .then(
                 if (item.isOrb) {
-                    Modifier // never clip the orb: it floats above the bar
+                    // never clip the orb: it floats above the bar. No visible label, but screen
+                    // readers still announce it.
+                    Modifier.semantics { contentDescription = label }
                 } else {
                     Modifier
                         .clip(RoundedCornerShape(22.dp))
@@ -218,7 +249,7 @@ private fun BarItem(
                     selected = selected,
                     modifier = Modifier
                         .wrapContentSize(unbounded = true)
-                        .offset(y = (-14).dp),
+                        .offset(y = OrbOffsetY),
                 )
             }
         } else {
@@ -236,13 +267,15 @@ private fun BarItem(
                 )
             }
         }
-        Text(
-            text = stringResource(item.labelRes),
-            style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp),
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            color = tint,
-            modifier = Modifier.padding(top = if (item.isOrb) 2.dp else 1.dp),
-        )
+        if (!item.isOrb) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp),
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                color = tint,
+                modifier = Modifier.padding(top = 1.dp),
+            )
+        }
     }
 }
 

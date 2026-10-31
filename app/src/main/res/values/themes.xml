@@ -8,11 +8,11 @@
         <item name="android:windowLightStatusBar">false</item>
     </style>
 
-    <!-- Splash screen shown while the app opens: the Twin Hearts logo on the app's dark background.
+    <!-- Splash screen shown while the app opens: logo + name are one picture (splash_brand.png) shown instantly; TwinSplash (Compose) shows the same picture at the same place.
          Only MainActivity uses it; once the app is ready it switches to Theme.TwinHearts. -->
     <style name="Theme.TwinHearts.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/twin_window_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_brand</item>
         <item name="postSplashScreenTheme">@style/Theme.TwinHearts</item>
     </style>
 </resources>

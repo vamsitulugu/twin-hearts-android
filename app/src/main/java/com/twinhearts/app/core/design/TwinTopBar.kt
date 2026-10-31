@@ -64,8 +64,7 @@ fun TwinTopBar(
                 contentDescription = stringResource(R.string.core_logo),
                 modifier = Modifier
                     .padding(horizontal = TwinTheme.spacing.s)
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(10.dp)),
+                    .size(36.dp),
             )
         }
         if (onMenuClick != null) {

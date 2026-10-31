@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Icon shown by the Android system splash: the Twin Hearts logo, 72 dp wide in the 288 dp icon area
+     ((288 - 72) / 2 = 108 dp = 37.5% on each side). Same size/place as the logo in TwinSplash. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/core_logo"
+    android:inset="37.5%" />

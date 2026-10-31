@@ -107,8 +107,7 @@ private fun BrandRow() {
             painter = painterResource(R.drawable.core_logo),
             contentDescription = stringResource(R.string.core_logo),
             modifier = Modifier
-                .size(LogoSize)
-                .clip(RoundedCornerShape(LogoCorner)),
+                .size(LogoSize),
         )
         Column {
             Text(

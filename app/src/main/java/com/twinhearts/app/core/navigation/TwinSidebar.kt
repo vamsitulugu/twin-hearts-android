@@ -229,8 +229,7 @@ private fun SidebarHeader() {
                 painter = painterResource(R.drawable.core_logo),
                 contentDescription = stringResource(R.string.core_logo),
                 modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(10.dp)),
+                    .size(38.dp),
             )
             Text(
                 text = stringResource(R.string.app_name),

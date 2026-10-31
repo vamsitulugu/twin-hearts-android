@@ -10,6 +10,12 @@ import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.graphicsLayer
 import com.twinhearts.app.core.common.rememberReduceMotion
 import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -86,12 +92,58 @@ import java.util.Calendar
 
 private val LogoSize = 36.dp
 private val LogoCorner = 10.dp
+private const val SHINE_CYCLE_MILLIS = 3_600
+private const val SHINE_SWEEP_MILLIS = 900
 private val ProfileSize = 38.dp
 private val ProfileRingSize = 46.dp
 private val SearchHeight = 48.dp
 private val PageIconCircle = 52.dp
 private val PageIconSize = 24.dp
 private const val MS_PER_DAY = 86_400_000L
+
+/**
+ * The Home logo with a small shine: a soft light streak sweeps across it every few seconds.
+ * The streak is masked by the logo's own shape (SrcAtop), so it never spills outside the square.
+ * Stays still when "Reduce motion" is on.
+ */
+@Composable
+private fun ShinyLogo(modifier: Modifier = Modifier) {
+    val reduceMotion = rememberReduceMotion()
+    val transition = rememberInfiniteTransition(label = "logo-shine")
+    val progress by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = keyframes {
+                durationMillis = SHINE_CYCLE_MILLIS
+                0f at 0 using FastOutSlowInEasing
+                1f at SHINE_SWEEP_MILLIS
+            },
+        ),
+        label = "logo-shine-progress",
+    )
+    Image(
+        painter = painterResource(R.drawable.core_logo_home),
+        contentDescription = null,
+        modifier = modifier
+            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+            .drawWithContent {
+                drawContent()
+                if (!reduceMotion) {
+                    val band = size.width * 0.5f
+                    val x = -band + (size.width + band * 2f) * progress
+                    drawRect(
+                        brush = Brush.linearGradient(
+                            colors = listOf(Color.Transparent, Color.White.copy(alpha = 0.85f), Color.Transparent),
+                            start = Offset(x, 0f),
+                            end = Offset(x + band, band * 0.6f),
+                        ),
+                        blendMode = BlendMode.SrcAtop,
+                    )
+                }
+            },
+    )
+}
 
 /** Logo + name on the left, my avatar (opens the profile) on the right. */
 @Composable
@@ -104,11 +156,7 @@ internal fun HomeHeader(myName: String, onProfileClick: () -> Unit) {
             .padding(horizontal = TwinTheme.spacing.screenEdge, vertical = TwinTheme.spacing.s),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Image(
-            painter = painterResource(R.drawable.core_logo),
-            contentDescription = null,
-            modifier = Modifier.size(LogoSize).clip(RoundedCornerShape(LogoCorner)),
-        )
+        ShinyLogo(Modifier.size(LogoSize))
         Text(
             text = stringResource(R.string.app_name),
             style = MaterialTheme.typography.titleLarge,

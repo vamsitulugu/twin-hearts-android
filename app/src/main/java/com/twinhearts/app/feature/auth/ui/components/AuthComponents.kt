@@ -97,8 +97,7 @@ private fun AuthBrandHeader() {
             painter = painterResource(R.drawable.core_logo),
             contentDescription = stringResource(R.string.core_logo),
             modifier = Modifier
-                .size(BrandLogoSize)
-                .clip(RoundedCornerShape(BrandLogoCorner)),
+                .size(BrandLogoSize),
         )
         Text(
             text = stringResource(R.string.app_name),

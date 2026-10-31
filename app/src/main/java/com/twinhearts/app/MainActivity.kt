@@ -8,6 +8,14 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import com.twinhearts.app.core.design.TwinSplash
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.core.navigation.TwinApp
 import com.razorpay.Checkout
@@ -24,6 +32,9 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     @Inject lateinit var paymentBridge: PaymentBridge
     @Inject lateinit var adsManager: AdsManager
 
+    private var splashStart = 0L
+    @Volatile private var splashReady = false
+
     // Razorpay reports the payment result here; the Pro screen listens through the bridge.
     override fun onPaymentSuccess(razorpayPaymentId: String?, data: PaymentData?) {
         paymentBridge.success(data?.orderId, razorpayPaymentId ?: data?.paymentId, data?.signature)
@@ -34,9 +45,15 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Splash: the logo stays on screen for a short moment (about 1 second) while the app opens.
-        val splashStart = SystemClock.uptimeMillis()
-        installSplashScreen().setKeepOnScreenCondition { SystemClock.uptimeMillis() - splashStart < SPLASH_MIN_MILLIS }
+        // Splash: the system splash shows the logo instantly (no blank page). It stays until the
+        // Compose splash (TwinSplash) has drawn its first frame, then hands over at the same place.
+        splashStart = SystemClock.uptimeMillis()
+        splashReady = savedInstanceState != null // a restored app skips the splash
+        val systemSplash = installSplashScreen()
+        systemSplash.setKeepOnScreenCondition {
+            !splashReady && SystemClock.uptimeMillis() - splashStart < SPLASH_HANDOVER_TIMEOUT_MILLIS
+        }
+        systemSplash.setOnExitAnimationListener { it.remove() } // no extra exit animation: instant hand-over
         // Transparent bars with light icons: the app background is always dark.
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
@@ -46,7 +63,17 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         Checkout.preload(applicationContext) // opens the payment window faster later
         setContent {
             TwinTheme {
-                TwinApp()
+                var showSplash by rememberSaveable { mutableStateOf(savedInstanceState == null) }
+                Box(Modifier.fillMaxSize()) {
+                    TwinApp()
+                    if (showSplash) {
+                        TwinSplash(
+                            startedAtUptimeMillis = splashStart,
+                            onFirstFrame = { splashReady = true },
+                            onFinished = { showSplash = false },
+                        )
+                    }
+                }
             }
         }
     }
@@ -57,7 +84,9 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         adsManager.onAppStart(this)
     }
 
+
     private companion object {
-        const val SPLASH_MIN_MILLIS = 1_000L
+        /** Safety: never keep the system splash longer than this if the Compose splash is late. */
+        const val SPLASH_HANDOVER_TIMEOUT_MILLIS = 1_500L
     }
 }
