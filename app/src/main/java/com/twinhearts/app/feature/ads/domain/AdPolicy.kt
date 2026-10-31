@@ -21,14 +21,13 @@ data class AdHistory(
 
 /** The knobs. Change a number here and every rule below follows. */
 object AdRules {
-    // TEST VALUES - restore the real ones before release (see below the file)
-    const val NEW_USER_GRACE_MILLIS = 0L
-    const val MIN_SESSIONS = 1
-    const val MIN_SESSION_AGE_MILLIS = 0L
-    const val MIN_TIME_IN_FEATURE_MILLIS = 3_000L
-    const val MIN_GAP_MILLIS = 0L
-    const val MAX_PER_DAY = 20
-    const val BREAKS_BETWEEN_ADS = 1
+    const val NEW_USER_GRACE_MILLIS = 48L * 60 * 60 * 1000
+    const val MIN_SESSIONS = 3
+    const val MIN_SESSION_AGE_MILLIS = 90_000L
+    const val MIN_TIME_IN_FEATURE_MILLIS = 45_000L
+    const val MIN_GAP_MILLIS = 8L * 60 * 1000
+    const val MAX_PER_DAY = 3
+    const val BREAKS_BETWEEN_ADS = 2
 }
 
 /** Why an ad was NOT shown. Handy for tests and for the debug log. */

@@ -7,4 +7,12 @@
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>
+
+    <!-- Splash screen shown while the app opens: the Twin Hearts logo on the app's dark background.
+         Only MainActivity uses it; once the app is ready it switches to Theme.TwinHearts. -->
+    <style name="Theme.TwinHearts.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/twin_window_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.TwinHearts</item>
+    </style>
 </resources>

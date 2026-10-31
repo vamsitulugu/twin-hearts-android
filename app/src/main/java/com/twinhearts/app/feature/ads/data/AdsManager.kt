@@ -3,6 +3,7 @@ package com.twinhearts.app.feature.ads.data
 import android.app.Activity
 import android.content.Context
 import android.os.SystemClock
+import android.util.Log
 import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.FullScreenContentCallback
@@ -64,6 +65,7 @@ class AdsManager @Inject constructor(
     private var launchedAtElapsed = 0L
     private var checking = false
     private var lastCheckElapsed = 0L
+    private var recheckAfter = RECHECK_MILLIS
     private var sdkStarted = false
     private var eligible = false
 
@@ -75,6 +77,7 @@ class AdsManager @Inject constructor(
 
     /** Called from MainActivity.onStart. The first call of a process is counted as one "session". */
     fun onAppStart(activity: Activity) {
+        Log.d(TAG, "onAppStart: adsEnabled=${AdsConfig.enabled}")
         if (!AdsConfig.enabled) return
         val firstOfProcess = !launched
         launched = true
@@ -94,7 +97,7 @@ class AdsManager @Inject constructor(
      * [stillOnHome] is asked again just before showing, so we never pop up over a screen they moved on to.
      */
     fun onFeatureClosed(activity: Activity, timeInFeatureMillis: Long, stillOnHome: () -> Boolean) {
-        if (!AdsConfig.enabled || !eligible) return
+        if (!AdsConfig.enabled) return
         if (timeInFeatureMillis < AdRules.MIN_TIME_IN_FEATURE_MILLIS) return
         scope.launch {
             refreshEligibility(activity) // cheap: skipped unless the last check is old
@@ -108,7 +111,10 @@ class AdsManager @Inject constructor(
                 sessionAgeMillis = SystemClock.elapsedRealtime() - launchedAtElapsed,
                 timeInFeatureMillis = timeInFeatureMillis,
             )
-            if (reason != null) return@launch
+            if (reason != null) {
+                Log.d(TAG, "no full-screen ad: $reason")
+                return@launch
+            }
 
             val ready = interstitial?.takeIf { SystemClock.elapsedRealtime() - interstitialLoadedAt < AD_MAX_AGE_MILLIS }
             if (ready == null) {
@@ -121,6 +127,12 @@ class AdsManager @Inject constructor(
             if (activity.isFinishing || activity.isDestroyed) return@launch
             show(activity, ready)
         }
+    }
+
+    /** Home is on screen: if the last check failed (offline, cold server, not signed in yet), try again. */
+    fun onHomeVisible(activity: Activity) {
+        if (!AdsConfig.enabled || !launched) return
+        scope.launch { refreshEligibility(activity) }
     }
 
     // ── safety checks ────────────────────────────────────────────────────────
@@ -136,21 +148,29 @@ class AdsManager @Inject constructor(
         val now = SystemClock.elapsedRealtime()
         if (checking) return
         // Ask the server at most every 10 minutes (the first check of a launch always runs).
-        if (lastCheckElapsed != 0L && now - lastCheckElapsed < RECHECK_MILLIS) return
+        if (lastCheckElapsed != 0L && now - lastCheckElapsed < recheckAfter) return
         checking = true
         try {
             lastCheckElapsed = now
+            Log.d(TAG, "checking Pro status with the server...")
             val status = when (val result = proGate.refresh()) {
                 is AppResult.Success -> result.data
                 is AppResult.Failure -> null
             }
+            Log.d(TAG, "server answered: $status")
             // Unknown (offline / signed out) or Pro: no ads.
             if (status == null || status.isActive()) {
+                Log.d(TAG, "ads off: " + if (status == null) "could not reach server / not signed in (will retry soon)" else "couple is Pro")
+                // Could not confirm: retry soon instead of waiting 10 minutes. Pro: the normal long wait is fine.
+                recheckAfter = if (status == null) RETRY_AFTER_FAILURE_MILLIS else RECHECK_MILLIS
                 disable()
                 return
             }
+            recheckAfter = RECHECK_MILLIS
             val history = prefs.read(System.currentTimeMillis())
-            if (AdPolicy.bannerSkipReason(history, System.currentTimeMillis()) != null) {
+            val graceReason = AdPolicy.bannerSkipReason(history, System.currentTimeMillis())
+            if (graceReason != null) {
+                Log.d(TAG, "ads off: new-user protection ($graceReason)")
                 disable()
                 return
             }
@@ -162,10 +182,14 @@ class AdsManager @Inject constructor(
     }
 
     private suspend fun startSdk(activity: Activity) {
+        Log.d(TAG, "starting consent + ads SDK...")
         val consented = withTimeoutOrNull(CONSENT_TIMEOUT_MILLIS) {
             suspendCancellableCoroutine<Boolean> { cont -> gatherConsent(activity) { ok -> if (cont.isActive) cont.resume(ok) } }
         } ?: false
-        if (!consented) return
+        if (!consented) {
+            Log.d(TAG, "ads off: consent not granted / timed out")
+            return
+        }
         // Keep ads suitable for a couples app: nothing above "teen" content.
         MobileAds.setRequestConfiguration(
             RequestConfiguration.Builder()
@@ -176,6 +200,7 @@ class AdsManager @Inject constructor(
             MobileAds.initialize(appContext) { if (cont.isActive) cont.resume(Unit) }
         }
         sdkStarted = true
+        Log.d(TAG, "ads SDK started")
     }
 
     /** Google's UMP consent form. Shows only where the law needs it; elsewhere it finishes silently. */
@@ -217,6 +242,7 @@ class AdsManager @Inject constructor(
                 override fun onAdLoaded(ad: InterstitialAd) {
                     loadingInterstitial = false
                     loadFailures = 0
+                    Log.d(TAG, "interstitial loaded")
                     interstitial = ad
                     interstitialLoadedAt = SystemClock.elapsedRealtime()
                 }
@@ -224,6 +250,7 @@ class AdsManager @Inject constructor(
                 override fun onAdFailedToLoad(error: LoadAdError) {
                     loadingInterstitial = false
                     interstitial = null
+                    Log.d(TAG, "interstitial failed: ${error.code} ${error.message}")
                     loadFailures += 1
                     // Try again a few times, slowly, then give up until the next break.
                     if (loadFailures <= MAX_LOAD_RETRIES) {
@@ -262,6 +289,8 @@ class AdsManager @Inject constructor(
         /** Google drops an unused full-screen ad after about an hour; we stop trusting it a bit earlier. */
         const val AD_MAX_AGE_MILLIS = 50L * 60 * 1000
         const val RECHECK_MILLIS = 10L * 60 * 1000
+        const val RETRY_AFTER_FAILURE_MILLIS = 20_000L
+        const val TAG = "TwinAds"
         const val SHOW_DELAY_MILLIS = 700L
         const val CONSENT_TIMEOUT_MILLIS = 90_000L
         const val RETRY_DELAY_MILLIS = 30_000L

@@ -45,7 +45,7 @@
             android:supportsPictureInPicture="true"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
             android:windowSoftInputMode="adjustResize"
-            android:theme="@style/Theme.TwinHearts">
+            android:theme="@style/Theme.TwinHearts.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

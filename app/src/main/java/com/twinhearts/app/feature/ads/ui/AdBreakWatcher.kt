@@ -24,6 +24,7 @@ fun AdBreakWatcher(navController: NavController) {
         var inFeature = false
         var enteredAt = 0L
         val listener = NavController.OnDestinationChangedListener { controller, destination, _ ->
+            if (destination.hasRoute<Routes.Home>() && activity != null) ads.onHomeVisible(activity)
             when {
                 isBreakFeature(destination) -> {
                     if (!inFeature) {

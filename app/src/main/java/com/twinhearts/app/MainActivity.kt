@@ -2,10 +2,12 @@ package com.twinhearts.app
 
 import android.graphics.Color
 import android.os.Bundle
+import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.core.navigation.TwinApp
 import com.razorpay.Checkout
@@ -32,6 +34,9 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Splash: the logo stays on screen for a short moment (about 1 second) while the app opens.
+        val splashStart = SystemClock.uptimeMillis()
+        installSplashScreen().setKeepOnScreenCondition { SystemClock.uptimeMillis() - splashStart < SPLASH_MIN_MILLIS }
         // Transparent bars with light icons: the app background is always dark.
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
@@ -50,5 +55,9 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         super.onStart()
         // Ads: checks Pro first, then consent, then starts the ad SDK. Does nothing for Pro couples.
         adsManager.onAppStart(this)
+    }
+
+    private companion object {
+        const val SPLASH_MIN_MILLIS = 1_000L
     }
 }
