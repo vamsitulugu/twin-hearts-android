@@ -160,7 +160,7 @@ fun HeroBanner(movie: MovieItem, isFavorite: Boolean, onWatch: () -> Unit, onDet
             .movieGlass(shape).background(colors.card),
     ) {
         if (art != null) {
-            AsyncImage(art, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            AsyncImage(art, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, alignment = Alignment.TopCenter)
         } else {
             val g = genreStyle(movie.genre)
             Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(g.startArgb), Color(g.endArgb)))))
@@ -179,7 +179,7 @@ fun HeroBanner(movie: MovieItem, isFavorite: Boolean, onWatch: () -> Unit, onDet
             )
             Text(movie.title, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Chip(movie.genre ?: stringResource(R.string.movie_hero_default_genre))
+                Chip(movie.genre ?: stringResource(R.string.movie_hero_default_genre), Modifier.weight(1f, fill = false))
                 movie.year?.let { Chip(it) }
                 movie.rating?.takeIf { it > 0 }?.let { Chip("⭐ ${it.toInt()}/5") }
                 Chip(stringResource(statusLabel(movie.status)))
@@ -193,10 +193,11 @@ fun HeroBanner(movie: MovieItem, isFavorite: Boolean, onWatch: () -> Unit, onDet
 }
 
 @Composable
-private fun Chip(text: String) {
+private fun Chip(text: String, modifier: Modifier = Modifier) {
     Text(
         text, color = Color.White, style = MaterialTheme.typography.labelSmall,
-        modifier = Modifier.clip(TwinTheme.shapes.pill).background(Color.White.copy(alpha = 0.16f)).padding(horizontal = 10.dp, vertical = 4.dp),
+        maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis,
+        modifier = modifier.clip(TwinTheme.shapes.pill).background(Color.White.copy(alpha = 0.16f)).padding(horizontal = 10.dp, vertical = 4.dp),
     )
 }
 
