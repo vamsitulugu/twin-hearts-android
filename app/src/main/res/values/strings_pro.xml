@@ -51,6 +51,8 @@
     <string name="pro_f_music_d">Build your own shared library and playlists.</string>
     <string name="pro_f_movie">Watch Together · Cloud upload</string>
     <string name="pro_f_movie_d">Upload a movie once and stream it in sync.</string>
+    <string name="pro_f_noads">No Ads</string>
+    <string name="pro_f_noads_d">Enjoy Twin Hearts without any ads.</string>
     <string name="pro_free_note">Chat, calls, Live Map, Vault, Calendar and the rest stay free.\nYour memories, songs and movies are never deleted if Pro ends.</string>
 
     <string name="pro_history">Payment history</string>

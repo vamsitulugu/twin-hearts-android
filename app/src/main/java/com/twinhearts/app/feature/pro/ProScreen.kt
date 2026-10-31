@@ -29,6 +29,7 @@ import androidx.compose.material.icons.outlined.CardGiftcard
 import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material.icons.outlined.WorkspacePremium
 import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material3.CircularProgressIndicator
@@ -327,6 +328,7 @@ private fun PlanCard(
             FeatureLine(Icons.Outlined.Public, R.string.pro_f_globe, R.string.pro_f_globe_d)
             FeatureLine(Icons.Outlined.LibraryMusic, R.string.pro_f_music, R.string.pro_f_music_d)
             FeatureLine(Icons.Outlined.CloudUpload, R.string.pro_f_movie, R.string.pro_f_movie_d)
+            FeatureLine(Icons.Outlined.VerifiedUser, R.string.pro_f_noads, R.string.pro_f_noads_d)
         }
 
         val enabled = !lifetimeOwned && !busy
