@@ -80,7 +80,8 @@ class UploadService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.stat_sys_upload)
+            .setSmallIcon(R.drawable.ic_stat_twin)
+            .setColor(0xFFC2185B.toInt())
             .setContentTitle(title)
             .setProgress(PERCENT.toInt(), percent, state == null || state.sentBytes == 0L)
             .setOngoing(true)
@@ -92,7 +93,8 @@ class UploadService : Service() {
 
     private fun resultNotification(message: String): Notification =
         NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.stat_sys_upload_done)
+            .setSmallIcon(R.drawable.ic_stat_twin)
+            .setColor(0xFFC2185B.toInt())
             .setContentTitle(message)
             .setAutoCancel(true)
             .setContentIntent(openApp())

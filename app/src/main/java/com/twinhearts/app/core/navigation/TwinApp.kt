@@ -72,13 +72,17 @@ fun TwinApp(viewModel: AppViewModel = hiltViewModel()) {
     CompositionLocalProvider(LocalReduceMotionSetting provides reduceMotion) {
         TwinBackground {
             // Until the start screen is known we show only the background (a few milliseconds).
-            startRoute?.let { start -> TwinNavigation(startDestination = start, session = session) }
+            startRoute?.let { start -> TwinNavigation(startDestination = start, session = session, notificationNavigator = viewModel.notificationNavigator) }
         }
     }
 }
 
 @Composable
-private fun TwinNavigation(startDestination: Any, session: com.twinhearts.app.core.data.Session?) {
+private fun TwinNavigation(
+    startDestination: Any,
+    session: com.twinhearts.app.core.data.Session?,
+    notificationNavigator: com.twinhearts.app.core.notifications.NotificationNavigator,
+) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -101,6 +105,14 @@ private fun TwinNavigation(startDestination: Any, session: com.twinhearts.app.co
             }
         },
     )
+    // A tapped notification opens its screen (only when someone is signed in).
+    val notificationTarget by notificationNavigator.pending.collectAsStateWithLifecycle()
+    LaunchedEffect(notificationTarget, session) {
+        val target = notificationTarget ?: return@LaunchedEffect
+        if (session == null) return@LaunchedEffect
+        notificationNavigator.consume()
+        navController.navigate(target.toRoute()) { launchSingleTop = true }
+    }
     // Ads: notices "used a feature, came back Home" and lets AdsManager decide if an ad is fair.
     AdBreakWatcher(navController)
 

@@ -88,7 +88,8 @@ class NavigationService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_menu_directions)
+            .setSmallIcon(R.drawable.ic_stat_twin)
+            .setColor(0xFFC2185B.toInt())
             .setContentTitle(title)
             .setContentText(text)
             .setContentIntent(open)

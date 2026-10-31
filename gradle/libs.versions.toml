@@ -29,6 +29,9 @@ espressoCore = "3.7.0"
 mockk = "1.13.13"
 turbine = "1.2.0"
 razorpay = "1.6.40"
+# Push notifications (Firebase Cloud Messaging). The BoM picks matching versions.
+firebaseBom = "33.7.0"
+googleServices = "4.4.2"
 # AdMob. 24.0.0 is the newest line that builds with Kotlin 2.0.21 (24.1.0 and up need Kotlin 2.1+).
 playServicesAds = "24.0.0"
 
@@ -76,7 +79,11 @@ razorpay-checkout = { group = "com.razorpay", name = "checkout", version.ref = "
 play-services-ads = { group = "com.google.android.gms", name = "play-services-ads", version.ref = "playServicesAds" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
+
 [plugins]
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

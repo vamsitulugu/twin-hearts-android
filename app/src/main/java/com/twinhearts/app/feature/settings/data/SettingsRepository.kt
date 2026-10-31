@@ -71,6 +71,7 @@ class SettingsRepositoryImpl @Inject constructor(
     private val avatars: AvatarCompressor,
     private val files: BackupFiles,
     private val cache: CacheCleaner,
+    private val pushTokens: com.twinhearts.app.core.notifications.PushTokenRegistrar,
 ) : SettingsRepository {
 
     private val prettyJson = Json { prettyPrint = true }
@@ -274,5 +275,9 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override suspend fun clearCache() = cache.clear()
 
-    override suspend fun signOut() = sessionStore.clear()
+    override suspend fun signOut() {
+        // Tell the server to stop pushing to this phone before the session (and its ids) is gone.
+        runCatching { pushTokens.unregister() }
+        sessionStore.clear()
+    }
 }

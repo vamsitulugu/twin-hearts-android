@@ -1,6 +1,7 @@
 package com.twinhearts.app
 
 import android.graphics.Color
+import android.content.Intent
 import android.os.Bundle
 import android.os.SystemClock
 import androidx.activity.ComponentActivity
@@ -23,6 +24,8 @@ import com.razorpay.PaymentData
 import com.razorpay.PaymentResultWithDataListener
 import com.twinhearts.app.core.pro.PaymentBridge
 import com.twinhearts.app.feature.ads.data.AdsManager
+import com.twinhearts.app.core.notifications.NotificationNavigator
+import com.twinhearts.app.core.notifications.TwinNotifier
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -31,6 +34,8 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     @Inject lateinit var paymentBridge: PaymentBridge
     @Inject lateinit var adsManager: AdsManager
+    @Inject lateinit var notificationNavigator: NotificationNavigator
+    @Inject lateinit var notifier: TwinNotifier
 
     private var splashStart = 0L
     @Volatile private var splashReady = false
@@ -60,6 +65,8 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
         super.onCreate(savedInstanceState)
+        // Opened by tapping a notification: remember where it wants to go.
+        notificationNavigator.handle(intent)
         Checkout.preload(applicationContext) // opens the payment window faster later
         setContent {
             TwinTheme {
@@ -78,8 +85,15 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        notificationNavigator.handle(intent)
+    }
+
     override fun onStart() {
         super.onStart()
+        notifier.onAppOpened() // chat and call notifications are done once the app is open
         // Ads: checks Pro first, then consent, then starts the ad SDK. Does nothing for Pro couples.
         adsManager.onAppStart(this)
     }

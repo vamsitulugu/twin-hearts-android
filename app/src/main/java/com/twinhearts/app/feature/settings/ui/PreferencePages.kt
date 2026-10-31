@@ -106,6 +106,7 @@ internal fun NotificationsPage(
             SettingsValueRow(stringResource(R.string.settings_from), state.prefs.quietStart.asSettingsText(), onClick = { editing = QuietField.From })
             SettingsValueRow(stringResource(R.string.settings_to), state.prefs.quietEnd.asSettingsText(), onClick = { editing = QuietField.To })
         }
+        NotificationTypesSection()
     }
     when (editing) {
         QuietField.From -> SettingsTimePickerDialog(state.prefs.quietStart, onDismiss = { editing = null }, onPicked = {

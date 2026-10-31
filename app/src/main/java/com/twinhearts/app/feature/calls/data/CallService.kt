@@ -92,7 +92,8 @@ class CallService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.sym_action_call)
+            .setSmallIcon(R.drawable.ic_stat_twin)
+            .setColor(0xFFC2185B.toInt())
             .setContentTitle(getString(R.string.calls_notification_title, partner))
             .setContentText(getString(R.string.calls_notification_text))
             .setContentIntent(open)

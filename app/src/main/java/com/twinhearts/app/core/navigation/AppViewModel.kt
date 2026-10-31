@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.twinhearts.app.core.data.AppPrefKeys
 import com.twinhearts.app.core.data.Session
 import com.twinhearts.app.core.data.SessionStore
+import com.twinhearts.app.core.notifications.NotificationNavigator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,6 +28,8 @@ import javax.inject.Inject
 class AppViewModel @Inject constructor(
     sessionStore: SessionStore,
     dataStore: DataStore<Preferences>,
+    /** Hands a tapped notification's destination to the nav graph. */
+    val notificationNavigator: NotificationNavigator,
 ) : ViewModel() {
 
     /** Who is signed in, for the side menu's couple widget. Null until known / after sign out. */

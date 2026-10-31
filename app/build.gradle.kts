@@ -124,6 +124,10 @@ dependencies {
     implementation(libs.razorpay.checkout)
     implementation(libs.play.services.ads)
 
+    // Push notifications: the receiver service is always compiled; it only wakes up once google-services.json is added.
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
+
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
     testImplementation(libs.turbine)
@@ -134,4 +138,10 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+// Push notifications: Firebase is switched on only when you add app/google-services.json (download it from
+// the Firebase console). Without the file the app still builds and runs; pushes just stay off.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
 }
