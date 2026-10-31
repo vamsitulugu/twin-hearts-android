@@ -1,7 +1,12 @@
 package com.twinhearts.app.feature.pro
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,20 +14,24 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.border as borderModifier
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AllInclusive
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.CardGiftcard
 import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.Public
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.WorkspacePremium
+import androidx.compose.material.icons.outlined.WorkspacePremium
+import androidx.compose.material.icons.rounded.ArrowForward
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -32,18 +41,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.twinhearts.app.R
 import com.twinhearts.app.core.common.asText
-import com.twinhearts.app.core.design.GlassButton
-import com.twinhearts.app.core.design.GlassButtonStyle
-import com.twinhearts.app.core.design.GlassCard
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.core.design.TwinTopBar
 import com.twinhearts.app.core.pro.ProPlan
@@ -54,8 +63,15 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
+private val Wine = Color(0xFFB0235F)
+private val WineDeep = Color(0xFF7A0B44)
+private val Gold = Color(0xFFFBBF24)
+private val CardDark = Color(0xFF120A12)
+private val Hair = Color.White.copy(alpha = 0.09f)
+private val CardShape = RoundedCornerShape(22.dp)
+
 /**
- * The Pro page (web: public/pro.html). Plans, what Pro unlocks, status and receipts.
+ * The Pro page (web: public/pro.html): plan tabs, one card per plan, tap "Choose ... Plan" to pay.
  * [feature] is set when a locked feature sent the person here; after paying they go straight back to it.
  */
 @Composable
@@ -92,50 +108,32 @@ fun ProScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = spacing.screenEdge)
                 .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(spacing.m),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Column(Modifier.fillMaxWidth().padding(top = spacing.s), horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Rounded.WorkspacePremium, null, tint = colors.pinkSoft, modifier = Modifier.size(48.dp))
-                Spacer(Modifier.height(spacing.s))
-                Text(
-                    text = if (feature != null) stringResource(R.string.pro_unlock_feature, feature) else stringResource(R.string.pro_headline),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = colors.ink,
-                    textAlign = TextAlign.Center,
-                )
-                Text(
-                    stringResource(R.string.pro_sub),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.inkMuted,
-                    textAlign = TextAlign.Center,
-                )
-            }
+            Header(feature)
+            StatusPill(state)
 
-            StatusCard(state)
+            Text(
+                stringResource(R.string.pro_choose),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = colors.ink,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+            )
+            PlanTabs(selected = state.selected, onSelect = viewModel::select)
 
-            Text(stringResource(R.string.pro_choose), style = MaterialTheme.typography.titleSmall, color = colors.inkMuted)
             ProPlan.entries.forEach { plan ->
-                PlanRow(
+                PlanCard(
                     plan = plan,
                     selected = state.selected == plan,
-                    enabled = !(state.hasLifetime),
-                    onClick = { viewModel.select(plan) },
+                    status = state.status.takeIf { state.status.isActive() },
+                    busy = state.busy,
+                    onSelect = { viewModel.select(plan) },
+                    onChoose = { viewModel.select(plan); viewModel.pay() },
                 )
             }
 
-            val selected = state.selected
-            GlassButton(
-                text = when {
-                    state.hasLifetime -> stringResource(R.string.pro_have_lifetime)
-                    state.status.isActive() && selected != ProPlan.Lifetime ->
-                        stringResource(R.string.pro_btn_extend, selected.rupees)
-                    else -> stringResource(R.string.pro_btn_pay, selected.rupees)
-                },
-                onClick = viewModel::pay,
-                enabled = !state.hasLifetime,
-                loading = state.busy,
-                modifier = Modifier.fillMaxWidth(),
-            )
             state.notice?.let { n ->
                 Text(
                     text = when (n) {
@@ -149,6 +147,8 @@ fun ProScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
+
+            FreeNote()
             Text(
                 stringResource(R.string.pro_secure),
                 style = MaterialTheme.typography.bodySmall,
@@ -157,24 +157,14 @@ fun ProScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Text(stringResource(R.string.pro_unlocks), style = MaterialTheme.typography.titleSmall, color = colors.inkMuted)
-            FeatureRow(Icons.Outlined.AutoAwesome, R.string.pro_f_both, R.string.pro_f_both_d)
-            FeatureRow(Icons.Outlined.Public, R.string.pro_f_globe, R.string.pro_f_globe_d)
-            FeatureRow(Icons.Outlined.LibraryMusic, R.string.pro_f_music, R.string.pro_f_music_d)
-            FeatureRow(Icons.Outlined.CloudUpload, R.string.pro_f_movie, R.string.pro_f_movie_d)
-            Text(
-                stringResource(R.string.pro_free_note),
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.inkFaint,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
             if (state.history.isNotEmpty()) {
                 Text(stringResource(R.string.pro_history), style = MaterialTheme.typography.titleSmall, color = colors.inkMuted)
-                GlassCard(Modifier.fillMaxWidth()) {
+                Column(
+                    Modifier.fillMaxWidth().background(CardDark, RoundedCornerShape(18.dp)).border(1.dp, Hair, RoundedCornerShape(18.dp)).padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     state.history.forEach { p ->
-                        Row(Modifier.fillMaxWidth().padding(vertical = spacing.xs), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Column(Modifier.weight(1f)) {
                                 Text(p.plan?.name ?: "Pro", style = MaterialTheme.typography.bodyMedium, color = colors.ink)
                                 Text(formatDate(p.paidAt), style = MaterialTheme.typography.bodySmall, color = colors.inkFaint)
@@ -190,82 +180,226 @@ fun ProScreen(
 }
 
 @Composable
-private fun StatusCard(state: ProUiState) {
+private fun Header(feature: String?) {
     val colors = TwinTheme.colors
-    GlassCard(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m)) {
-            val active = state.status.isActive()
-            Icon(
-                if (active) Icons.Rounded.CheckCircle else Icons.Rounded.Lock,
-                null,
-                tint = if (active) colors.success else colors.inkMuted,
-                modifier = Modifier.size(28.dp),
-            )
+    Column(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Icon(Icons.Outlined.WorkspacePremium, null, tint = colors.pinkSoft, modifier = Modifier.size(44.dp))
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = if (feature != null) stringResource(R.string.pro_unlock_feature, feature) else stringResource(R.string.pro_title),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.ExtraBold,
+            color = colors.ink,
+            textAlign = TextAlign.Center,
+        )
+        Text(stringResource(R.string.pro_everything), style = MaterialTheme.typography.titleSmall, color = colors.ink)
+        Text(stringResource(R.string.pro_sub), style = MaterialTheme.typography.bodyMedium, color = colors.inkMuted, textAlign = TextAlign.Center)
+        Text(stringResource(R.string.pro_sub2), style = MaterialTheme.typography.bodySmall, color = colors.inkFaint, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+private fun StatusPill(state: ProUiState) {
+    if (!state.status.isActive()) return
+    val green = Color(0xFF34D399)
+    val text = if (state.status.plan == ProPlan.Lifetime) {
+        stringResource(R.string.pro_status_lifetime_pill)
+    } else {
+        stringResource(R.string.pro_status_until_pill, formatDate(state.status.expiresAt))
+    }
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Text(
+            text,
+            style = MaterialTheme.typography.labelLarge,
+            color = green,
+            modifier = Modifier
+                .clip(CircleShape)
+                .background(green.copy(alpha = 0.12f))
+                .border(1.dp, green.copy(alpha = 0.35f), CircleShape)
+                .padding(horizontal = 14.dp, vertical = 6.dp),
+        )
+    }
+}
+
+@Composable
+private fun PlanTabs(selected: ProPlan, onSelect: (ProPlan) -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(16.dp))
+            .padding(4.dp),
+    ) {
+        ProPlan.entries.forEach { plan ->
+            val on = plan == selected
+            // Outer box is not clipped, so the "Save 58%" badge can float above the Yearly tab.
+            Box(Modifier.weight(1f).height(42.dp)) {
+                Box(
+                    Modifier
+                        .matchParentSize()
+                        .clip(RoundedCornerShape(12.dp))
+                        .then(if (on) Modifier.background(Brush.horizontalGradient(listOf(Wine, WineDeep))) else Modifier)
+                        .clickable { onSelect(plan) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        stringResource(planName(plan)),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (on) Color.White else Color.White.copy(alpha = 0.6f),
+                    )
+                }
+                if (plan == ProPlan.Yearly) {
+                    Text(
+                        stringResource(R.string.pro_save_badge),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White,
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .offset(y = (-14).dp)
+                            .background(Brush.horizontalGradient(listOf(TwinTheme.colors.pinkSoft, Wine)), CircleShape)
+                            .padding(horizontal = 9.dp, vertical = 2.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlanCard(
+    plan: ProPlan,
+    selected: Boolean,
+    status: com.twinhearts.app.core.pro.ProStatus?,
+    busy: Boolean,
+    onSelect: () -> Unit,
+    onChoose: () -> Unit,
+) {
+    val colors = TwinTheme.colors
+    val lifetimeOwned = status?.plan == ProPlan.Lifetime
+    val bg = if (selected) Modifier.background(Brush.linearGradient(listOf(Wine.copy(alpha = 0.35f), Color(0xFF3C0824).copy(alpha = 0.55f))), CardShape)
+    else Modifier.background(CardDark, CardShape)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .then(bg)
+            .border(if (selected) BorderStroke(1.5.dp, colors.pinkSoft) else BorderStroke(1.dp, Hair), CardShape)
+            .clip(CardShape)
+            .clickable(onClick = onSelect)
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+    ) {
+        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Box(
+                Modifier.size(54.dp).background(if (plan == ProPlan.Yearly) Gold.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.07f), RoundedCornerShape(16.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(planIcon(plan), null, tint = if (plan == ProPlan.Yearly) Gold else Color.White, modifier = Modifier.size(26.dp))
+            }
             Column(Modifier.weight(1f)) {
-                Text(
-                    stringResource(if (active) R.string.pro_status_on else R.string.pro_status_off),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = colors.ink,
+                Text(stringResource(planName(plan)), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = colors.ink)
+                Text(stringResource(planLine1(plan)), style = MaterialTheme.typography.bodySmall, color = if (selected) colors.pinkSoft else colors.inkMuted)
+                planLine2(plan)?.let { Text(stringResource(it), style = MaterialTheme.typography.bodySmall, color = colors.inkFaint) }
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                planBadge(plan)?.let {
+                    val gold = plan == ProPlan.Yearly
+                    val tone = if (gold) Gold else colors.pinkSoft
+                    Text(
+                        stringResource(it),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = tone,
+                        modifier = Modifier
+                            .padding(bottom = 6.dp)
+                            .background(tone.copy(alpha = 0.14f), CircleShape)
+                            .border(1.dp, tone.copy(alpha = 0.35f), CircleShape)
+                            .padding(horizontal = 10.dp, vertical = 3.dp),
+                    )
+                }
+                Text("₹${plan.rupees}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = colors.ink)
+                Text(stringResource(planPer(plan)), style = MaterialTheme.typography.bodySmall, color = colors.inkMuted)
+            }
+        }
+
+        Column(Modifier.padding(vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            FeatureLine(Icons.Outlined.AutoAwesome, R.string.pro_f_both, R.string.pro_f_both_d)
+            FeatureLine(Icons.Outlined.Public, R.string.pro_f_globe, R.string.pro_f_globe_d)
+            FeatureLine(Icons.Outlined.LibraryMusic, R.string.pro_f_music, R.string.pro_f_music_d)
+            FeatureLine(Icons.Outlined.CloudUpload, R.string.pro_f_movie, R.string.pro_f_movie_d)
+        }
+
+        val enabled = !lifetimeOwned && !busy
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .height(50.dp)
+                .clip(RoundedCornerShape(15.dp))
+                .background(
+                    if (selected) Brush.horizontalGradient(listOf(Wine, WineDeep))
+                    else Brush.horizontalGradient(listOf(Color.White.copy(alpha = 0.08f), Color.White.copy(alpha = 0.08f))),
                 )
+                .clickable(enabled = enabled, onClick = onChoose),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (busy && selected) {
+                CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+            } else {
                 Text(
                     text = when {
-                        !active -> stringResource(R.string.pro_status_off_d)
-                        state.status.plan == ProPlan.Lifetime -> stringResource(R.string.pro_status_lifetime)
-                        else -> stringResource(R.string.pro_status_until, formatDate(state.status.expiresAt))
+                        lifetimeOwned -> stringResource(R.string.pro_have_lifetime)
+                        status != null && plan != ProPlan.Lifetime -> stringResource(R.string.pro_btn_extend_plan, stringResource(planName(plan)))
+                        else -> stringResource(R.string.pro_btn_choose, stringResource(planName(plan)))
                     },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.inkMuted,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White.copy(alpha = if (enabled) 1f else 0.55f),
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun PlanRow(plan: ProPlan, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
-    val colors = TwinTheme.colors
-    val ringColor = if (selected && enabled) colors.pinkSoft else colors.line
-    GlassCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .borderModifier(if (selected) 2.dp else 1.dp, ringColor, TwinTheme.shapes.card),
-        onClick = if (enabled) onClick else null,
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m)) {
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
-                    Text(stringResource(planName(plan)), style = MaterialTheme.typography.titleMedium, color = colors.ink)
-                    planBadge(plan)?.let {
-                        Text(
-                            stringResource(it),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = colors.pinkSoft,
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .borderModifier(1.dp, colors.pinkSoft, CircleShape)
-                                .padding(horizontal = 8.dp, vertical = 2.dp),
-                        )
-                    }
+                if (!lifetimeOwned) {
+                    Spacer(Modifier.size(10.dp))
+                    Icon(Icons.Rounded.ArrowForward, null, tint = Color.White, modifier = Modifier.size(20.dp))
                 }
-                Text(stringResource(planNote(plan)), style = MaterialTheme.typography.bodySmall, color = colors.inkMuted)
             }
-            Text("₹${plan.rupees}", style = MaterialTheme.typography.titleLarge, color = colors.ink)
         }
     }
 }
 
 @Composable
-private fun FeatureRow(icon: ImageVector, title: Int, desc: Int) {
+private fun FeatureLine(icon: ImageVector, title: Int, desc: Int) {
     val colors = TwinTheme.colors
-    GlassCard(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m)) {
-            Icon(icon, null, tint = colors.pinkSoft, modifier = Modifier.size(26.dp))
-            Column {
-                Text(stringResource(title), style = MaterialTheme.typography.titleSmall, color = colors.ink)
-                Text(stringResource(desc), style = MaterialTheme.typography.bodySmall, color = colors.inkMuted)
-            }
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+        Icon(icon, null, tint = Color(0xFFF3D3E4), modifier = Modifier.padding(top = 2.dp).size(20.dp))
+        Column {
+            Text(stringResource(title), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = colors.ink)
+            Text(stringResource(desc), style = MaterialTheme.typography.bodySmall, color = colors.inkMuted)
         }
     }
+}
+
+@Composable
+private fun FreeNote() {
+    val colors = TwinTheme.colors
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(18.dp))
+            .border(1.dp, Hair, RoundedCornerShape(18.dp))
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(38.dp).background(Gold.copy(alpha = 0.14f), RoundedCornerShape(11.dp)), contentAlignment = Alignment.Center) {
+            Icon(Icons.Outlined.CardGiftcard, null, tint = Gold, modifier = Modifier.size(20.dp))
+        }
+        Text(stringResource(R.string.pro_free_note), style = MaterialTheme.typography.bodySmall, color = colors.inkMuted)
+    }
+}
+
+private fun planIcon(p: ProPlan) = when (p) {
+    ProPlan.Monthly -> Icons.Outlined.CalendarMonth
+    ProPlan.Yearly -> Icons.Outlined.WorkspacePremium
+    ProPlan.Lifetime -> Icons.Outlined.AllInclusive
 }
 
 private fun planName(p: ProPlan) = when (p) {
@@ -274,16 +408,28 @@ private fun planName(p: ProPlan) = when (p) {
     ProPlan.Lifetime -> R.string.pro_plan_lifetime
 }
 
-private fun planNote(p: ProPlan) = when (p) {
-    ProPlan.Monthly -> R.string.pro_plan_monthly_d
-    ProPlan.Yearly -> R.string.pro_plan_yearly_d
+private fun planLine1(p: ProPlan) = when (p) {
+    ProPlan.Monthly -> R.string.pro_plan_monthly_l1
+    ProPlan.Yearly -> R.string.pro_plan_yearly_l1
     ProPlan.Lifetime -> R.string.pro_plan_lifetime_d
 }
 
+private fun planLine2(p: ProPlan): Int? = when (p) {
+    ProPlan.Monthly -> R.string.pro_plan_monthly_l2
+    ProPlan.Yearly -> R.string.pro_plan_yearly_l2
+    ProPlan.Lifetime -> null
+}
+
+private fun planPer(p: ProPlan) = when (p) {
+    ProPlan.Monthly -> R.string.pro_per_30
+    ProPlan.Yearly -> R.string.pro_per_year
+    ProPlan.Lifetime -> R.string.pro_per_once
+}
+
 private fun planBadge(p: ProPlan): Int? = when (p) {
-    ProPlan.Monthly -> null
+    ProPlan.Monthly -> R.string.pro_badge_recommended
     ProPlan.Yearly -> R.string.pro_badge_popular
-    ProPlan.Lifetime -> R.string.pro_badge_best
+    ProPlan.Lifetime -> null
 }
 
 private fun formatDate(iso: String?): String {

@@ -4,7 +4,10 @@
     <string name="pro_title">Twin Hearts Pro</string>
     <string name="pro_headline">Go Pro together</string>
     <string name="pro_unlock_feature">Unlock %1$s</string>
-    <string name="pro_sub">One payment unlocks Pro for you and your partner. Everything else stays free.</string>
+    <string name="pro_everything">Everything Together</string>
+    <string name="pro_sub">One payment unlocks Pro for you and your partner.</string>
+    <string name="pro_sub2">Everything else stays free.</string>
+    <string name="pro_save_badge">Save 58%</string>
     <string name="pro_choose">Choose your plan</string>
 
     <string name="pro_plan_monthly">Monthly</string>
@@ -13,13 +16,25 @@
     <string name="pro_plan_yearly_d">365 days · save 58% vs monthly</string>
     <string name="pro_plan_lifetime">Lifetime</string>
     <string name="pro_plan_lifetime_d">Pay once, keep Pro forever</string>
-    <string name="pro_badge_popular">Popular</string>
+    <string name="pro_badge_popular">Most Popular</string>
+    <string name="pro_badge_recommended">Recommended</string>
+    <string name="pro_plan_monthly_l1">30 days · one-time payment</string>
+    <string name="pro_plan_monthly_l2">No auto-renew</string>
+    <string name="pro_plan_yearly_l1">365 days · save 58% vs monthly</string>
+    <string name="pro_plan_yearly_l2">Best for long-term couples</string>
+    <string name="pro_per_30">per 30 days</string>
+    <string name="pro_per_year">per year</string>
+    <string name="pro_per_once">one-time payment</string>
+    <string name="pro_btn_choose">Choose %1$s Plan</string>
+    <string name="pro_btn_extend_plan">Extend with %1$s</string>
+    <string name="pro_status_lifetime_pill">✓ Pro active · Lifetime</string>
+    <string name="pro_status_until_pill">✓ Pro active · until %1$s</string>
     <string name="pro_badge_best">Best value</string>
 
     <string name="pro_btn_pay">Pay ₹%1$d securely</string>
     <string name="pro_btn_extend">Extend Pro · ₹%1$d</string>
     <string name="pro_have_lifetime">You have Lifetime Pro</string>
-    <string name="pro_secure">Secured by Razorpay · UPI, cards, netbanking and wallets. Nothing renews automatically.</string>
+    <string name="pro_secure">Secured by Razorpay · UPI, cards, netbanking and wallets\nNothing renews automatically.</string>
 
     <string name="pro_status_on">Pro is active for you both</string>
     <string name="pro_status_off">You are on the free plan</string>
@@ -36,7 +51,7 @@
     <string name="pro_f_music_d">Build your own shared library and playlists.</string>
     <string name="pro_f_movie">Watch Together · Cloud upload</string>
     <string name="pro_f_movie_d">Upload a movie once and stream it in sync.</string>
-    <string name="pro_free_note">Chat, calls, Live Map, Vault, Calendar and the rest stay free. Your memories, songs and movies are never deleted if Pro ends.</string>
+    <string name="pro_free_note">Chat, calls, Live Map, Vault, Calendar and the rest stay free.\nYour memories, songs and movies are never deleted if Pro ends.</string>
 
     <string name="pro_history">Payment history</string>
     <string name="pro_toast_welcome">You\'re Pro! Thank you 💎</string>
