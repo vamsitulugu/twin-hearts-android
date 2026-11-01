@@ -33,6 +33,7 @@ class SingChannel(
     private val coupleId: String,
     private val myRole: String,
     private val scope: CoroutineScope,
+    private val myName: String = "",
 ) {
     private val myKey = "ck_$myRole"
     private val peerKey = "ck_" + if (myRole == "user1") "user2" else "user1"
@@ -73,7 +74,7 @@ class SingChannel(
         // never overwrite a later one and drop a message.
         saveLock.withLock {
             val current = outbox
-            safeApiCall { api.saveState(SingSaveBody(coupleId, buildJsonObject { put(myKey, JsonArray(current)) }, myRole)) }
+            safeApiCall { api.saveState(SingSaveBody(coupleId, buildJsonObject { put(myKey, JsonArray(current)) }, myRole, myName)) }
         }
     }
 

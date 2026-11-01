@@ -188,7 +188,7 @@ class SingTogetherEngine @Inject constructor(
         val me = repository.identity() ?: return
         if (watchers == 0) return
         who = me
-        val ch = SingChannel(api, me.coupleId, me.myRole, scope)
+        val ch = SingChannel(api, me.coupleId, me.myRole, scope, me.myName)
         channel = ch
         // Invites older than a minute and a half are leftovers, not something to ring for.
         ch.setMinTimestamp(System.currentTimeMillis() - STALE_INVITE_MS)

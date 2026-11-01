@@ -33,4 +33,5 @@ data class SingSaveBody(
     val coupleId: String,
     val state: JsonObject,
     val senderRole: String,
+    val myName: String = "",
 )
