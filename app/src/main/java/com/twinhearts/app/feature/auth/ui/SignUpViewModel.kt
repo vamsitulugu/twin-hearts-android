@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.twinhearts.app.R
 import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.feature.auth.data.AuthRepository
+import com.twinhearts.app.feature.auth.data.google.GoogleTokenResult
 import com.twinhearts.app.feature.auth.domain.model.Gender
 import com.twinhearts.app.feature.auth.domain.model.SignUpRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -107,6 +108,25 @@ class SignUpViewModel @Inject constructor(
                 is AppResult.Failure -> _state.update {
                     it.copy(isLoading = false, message = AuthMessage.Failure(result.error))
                 }
+            }
+        }
+    }
+
+    /** Continue with Google from the Sign Up tab: new email -> "Almost there" screen; known email -> straight in. */
+    fun onGoogleResult(result: GoogleTokenResult) {
+        if (_state.value.isLoading) return
+        if (result !is GoogleTokenResult.Token) {
+            result.problemMessage()?.let { problem -> _state.update { it.copy(message = problem) } }
+            return
+        }
+        _state.update { it.copy(isLoading = true, message = null) }
+        viewModelScope.launch {
+            when (val step = repository.googleStep(result.idToken, existingAccountEvent = AuthEvent.SignedInExisting)) {
+                is GoogleStep.Go -> {
+                    _state.update { it.copy(isLoading = false) }
+                    _events.send(step.event)
+                }
+                is GoogleStep.Problem -> _state.update { it.copy(isLoading = false, message = step.message) }
             }
         }
     }

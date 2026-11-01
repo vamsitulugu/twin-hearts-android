@@ -4,6 +4,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import com.twinhearts.app.core.navigation.Routes
+import com.twinhearts.app.feature.auth.ui.CompleteProfileScreen
 import com.twinhearts.app.feature.auth.ui.ForgotPasswordScreen
 import com.twinhearts.app.feature.auth.ui.SignInScreen
 import com.twinhearts.app.feature.auth.ui.SignUpScreen
@@ -14,6 +15,7 @@ fun NavGraphBuilder.authGraph(navController: NavHostController) {
     composable<Routes.SignIn> { TwinNeutralPage {
         SignInScreen(
             onSignedIn = { navController.goHomeClearingEntryScreens() },
+            onNeedsProfile = { token, email, name -> navController.openCompleteProfile(token, email, name) },
             // The Sign In / Sign Up tabs swap places, so Back still returns to Get Started.
             onOpenSignUp = {
                 navController.navigate(Routes.SignUp) {
@@ -30,6 +32,9 @@ fun NavGraphBuilder.authGraph(navController: NavHostController) {
         SignUpScreen(
             // A new account has no partner yet, so it goes to Pairing first (Pairing has "Skip for now").
             onSignedIn = { navController.goToPairingClearingEntryScreens() },
+            // Continue with Google on a known email: that account may already be paired, so go Home.
+            onSignedInExisting = { navController.goHomeClearingEntryScreens() },
+            onNeedsProfile = { token, email, name -> navController.openCompleteProfile(token, email, name) },
             onOpenSignIn = {
                 navController.navigate(Routes.SignIn) {
                     popUpTo<Routes.SignUp> { inclusive = true }
@@ -40,9 +45,24 @@ fun NavGraphBuilder.authGraph(navController: NavHostController) {
         )
     }
     }
+    composable<Routes.CompleteProfile> { TwinNeutralPage {
+        CompleteProfileScreen(
+            // A brand-new account has no partner yet: same as Sign Up, it goes to Pairing (which has "Skip for now").
+            onSignedIn = { navController.goToPairingClearingEntryScreens() },
+            onBack = { navController.popBackStack() },
+        )
+    }
+    }
     composable<Routes.ForgotPassword> { TwinNeutralPage {
         ForgotPasswordScreen(onBackToSignIn = { navController.popBackStack() })
     }
+    }
+}
+
+/** Continue with Google found a new email: ask for the remaining details. Back returns to Sign In / Sign Up. */
+private fun NavHostController.openCompleteProfile(signupToken: String, email: String, name: String) {
+    navigate(Routes.CompleteProfile(signupToken = signupToken, email = email, name = name)) {
+        launchSingleTop = true
     }
 }
 

@@ -40,6 +40,14 @@
     <string name="auth_have_account">Already have an account?</string>
     <string name="auth_sign_in_arrow">Sign In →</string>
 
+    <!-- Continue with Google -->
+    <string name="auth_continue_google">Continue with Google</string>
+    <string name="auth_or_sign_up_email">or sign up with email</string>
+    <string name="auth_google_profile_title">Almost there ✨</string>
+    <string name="auth_google_profile_intro">Finish setting up your account. Signed in with Google as %1$s.</string>
+    <string name="auth_err_google_failed">Google sign-in failed. Please try again.</string>
+    <string name="auth_err_google_no_account">No Google account found on this phone. Add one in Settings, then try again.</string>
+
     <!-- Forgot password -->
     <string name="auth_forgot_title">Reset your password 🔑</string>
     <string name="auth_forgot_intro">Enter the email and phone number you registered with to verify it\'s you.</string>

@@ -31,12 +31,17 @@ import com.twinhearts.app.feature.auth.ui.components.AuthHelpText
 import com.twinhearts.app.feature.auth.ui.components.AuthScaffold
 import com.twinhearts.app.feature.auth.ui.components.AuthTabs
 import com.twinhearts.app.feature.auth.ui.components.AuthTermsFooter
+import com.twinhearts.app.feature.auth.ui.components.GoogleSignInButton
 import com.twinhearts.app.feature.auth.ui.components.SlowRequestHint
+import com.twinhearts.app.feature.auth.ui.components.rememberGoogleSignIn
+import com.twinhearts.app.feature.auth.data.google.GoogleIdTokenProvider
 
 /** Sign Up (web: `#registerView`). Connects the ViewModel to the stateless [SignUpContent]. */
 @Composable
 fun SignUpScreen(
     onSignedIn: () -> Unit,
+    onSignedInExisting: () -> Unit,
+    onNeedsProfile: (signupToken: String, email: String, name: String) -> Unit,
     onOpenSignIn: () -> Unit,
     onBack: () -> Unit,
     viewModel: SignUpViewModel = hiltViewModel(),
@@ -44,9 +49,15 @@ fun SignUpScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
-            if (event == AuthEvent.SignedIn) onSignedIn()
+            when (event) {
+                AuthEvent.SignedIn -> onSignedIn()
+                AuthEvent.SignedInExisting -> onSignedInExisting()
+                is AuthEvent.NeedsProfile -> onNeedsProfile(event.signupToken, event.email, event.name)
+                else -> Unit
+            }
         }
     }
+    val startGoogle = rememberGoogleSignIn(viewModel::onGoogleResult)
     SignUpContent(
         state = state,
         onEmailChange = viewModel::onEmailChange,
@@ -59,6 +70,8 @@ fun SignUpScreen(
         onSubmit = viewModel::submit,
         onOpenSignIn = onOpenSignIn,
         onBack = onBack,
+        onGoogleClick = startGoogle,
+        showGoogle = GoogleIdTokenProvider.isConfigured,
     )
 }
 
@@ -75,6 +88,8 @@ internal fun SignUpContent(
     onSubmit: () -> Unit,
     onOpenSignIn: () -> Unit,
     onBack: () -> Unit,
+    onGoogleClick: () -> Unit = {},
+    showGoogle: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val editable = !state.isLoading
@@ -86,6 +101,10 @@ internal fun SignUpContent(
             color = TwinTheme.colors.ink,
         )
         AuthBanner(state.message)
+        if (showGoogle) {
+            GoogleSignInButton(onClick = onGoogleClick, visible = true, enabled = editable)
+            AuthDividerText(stringResource(R.string.auth_or_sign_up_email))
+        }
         TwinTextField(
             value = state.email,
             onValueChange = onEmailChange,

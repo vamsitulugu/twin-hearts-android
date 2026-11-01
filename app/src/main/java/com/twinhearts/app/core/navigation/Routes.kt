@@ -12,6 +12,9 @@ object Routes {
     @Serializable data object SignIn
     @Serializable data object SignUp
     @Serializable data object ForgotPassword
+
+    /** "Almost there" after Continue with Google for a NEW email: collects the rest of the sign-up details. */
+    @Serializable data class CompleteProfile(val signupToken: String, val email: String, val name: String)
     @Serializable data object Pairing
 
     // Phase 2: the five bottom-bar screens

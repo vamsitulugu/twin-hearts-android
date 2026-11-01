@@ -27,12 +27,16 @@ import com.twinhearts.app.feature.auth.ui.components.AuthScaffold
 import com.twinhearts.app.feature.auth.ui.components.AuthTabs
 import com.twinhearts.app.feature.auth.ui.components.AuthTermsFooter
 import com.twinhearts.app.feature.auth.ui.components.AuthTextLink
+import com.twinhearts.app.feature.auth.ui.components.GoogleSignInButton
+import com.twinhearts.app.feature.auth.ui.components.rememberGoogleSignIn
+import com.twinhearts.app.feature.auth.data.google.GoogleIdTokenProvider
 import com.twinhearts.app.feature.auth.ui.components.SlowRequestHint
 
 /** Sign In (web: `#loginView`). Connects the ViewModel to the stateless [SignInContent]. */
 @Composable
 fun SignInScreen(
     onSignedIn: () -> Unit,
+    onNeedsProfile: (signupToken: String, email: String, name: String) -> Unit,
     onOpenSignUp: () -> Unit,
     onForgotPassword: () -> Unit,
     onBack: () -> Unit,
@@ -41,9 +45,14 @@ fun SignInScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
-            if (event == AuthEvent.SignedIn) onSignedIn()
+            when (event) {
+                AuthEvent.SignedIn -> onSignedIn()
+                is AuthEvent.NeedsProfile -> onNeedsProfile(event.signupToken, event.email, event.name)
+                else -> Unit
+            }
         }
     }
+    val startGoogle = rememberGoogleSignIn(viewModel::onGoogleResult)
     SignInContent(
         state = state,
         onEmailChange = viewModel::onEmailChange,
@@ -52,6 +61,8 @@ fun SignInScreen(
         onForgotPassword = onForgotPassword,
         onOpenSignUp = onOpenSignUp,
         onBack = onBack,
+        onGoogleClick = startGoogle,
+        showGoogle = GoogleIdTokenProvider.isConfigured,
     )
 }
 
@@ -64,6 +75,8 @@ internal fun SignInContent(
     onForgotPassword: () -> Unit,
     onOpenSignUp: () -> Unit,
     onBack: () -> Unit,
+    onGoogleClick: () -> Unit = {},
+    showGoogle: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     AuthScaffold(onBack = onBack, modifier = modifier) {
@@ -105,6 +118,7 @@ internal fun SignInContent(
         )
         SlowRequestHint(isLoading = state.isLoading)
         AuthDividerText(stringResource(R.string.auth_or))
+        GoogleSignInButton(onClick = onGoogleClick, visible = showGoogle, enabled = !state.isLoading)
         GlassButton(
             text = stringResource(R.string.auth_create_new_account),
             onClick = onOpenSignUp,

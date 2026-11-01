@@ -84,6 +84,7 @@ private val tabRoutes: List<Any> = bottomBarItems.map { it.key }
  */
 private val noPullRefreshRoutes: List<KClass<out Any>> = listOf(
     Routes.GetStarted::class, Routes.SignIn::class, Routes.SignUp::class, Routes.ForgotPassword::class,
+    Routes.CompleteProfile::class,
     Routes.Pairing::class, Routes.Chat::class, Routes.TwinAi::class, Routes.LiveMap::class,
     Routes.Globe::class, Routes.Call::class, Routes.Movie::class, Routes.Music::class,
     Routes.Games::class, Routes.Vault::class, Routes.Pro::class,

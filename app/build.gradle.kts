@@ -18,6 +18,10 @@ val localProps = Properties().apply {
 }
 val apiBaseUrl: String = localProps.getProperty("API_BASE_URL") ?: "https://us-app-av6d.onrender.com/"
 
+// Continue with Google. This is the *Web* OAuth client id from Google Cloud (a public id, not a secret).
+// It must be the same value as GOOGLE_CLIENT_ID on the server. Empty = the Google button is hidden.
+val googleWebClientId: String = localProps.getProperty("GOOGLE_WEB_CLIENT_ID") ?: ""
+
 // Ads (AdMob). Google's public TEST ids: debug builds always use these, so tapping ads while testing is safe.
 // Real ids go in local.properties (ADMOB_APP_ID, ADMOB_BANNER_ID, ADMOB_INTERSTITIAL_ID). They are not secrets,
 // but keeping them out of git lets you switch accounts without editing code. Release builds show ads ONLY when all three exist.
@@ -41,6 +45,7 @@ android {
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
     }
 
     buildTypes {
@@ -123,6 +128,11 @@ dependencies {
     implementation(libs.stream.webrtc)
     implementation(libs.razorpay.checkout)
     implementation(libs.play.services.ads)
+
+    // Continue with Google
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
 
     // Push notifications: the receiver service is always compiled; it only wakes up once google-services.json is added.
     implementation(platform(libs.firebase.bom))

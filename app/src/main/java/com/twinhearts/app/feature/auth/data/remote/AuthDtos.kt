@@ -47,3 +47,38 @@ data class ResetPasswordRequestDto(val token: String, val newPassword: String)
 /** Answer is `{ "message": "Password updated" }`. We only need to know it succeeded. */
 @Serializable
 data class MessageDto(val message: String? = null)
+
+/** POST /api/auth/google body: the Google ID token from the phone. */
+@Serializable
+data class GoogleAuthRequestDto(val idToken: String)
+
+/**
+ * Answer of POST /api/auth/google.
+ *  - existing account: `needsProfile` is false and the normal session fields are filled;
+ *  - new account: `needsProfile` is true and only `signupToken`, `email`, `name` are filled.
+ */
+@Serializable
+data class GoogleAuthResponseDto(
+    val needsProfile: Boolean = false,
+    val signupToken: String? = null,
+    val email: String? = null,
+    val name: String? = null,
+    val userId: String? = null,
+    val coupleId: String? = null,
+    val myName: String = "",
+    val phoneNumber: String? = null,
+    val partnerName: String? = null,
+    val anniversary: String? = null,
+    val role: String? = null,
+    val paired: Boolean? = null,
+)
+
+/** POST /api/auth/google/complete body: the extra sign-up details for a brand-new Google account. */
+@Serializable
+data class GoogleCompleteRequestDto(
+    val signupToken: String,
+    val myName: String,
+    val phoneNumber: String,
+    val password: String,
+    val vaultPin: String,
+)

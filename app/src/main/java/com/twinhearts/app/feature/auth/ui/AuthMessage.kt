@@ -28,5 +28,11 @@ fun AuthMessage.asText(): String = when (this) {
 /** One-off things a screen must react to (navigate). Sent through a channel, never kept as state (R-42). */
 sealed interface AuthEvent {
     data object SignedIn : AuthEvent
+
+    /** Continue with Google from the Sign Up screen, but the email already had an account: go straight in. */
+    data object SignedInExisting : AuthEvent
+
+    /** Continue with Google found a new email: open the "Almost there" screen for the remaining details. */
+    data class NeedsProfile(val signupToken: String, val email: String, val name: String) : AuthEvent
     data object PasswordUpdated : AuthEvent
 }
