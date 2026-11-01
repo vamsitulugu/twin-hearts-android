@@ -82,6 +82,12 @@ class MusicViewModel @Inject constructor(
                 return@launch
             }
             _state.update { it.copy(who = identity) }
+            // Saved songs first so Music opens instantly; the fresh list replaces them a moment later.
+            if (_state.value.library !is UiState.Content) {
+                repository.cachedLibrary(identity)?.let { saved ->
+                    _state.update { it.copy(library = libraryState(saved)) }
+                }
+            }
             loadLibrary(silent = false)
         }
     }

@@ -157,6 +157,12 @@ class ChatViewModel @Inject constructor(
             }
             _state.update { it.copy(identity = who, draft = "") }
             observeLocalSettings(who)
+            // Saved copy first: the chat opens instantly even while the server is waking up.
+            if (_state.value.messages.isEmpty()) {
+                repository.cachedRecent(who)?.let { saved ->
+                    _state.update { it.copy(loading = false, messages = incoming(it.messages, saved, announce = false)) }
+                }
+            }
             when (val result = repository.recent(who)) {
                 is AppResult.Success -> {
                     _state.update { it.copy(loading = false, messages = incoming(it.messages, result.data, announce = false)) }

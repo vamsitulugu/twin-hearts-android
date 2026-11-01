@@ -17,6 +17,8 @@ import com.twinhearts.app.feature.music.data.remote.LikeBody
 import com.twinhearts.app.feature.music.data.remote.MusicApi
 import com.twinhearts.app.feature.music.data.remote.MusicUploadApi
 import com.twinhearts.app.feature.music.data.remote.PlaylistSongsBody
+import com.twinhearts.app.feature.music.data.remote.PlaylistsResponse
+import com.twinhearts.app.feature.music.data.remote.SongDto
 import com.twinhearts.app.feature.music.data.remote.RecordingDeleteBody
 import com.twinhearts.app.feature.music.data.remote.RecordingPatchBody
 import com.twinhearts.app.feature.music.data.remote.RenamePlaylistBody
@@ -52,6 +54,9 @@ interface MusicRepository {
 
     /** Songs and playlists. A playlists problem never hides the songs. */
     suspend fun library(who: MusicIdentity): AppResult<MusicLibrary>
+
+    /** The song list saved on this phone, or null. Shown at once while the server answers. */
+    suspend fun cachedLibrary(who: MusicIdentity): MusicLibrary? = null
 
     // ── songs ──
     suspend fun setLiked(who: MusicIdentity, songId: String, liked: Boolean): AppResult<Unit>
@@ -104,7 +109,11 @@ class MusicRepositoryImpl @Inject constructor(
     private val uploadApi: MusicUploadApi,
     private val files: AudioFileReader,
     private val sessionStore: SessionStore,
+    private val cache: com.twinhearts.app.core.data.StateCache,
 ) : MusicRepository {
+
+    private val cacheJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; coerceInputValues = true }
+    private val songsSerializer = kotlinx.serialization.builtins.ListSerializer(SongDto.serializer())
 
     override suspend fun identity(): MusicIdentity? =
         sessionStore.session.first()?.takeIf { it.coupleId.isNotBlank() }?.let {
@@ -112,16 +121,36 @@ class MusicRepositoryImpl @Inject constructor(
         }
 
     override suspend fun library(who: MusicIdentity): AppResult<MusicLibrary> {
-        val songs = when (val r = safeApiCall { api.songs(who.coupleId, who.myRole) }) {
-            is AppResult.Success -> r.data.toDomain()
+        val songDtos = when (val r = safeApiCall { api.songs(who.coupleId, who.myRole) }) {
+            is AppResult.Success -> r.data
             is AppResult.Failure -> return r
         }
+        val songs = songDtos.toDomain()
         // Playlists are optional: if the call fails we still show every song.
-        val playlists = when (val r = safeApiCall { api.playlists(who.coupleId) }) {
-            is AppResult.Success -> PlaylistsResult(r.data.available, r.data.playlists.mapNotNull { it.toDomainOrNull() })
-            is AppResult.Failure -> PlaylistsResult(available = false, playlists = emptyList())
+        val playlistsResponse = (safeApiCall { api.playlists(who.coupleId) } as? AppResult.Success)?.data
+        val playlists = playlistsResponse
+            ?.let { PlaylistsResult(it.available, it.playlists.mapNotNull { p -> p.toDomainOrNull() }) }
+            ?: PlaylistsResult(available = false, playlists = emptyList())
+        // Save the song list (and playlists when we got them) for an instant start next time.
+        runCatching { cacheJson.encodeToString(songsSerializer, songDtos) }.getOrNull()
+            ?.takeIf { it.length < 1_500_000 }
+            ?.let { cache.write("music:songs:${who.coupleId}", it) }
+        playlistsResponse?.let { resp ->
+            runCatching { cacheJson.encodeToString(PlaylistsResponse.serializer(), resp) }.getOrNull()
+                ?.let { cache.write("music:playlists:${who.coupleId}", it) }
         }
         return AppResult.Success(MusicLibrary(songs, playlists))
+    }
+
+    override suspend fun cachedLibrary(who: MusicIdentity): MusicLibrary? {
+        val songsJson = cache.read("music:songs:${who.coupleId}") ?: return null
+        val songs = runCatching { cacheJson.decodeFromString(songsSerializer, songsJson) }.getOrNull()
+            ?.toDomain()?.takeIf { it.isNotEmpty() } ?: return null
+        val playlists = cache.read("music:playlists:${who.coupleId}")
+            ?.let { runCatching { cacheJson.decodeFromString(PlaylistsResponse.serializer(), it) }.getOrNull() }
+            ?.let { PlaylistsResult(it.available, it.playlists.mapNotNull { p -> p.toDomainOrNull() }) }
+            ?: PlaylistsResult(available = true, playlists = emptyList())
+        return MusicLibrary(songs, playlists)
     }
 
     // ── songs ──

@@ -83,6 +83,18 @@ class HomeViewModel @Inject constructor(
     /** Silent refresh: a failed check never replaces what is already on screen. */
     fun refresh() {
         viewModelScope.launch {
+            // Paint the saved copy first so Home is never empty while the server wakes up.
+            if (_state.value.events.isEmpty()) {
+                repository.cachedOverview()?.let { saved ->
+                    _state.update {
+                        if (it.events.isEmpty() && it.cardPhotos.isEmpty()) {
+                            it.copy(loveCard = saved.loveCard, events = saved.events, mood = saved.mood, cardPhotos = saved.cardPhotos)
+                        } else it
+                    }
+                }
+            }
+        }
+        viewModelScope.launch {
             repository.myAvatarUrl()?.let { url -> _state.update { it.copy(avatarUrl = url) } }
         }
         viewModelScope.launch {

@@ -4,6 +4,7 @@ import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.core.data.Session
 import com.twinhearts.app.core.data.SessionStore
+import com.twinhearts.app.core.data.StateCache
 import com.twinhearts.app.core.network.safeApiCall
 import com.twinhearts.app.feature.home.data.mapper.asLong
 import com.twinhearts.app.feature.home.data.mapper.asText
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.first
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -36,6 +38,9 @@ import javax.inject.Inject
 interface HomeRepository {
     /** One read of the shared state gives the love card, the upcoming items and both moods. */
     suspend fun overview(): AppResult<HomeOverview>
+
+    /** The last Home data saved on this phone, or null. Painted at once while the server wakes up. */
+    suspend fun cachedOverview(): HomeOverview? = null
     suspend fun send(kind: LoveKind): AppResult<Unit>
 
     /** My profile picture link, or null when there is none (the letter is shown then). */
@@ -57,6 +62,7 @@ interface HomeRepository {
 class HomeRepositoryImpl @Inject constructor(
     private val api: HomeApi,
     private val sessionStore: SessionStore,
+    private val cache: StateCache,
 ) : HomeRepository {
 
     private suspend fun session(): Session? = sessionStore.session.first()
@@ -71,9 +77,38 @@ class HomeRepositoryImpl @Inject constructor(
     override suspend fun overview(): AppResult<HomeOverview> {
         val session = session() ?: return notSignedIn
         return when (val result = safeApiCall { api.getState(session.coupleId) }) {
-            is AppResult.Success ->
+            is AppResult.Success -> {
+                cache.write(cacheKey(session), slimState(result.data).toString())
                 AppResult.Success(result.data.toHomeOverview(session.role, session.anniversary, LocalDate.now()))
+            }
             is AppResult.Failure -> result
+        }
+    }
+
+    override suspend fun cachedOverview(): HomeOverview? {
+        val session = session() ?: return null
+        val json = cache.read(cacheKey(session)) ?: return null
+        val saved = runCatching { Json.parseToJsonElement(json) }.getOrNull() as? JsonObject ?: return null
+        return saved.toHomeOverview(session.role, session.anniversary, LocalDate.now())
+    }
+
+    private fun cacheKey(session: Session) = "home:${session.coupleId}"
+
+    /** Only the keys Home reads (never the whole shared state, which can hold big photos). */
+    private fun slimState(state: JsonElement?): JsonObject {
+        val root = state as? JsonObject ?: return JsonObject(emptyMap())
+        val keep = listOf("touch", "missYou", "hug", "anniversary", "events", "milestones", "myBday", "ptBday", "dashImgs")
+        val moodsOnly = (root["profile"] as? JsonObject)?.let { profile ->
+            buildJsonObject {
+                for (k in listOf("u1", "u2")) {
+                    val moods = (profile[k] as? JsonObject)?.get("moods") ?: continue
+                    put(k, buildJsonObject { put("moods", moods) })
+                }
+            }
+        }
+        return buildJsonObject {
+            keep.forEach { k -> root[k]?.let { put(k, it) } }
+            if (moodsOnly != null) put("profile", moodsOnly)
         }
     }
 

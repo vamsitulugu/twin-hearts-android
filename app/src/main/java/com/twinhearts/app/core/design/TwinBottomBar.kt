@@ -86,64 +86,75 @@ fun TwinBottomBar(
 ) {
     // The bar's top edge dips in a U around the orb, so the orb stands in its own cradle.
     val barShape = remember { NotchedBarShape() }
-    // No backing strip behind the pill and orb: only the notched bar and the orb are drawn.
     Box(modifier = modifier.fillMaxWidth()) {
+        // Black backing plate with curved top corners, matching the bar. It starts at the very top of
+        // the bar slot so no page background (burgundy) shows in a strip above or beside the bar.
+        Box(
+            Modifier
+                .matchParentSize()
+                .background(Color.Black, RoundedCornerShape(topStart = PlateCorner, topEnd = PlateCorner)),
+        )
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .padding(horizontal = 14.dp)
-                .padding(top = 28.dp, bottom = TwinTheme.spacing.s),
+                .padding(top = PlateGapAboveBar, bottom = TwinTheme.spacing.s),
         ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(62.dp)
-                // Glass: see-through white sheen + bright top edge. No .shadow() here: it clips its
-                // children to the bar shape, which cut the top of the orb.
-                // Web .glass-nav: dark tint (rgba(18,8,14,.42) + backdrop blur) so content never shows
-                // through as clear; no blur here (R-55), so the tint is stronger. Then the white sheen.
-                .background(Color(0xFF12080E).copy(alpha = 0.92f), barShape)
-                // Glass sheen: bright at the top edge, fading down, with a faint lift at the bottom
-                // so the pill reads as a curved pane of glass.
-                .background(
-                    Brush.verticalGradient(
-                        0.00f to Color.White.copy(alpha = 0.26f),
-                        0.35f to Color.White.copy(alpha = 0.09f),
-                        0.70f to Color.White.copy(alpha = 0.03f),
-                        1.00f to Color.White.copy(alpha = 0.10f),
-                    ),
-                    barShape,
-                )
-                // Specular rim: strong light on the top edge, soft on the bottom edge.
-                .border(
-                    1.dp,
-                    Brush.verticalGradient(
-                        0.00f to Color.White.copy(alpha = 0.45f),
-                        0.50f to Color.White.copy(alpha = 0.10f),
-                        1.00f to Color.White.copy(alpha = 0.22f),
-                    ),
-                    barShape,
-                )
-                .padding(horizontal = 6.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            items.forEach { item ->
-                BarItem(
-                    item = item,
-                    selected = item.key == selectedKey,
-                    onClick = { onItemClick(item) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
-                )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(62.dp)
+                    // Glass: see-through white sheen + bright top edge. No .shadow() here: it clips its
+                    // children to the bar shape, which cut the top of the orb.
+                    // Web .glass-nav: dark tint (rgba(18,8,14,.42) + backdrop blur) so content never shows
+                    // through as clear; no blur here (R-55), so the tint is stronger. Then the white sheen.
+                    .background(Color(0xFF12080E).copy(alpha = 0.92f), barShape)
+                    // Glass sheen: bright at the top edge, fading down, with a faint lift at the bottom
+                    // so the pill reads as a curved pane of glass.
+                    .background(
+                        Brush.verticalGradient(
+                            0.00f to Color.White.copy(alpha = 0.26f),
+                            0.35f to Color.White.copy(alpha = 0.09f),
+                            0.70f to Color.White.copy(alpha = 0.03f),
+                            1.00f to Color.White.copy(alpha = 0.10f),
+                        ),
+                        barShape,
+                    )
+                    // Specular rim: strong light on the top edge, soft on the bottom edge.
+                    .border(
+                        1.dp,
+                        Brush.verticalGradient(
+                            0.00f to Color.White.copy(alpha = 0.45f),
+                            0.50f to Color.White.copy(alpha = 0.10f),
+                            1.00f to Color.White.copy(alpha = 0.22f),
+                        ),
+                        barShape,
+                    )
+                    .padding(horizontal = 6.dp),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                items.forEach { item ->
+                    BarItem(
+                        item = item,
+                        selected = item.key == selectedKey,
+                        onClick = { onItemClick(item) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                    )
+                }
             }
-        }
         }
     }
 }
 
+private val PlateCorner = 30.dp
+
+// Gap between the black plate's top edge and the nav pill's top border. Small, so the plate hugs the bar
+// (the orb still rises above it).
+private val PlateGapAboveBar = 6.dp
 
 /**
  * The bar pill (62 dp tall, 30 dp corners) with a round cut-out in the top edge, centred on the orb.

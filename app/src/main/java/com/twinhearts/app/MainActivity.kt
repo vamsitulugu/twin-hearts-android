@@ -36,6 +36,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     @Inject lateinit var adsManager: AdsManager
     @Inject lateinit var notificationNavigator: NotificationNavigator
     @Inject lateinit var notifier: TwinNotifier
+    @Inject lateinit var serverWarmer: com.twinhearts.app.core.network.ServerWarmer
 
     private var splashStart = 0L
     @Volatile private var splashReady = false
@@ -47,6 +48,11 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
 
     override fun onPaymentError(code: Int, response: String?, data: PaymentData?) {
         paymentBridge.error(code, response)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        serverWarmer.warm() // throttled: a no-op if the server was pinged in the last 4 minutes
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

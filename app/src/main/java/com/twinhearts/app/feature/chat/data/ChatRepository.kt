@@ -11,6 +11,7 @@ import com.twinhearts.app.feature.chat.data.mapper.toDomain
 import com.twinhearts.app.feature.chat.data.mapper.toMessageDto
 import com.twinhearts.app.feature.chat.data.mapper.toMessageDtos
 import com.twinhearts.app.feature.chat.data.remote.ChatApi
+import com.twinhearts.app.feature.chat.data.remote.ChatMessageDto
 import com.twinhearts.app.feature.chat.data.remote.DeleteBody
 import com.twinhearts.app.feature.chat.data.remote.DisappearBody
 import com.twinhearts.app.feature.chat.data.remote.EditBody
@@ -38,6 +39,7 @@ import com.twinhearts.app.feature.chat.domain.presenceFrom
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.buildJsonArray
@@ -64,6 +66,9 @@ interface ChatRepository {
 
     /** The newest 200 messages, oldest first. */
     suspend fun recent(who: ChatIdentity): AppResult<List<ChatMessage>>
+
+    /** The newest messages saved on this phone, or null. Shown at once while the server answers. */
+    suspend fun cachedRecent(who: ChatIdentity): List<ChatMessage>? = null
 
     /** Only messages newer than [after]. */
     suspend fun since(who: ChatIdentity, after: Instant): AppResult<List<ChatMessage>>
@@ -134,6 +139,7 @@ class ChatRepositoryImpl @Inject constructor(
     private val files: ChatFiles,
     private val gifKey: GifKeyProvider,
     private val json: Json,
+    private val cache: com.twinhearts.app.core.data.StateCache,
 ) : ChatRepository {
 
     override suspend fun identity(): ChatIdentity? =
@@ -143,9 +149,29 @@ class ChatRepositoryImpl @Inject constructor(
 
     override suspend fun recent(who: ChatIdentity): AppResult<List<ChatMessage>> =
         when (val r = safeApiCall { api.messages(who.coupleId, limit = RECENT_LIMIT) }) {
-            is AppResult.Success -> r.data.toMessageDtos()?.let { AppResult.Success(it.toDomain(who.myRole)) } ?: AppResult.Failure(AppError.Unknown)
+            is AppResult.Success -> {
+                val dtos = r.data.toMessageDtos()
+                if (dtos == null) {
+                    AppResult.Failure(AppError.Unknown)
+                } else {
+                    // Keep the newest 200 so the next launch can paint the chat before the server wakes.
+                    runCatching { json.encodeToString(ListSerializer(ChatMessageDto.serializer()), dtos) }
+                        .getOrNull()
+                        ?.takeIf { it.length < MAX_CACHE_CHARS }
+                        ?.let { cache.write(chatCacheKey(who), it) }
+                    AppResult.Success(dtos.toDomain(who.myRole))
+                }
+            }
             is AppResult.Failure -> r
         }
+
+    override suspend fun cachedRecent(who: ChatIdentity): List<ChatMessage>? {
+        val saved = cache.read(chatCacheKey(who)) ?: return null
+        val dtos = runCatching { json.decodeFromString(ListSerializer(ChatMessageDto.serializer()), saved) }.getOrNull()
+        return dtos?.toDomain(who.myRole)?.takeIf { it.isNotEmpty() }
+    }
+
+    private fun chatCacheKey(who: ChatIdentity) = "chat:${who.coupleId}"
 
     override suspend fun since(who: ChatIdentity, after: Instant): AppResult<List<ChatMessage>> =
         when (val r = safeApiCall { api.messages(who.coupleId, after = after.toString()) }) {
@@ -458,5 +484,6 @@ class ChatRepositoryImpl @Inject constructor(
 
     private companion object {
         const val RECENT_LIMIT = 200
+        const val MAX_CACHE_CHARS = 1_500_000 // stays under Room's ~2 MB row limit
     }
 }
