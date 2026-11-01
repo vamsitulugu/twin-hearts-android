@@ -40,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -103,10 +104,17 @@ fun TwinApp(viewModel: AppViewModel = hiltViewModel()) {
     val startRoute by viewModel.startRoute.collectAsStateWithLifecycle()
     val session by viewModel.session.collectAsStateWithLifecycle()
     val reduceMotion by viewModel.reduceMotion.collectAsStateWithLifecycle()
+    val partnerPresence by viewModel.partnerPresence.collectAsStateWithLifecycle()
     CompositionLocalProvider(LocalReduceMotionSetting provides reduceMotion) {
         TwinBackground {
             // Until the start screen is known we show only the background (a few milliseconds).
-            startRoute?.let { start -> TwinNavigation(startDestination = start, session = session, notificationNavigator = viewModel.notificationNavigator) }
+            startRoute?.let { start -> TwinNavigation(
+                startDestination = start,
+                session = session,
+                notificationNavigator = viewModel.notificationNavigator,
+                partnerPresence = partnerPresence,
+                onSidebarOpenChanged = viewModel::setSidebarOpen,
+            ) }
         }
     }
 }
@@ -117,6 +125,8 @@ private fun TwinNavigation(
     startDestination: Any,
     session: com.twinhearts.app.core.data.Session?,
     notificationNavigator: com.twinhearts.app.core.notifications.NotificationNavigator,
+    partnerPresence: com.twinhearts.app.feature.chat.domain.model.PartnerPresence?,
+    onSidebarOpenChanged: (Boolean) -> Unit,
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -132,6 +142,10 @@ private fun TwinNavigation(
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    // Partner presence is fetched only while the menu is open (see AppViewModel.setSidebarOpen).
+    LaunchedEffect(drawerState) {
+        snapshotFlow { drawerState.currentValue == DrawerValue.Open }.collect { onSidebarOpenChanged(it) }
     }
     val openSidebar: () -> Unit = remember(drawerState) { { scope.launch { drawerState.open() } } }
 
@@ -226,6 +240,7 @@ private fun TwinNavigation(
                 ) {
                     TwinSidebar(
                         session = session,
+                        partnerPresence = partnerPresence,
                         selectedKey = sidebarKey,
                         onNavigate = { entry ->
                             scope.launch { drawerState.close() }

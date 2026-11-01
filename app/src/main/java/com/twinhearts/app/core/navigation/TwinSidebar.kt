@@ -72,6 +72,11 @@ import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.core.design.twinGlass
 import com.twinhearts.app.core.design.twinPage
 import com.twinhearts.app.core.design.twinWine
+import com.twinhearts.app.feature.chat.domain.agoAmount
+import com.twinhearts.app.feature.chat.domain.model.PartnerPresence
+import com.twinhearts.app.feature.chat.domain.model.PresenceState
+import com.twinhearts.app.feature.chat.ui.asText
+import java.time.Instant
 
 /** One row of the side menu. [key] is the route the row opens. */
 @Immutable
@@ -164,6 +169,7 @@ internal val sidebarRouteKeys: List<Any> =
 @Composable
 internal fun TwinSidebar(
     session: Session?,
+    partnerPresence: PartnerPresence?,
     selectedKey: Any?,
     onNavigate: (SidebarEntry) -> Unit,
     onOpenProfile: () -> Unit,
@@ -188,7 +194,7 @@ internal fun TwinSidebar(
         ) {
             SidebarHeader()
             Spacer(Modifier.height(14.dp))
-            CoupleWidget(session = session, onClick = onOpenProfile)
+            CoupleWidget(session = session, partnerPresence = partnerPresence, onClick = onOpenProfile)
             sidebarGroups.forEach { group ->
                 Text(
                     text = stringResource(group.titleRes).uppercase(),
@@ -248,7 +254,7 @@ private fun SidebarHeader() {
 }
 
 @Composable
-private fun CoupleWidget(session: Session?, onClick: () -> Unit) {
+private fun CoupleWidget(session: Session?, partnerPresence: PartnerPresence?, onClick: () -> Unit) {
     val colors = TwinTheme.colors
     val shape = TwinTheme.shapes.card
     val me = session?.myName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.side_you)
@@ -287,6 +293,39 @@ private fun CoupleWidget(session: Session?, onClick: () -> Unit) {
                 color = dot,
             )
         }
+        // Same line the web sidebar shows under the couple: partner Online / Away / Last seen.
+        if (paired && partnerPresence != null) PartnerPresenceRow(partnerPresence)
+    }
+}
+
+@Composable
+private fun PartnerPresenceRow(presence: PartnerPresence) {
+    val colors = TwinTheme.colors
+    val last = presence.lastSeen
+    val label = when (presence.state) {
+        PresenceState.Online -> stringResource(R.string.chat_presence_online)
+        PresenceState.Away -> stringResource(R.string.chat_presence_away)
+        PresenceState.Offline ->
+            if (last != null) agoAmount(last, Instant.now()).asText() else stringResource(R.string.chat_presence_offline)
+    }
+    Row(
+        modifier = Modifier.padding(top = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(
+            Modifier
+                .size(7.dp)
+                .clip(CircleShape)
+                .background(if (presence.state == PresenceState.Online) colors.success else colors.inkFaint),
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = if (presence.state == PresenceState.Online) colors.success else colors.inkMuted,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

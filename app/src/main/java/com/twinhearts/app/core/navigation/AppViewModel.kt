@@ -8,7 +8,11 @@ import com.twinhearts.app.core.data.AppPrefKeys
 import com.twinhearts.app.core.data.Session
 import com.twinhearts.app.core.data.SessionStore
 import com.twinhearts.app.core.notifications.NotificationNavigator
+import com.twinhearts.app.core.presence.PartnerPresenceSource
+import com.twinhearts.app.feature.chat.domain.model.PartnerPresence
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -30,6 +34,7 @@ class AppViewModel @Inject constructor(
     dataStore: DataStore<Preferences>,
     /** Hands a tapped notification's destination to the nav graph. */
     val notificationNavigator: NotificationNavigator,
+    private val partnerPresenceSource: PartnerPresenceSource,
 ) : ViewModel() {
 
     /** Who is signed in, for the side menu's couple widget. Null until known / after sign out. */
@@ -40,6 +45,29 @@ class AppViewModel @Inject constructor(
     val reduceMotion: StateFlow<Boolean> = dataStore.data
         .map { it[AppPrefKeys.REDUCE_MOTION] ?: false }
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    private val _partnerPresence = MutableStateFlow<PartnerPresence?>(null)
+
+    /** My partner's Online / Away / Last seen for the side menu. Null until the first answer. */
+    val partnerPresence: StateFlow<PartnerPresence?> = _partnerPresence.asStateFlow()
+
+    private var presenceJob: Job? = null
+
+    /**
+     * The side menu asks for presence only while it is open: no background polling, so the free
+     * Render server is not woken or loaded for a line nobody is looking at.
+     */
+    fun setSidebarOpen(open: Boolean) {
+        presenceJob?.cancel()
+        presenceJob = null
+        if (!open) return
+        presenceJob = viewModelScope.launch {
+            while (true) {
+                partnerPresenceSource.fetch()?.let { _partnerPresence.value = it }
+                delay(PRESENCE_POLL_MS)
+            }
+        }
+    }
 
     private val _startRoute = MutableStateFlow<Any?>(null)
     val startRoute: StateFlow<Any?> = _startRoute.asStateFlow()
@@ -52,5 +80,9 @@ class AppViewModel @Inject constructor(
                 else -> Routes.Home
             }
         }
+    }
+
+    private companion object {
+        const val PRESENCE_POLL_MS = 10_000L
     }
 }
