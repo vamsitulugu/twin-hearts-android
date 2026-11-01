@@ -17,6 +17,10 @@ interface HomeApi {
     @GET("api/data/state/{coupleId}")
     suspend fun getState(@Path("coupleId") coupleId: String): JsonElement
 
+    /** Only the Hug / Touch / Miss You keys (a few bytes), so Home can check often without downloading the whole state. */
+    @GET("api/data/love-signals/{coupleId}")
+    suspend fun getLoveSignals(@Path("coupleId") coupleId: String): JsonElement
+
     /** The profile row (`avatar_url` is my picture). Raw JSON so one odd field can't break Home. */
     @GET("api/profile/{userId}")
     suspend fun getProfile(@Path("userId") userId: String): JsonElement

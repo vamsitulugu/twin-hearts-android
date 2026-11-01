@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.pairing.data.remote
 
+import okhttp3.ResponseBody
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -14,14 +15,14 @@ interface PairingApi {
     suspend fun pendingList(@Path("userId") userId: String): PendingListDto
 
     @POST("api/partner/request")
-    suspend fun sendRequest(@Body body: SendRequestBody): OkDto
+    suspend fun sendRequest(@Body body: SendRequestBody): ResponseBody
 
     @POST("api/partner/accept")
     suspend fun accept(@Body body: RequestActionBody): AcceptResponseDto
 
     @POST("api/partner/reject")
-    suspend fun reject(@Body body: RequestActionBody): OkDto
+    suspend fun reject(@Body body: RequestActionBody): ResponseBody
 
     @POST("api/partner/cancel")
-    suspend fun cancel(@Body body: RequestActionBody): OkDto
+    suspend fun cancel(@Body body: RequestActionBody): ResponseBody
 }

@@ -14,3 +14,12 @@
 .cxx
 local.properties
 app/google-services.json
+# Build outputs
+app/release/
+app/debug/
+*.apk
+*.aab
+
+# IDE files
+.vs/
+.idea/

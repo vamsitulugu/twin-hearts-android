@@ -10,6 +10,8 @@ import com.twinhearts.app.feature.home.data.mapper.asLong
 import com.twinhearts.app.feature.home.data.mapper.asText
 import com.twinhearts.app.feature.home.data.mapper.profileKey
 import com.twinhearts.app.feature.home.data.mapper.toHomeOverview
+import com.twinhearts.app.feature.home.data.mapper.toLoveCardState
+import com.twinhearts.app.feature.home.domain.model.LoveCardState
 import com.twinhearts.app.feature.home.data.remote.DeleteMediaBody
 import com.twinhearts.app.feature.home.data.remote.HomeApi
 import com.twinhearts.app.feature.home.data.remote.SaveStateBody
@@ -42,6 +44,9 @@ interface HomeRepository {
     /** The last Home data saved on this phone, or null. Painted at once while the server wakes up. */
     suspend fun cachedOverview(): HomeOverview? = null
     suspend fun send(kind: LoveKind): AppResult<Unit>
+
+    /** Quick check of only the Hug / Touch / Miss You signals (tiny answer), used every few seconds. */
+    suspend fun loveCard(): AppResult<LoveCardState> = AppResult.Failure(AppError.Unknown)
 
     /** My profile picture link, or null when there is none (the letter is shown then). */
     suspend fun myAvatarUrl(): String?
@@ -81,6 +86,14 @@ class HomeRepositoryImpl @Inject constructor(
                 cache.write(cacheKey(session), slimState(result.data).toString())
                 AppResult.Success(result.data.toHomeOverview(session.role, session.anniversary, LocalDate.now()))
             }
+            is AppResult.Failure -> result
+        }
+    }
+
+    override suspend fun loveCard(): AppResult<LoveCardState> {
+        val session = session() ?: return notSignedIn
+        return when (val result = safeApiCall { api.getLoveSignals(session.coupleId) }) {
+            is AppResult.Success -> AppResult.Success(result.data.toLoveCardState(session.role))
             is AppResult.Failure -> result
         }
     }

@@ -1,5 +1,10 @@
 package com.twinhearts.app
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import android.graphics.Color
 import android.content.Intent
 import android.os.Bundle
@@ -48,6 +53,10 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
 
     private var splashStart = 0L
     @Volatile private var splashReady = false
+
+    // Android 13+ keeps notifications off until the app asks. Ask once when the app opens.
+    private val notificationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     // Razorpay reports the payment result here; the Pro screen listens through the bridge.
     override fun onPaymentSuccess(razorpayPaymentId: String?, data: PaymentData?) {
@@ -113,6 +122,12 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         }
         notifier.onAppOpened() // chat and call notifications are done once the app is open
         // Ads: checks Pro first, then consent, then starts the ad SDK. Does nothing for Pro couples.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
         adsManager.onAppStart(this)
     }
 

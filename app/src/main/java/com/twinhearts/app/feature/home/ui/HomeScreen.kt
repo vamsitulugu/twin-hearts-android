@@ -52,7 +52,8 @@ import java.time.ZoneId
 import kotlinx.coroutines.delay
 import androidx.compose.ui.unit.dp
 
-private const val POLL_MS = 8000L
+private const val POLL_MS = 20000L
+private const val SIGNAL_POLL_MS = 3000L
 private const val MESSAGE_MS = 3500L
 private const val CLOCK_TICK_MS = 30_000L
 private const val NO_EDITOR = -1
@@ -70,9 +71,16 @@ fun HomeScreen(
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             viewModel.refresh()
+            var sinceFull = 0L
             while (true) {
-                delay(POLL_MS)
-                viewModel.refresh()
+                delay(SIGNAL_POLL_MS)
+                sinceFull += SIGNAL_POLL_MS
+                if (sinceFull >= POLL_MS) {
+                    sinceFull = 0L
+                    viewModel.refresh() // everything (events, moods, photos)
+                } else {
+                    viewModel.refreshSignals() // only Hug / Touch / Miss You, small and quick
+                }
             }
         }
     }

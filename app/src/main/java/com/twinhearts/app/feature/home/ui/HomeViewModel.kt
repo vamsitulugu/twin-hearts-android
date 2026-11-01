@@ -112,6 +112,17 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Light check, every few seconds: only my partner's Hug / Touch / Miss You (a tiny answer).
+     * The full [refresh] downloads the whole shared state, so it runs less often.
+     */
+    fun refreshSignals() {
+        viewModelScope.launch {
+            val result = repository.loveCard() as? AppResult.Success ?: return@launch
+            _state.update { if (it.isSending) it else it.copy(loveCard = result.data) }
+        }
+    }
+
     fun send(kind: LoveKind) {
         val current = _state.value
         val session = current.session ?: return

@@ -6,6 +6,7 @@ import com.twinhearts.app.core.network.ServerWarmer
 import com.twinhearts.app.core.notifications.AppForeground
 import com.twinhearts.app.core.notifications.NotificationChannels
 import com.twinhearts.app.core.notifications.PushTokenRegistrar
+import com.twinhearts.app.core.presence.AppPresence
 import com.twinhearts.app.core.telemetry.AppTelemetry
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -27,6 +28,7 @@ class TwinHeartsApp : Application() {
     @Inject lateinit var pushTokens: PushTokenRegistrar
     @Inject lateinit var serverWarmer: ServerWarmer
     @Inject lateinit var telemetry: AppTelemetry
+    @Inject lateinit var appPresence: AppPresence
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -43,6 +45,8 @@ class TwinHeartsApp : Application() {
         NotificationChannels.ensure(this)
         // Start waking the sleeping server before the first screen asks for anything.
         serverWarmer.warm()
+        // Tell the server I am online on every screen (the web shows it as my partner's Online / Away).
+        appPresence.start()
         // A new sign-in (or a new person on this phone) re-sends the token to the server.
         scope.launch {
             sessionStore.session
