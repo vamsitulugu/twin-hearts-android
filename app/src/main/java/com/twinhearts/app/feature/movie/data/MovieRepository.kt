@@ -196,7 +196,7 @@ class MovieRepositoryImpl @Inject constructor(
         safeApiCall { api.deleteShared(who.coupleId, movieId, who.userId); Unit }
 
     override suspend fun sendReaction(who: MovieIdentity, emoji: String) =
-        safeApiCall { api.sendReaction(who.coupleId, ReactionBody(who.role, emoji)); Unit }
+        safeApiCall { api.sendReaction(who.coupleId, ReactionBody(who.role, emoji, relay = true)); Unit }
 
     override suspend fun reactions(who: MovieIdentity, afterMs: Long) =
         safeApiCall { api.reactions(who.coupleId, afterMs).map { it.toDomain(who.role) } }

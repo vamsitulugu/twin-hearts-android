@@ -131,6 +131,6 @@ data class SharedMovieDto(
 @Serializable data class CompleteBody(val parts: List<PartEtagDto>)
 
 // ── Reactions (needs backend-changes/movie/reactions) ──
-@Serializable data class ReactionBody(val role: String, val emoji: String, val relay: Boolean = true)
+@Serializable data class ReactionBody(val role: String, val emoji: String, val relay: Boolean)
 @Serializable
 data class ReactionDto(val at: Long = 0, val role: String = "", val emoji: String = "")
