@@ -10,7 +10,6 @@ import com.twinhearts.app.core.pro.PaymentBridge
 import com.twinhearts.app.core.pro.PaymentResult
 import com.twinhearts.app.core.pro.ProGate
 import com.twinhearts.app.core.pro.ProOrder
-import com.twinhearts.app.core.pro.ProPayment
 import com.twinhearts.app.core.pro.ProPlan
 import com.twinhearts.app.core.pro.ProRepository
 import com.twinhearts.app.core.pro.ProStatus
@@ -40,7 +39,6 @@ data class ProUiState(
     val paying: Boolean = false,
     /** Razorpay said paid; the server is checking the signature. */
     val verifying: Boolean = false,
-    val history: List<ProPayment> = emptyList(),
     val notice: ProNotice? = null,
 ) {
     val busy: Boolean get() = paying || verifying
@@ -82,13 +80,7 @@ class ProViewModel @Inject constructor(
                     it.copy(loading = false, notice = if (keepNotice) it.notice else ProNotice.Error(r.error))
                 }
             }
-            loadHistory()
         }
-    }
-
-    private suspend fun loadHistory() {
-        val r = repo.history()
-        if (r is AppResult.Success) _state.update { it.copy(history = r.data) }
     }
 
     fun pay() {
@@ -117,7 +109,6 @@ class ProViewModel @Inject constructor(
                     is AppResult.Success -> {
                         gate.onStatus(r.data)
                         _state.update { it.copy(paying = false, verifying = false, status = r.data) }
-                        loadHistory()
                         _effects.send(ProEffect.Purchased)
                     }
                     is AppResult.Failure -> {

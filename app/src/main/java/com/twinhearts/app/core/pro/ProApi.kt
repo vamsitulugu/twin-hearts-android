@@ -18,9 +18,6 @@ interface ProApi {
 
     @POST("api/pro/verify")
     suspend fun verify(@Header("x-user-id") userId: String, @Body body: VerifyBody): ProStatusDto
-
-    @GET("api/pro/history")
-    suspend fun history(@Header("x-user-id") userId: String, @Query("coupleId") coupleId: String): HistoryDto
 }
 
 @Serializable
@@ -51,9 +48,3 @@ data class VerifyBody(
     @SerialName("razorpay_payment_id") val paymentId: String,
     @SerialName("razorpay_signature") val signature: String,
 )
-
-@Serializable
-data class PaymentDto(val plan: String = "", val amount: Double = 0.0, val paymentId: String? = null, val paidAt: String? = null)
-
-@Serializable
-data class HistoryDto(val payments: List<PaymentDto> = emptyList())

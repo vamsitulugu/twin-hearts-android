@@ -158,23 +158,6 @@ fun ProScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            if (state.history.isNotEmpty()) {
-                Text(stringResource(R.string.pro_history), style = MaterialTheme.typography.titleSmall, color = colors.inkMuted)
-                Column(
-                    Modifier.fillMaxWidth().background(CardDark, RoundedCornerShape(18.dp)).border(1.dp, Hair, RoundedCornerShape(18.dp)).padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    state.history.forEach { p ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Column(Modifier.weight(1f)) {
-                                Text(p.plan?.name ?: "Pro", style = MaterialTheme.typography.bodyMedium, color = colors.ink)
-                                Text(formatDate(p.paidAt), style = MaterialTheme.typography.bodySmall, color = colors.inkFaint)
-                            }
-                            Text("₹${p.rupees}", style = MaterialTheme.typography.titleMedium, color = colors.ink)
-                        }
-                    }
-                }
-            }
             Spacer(Modifier.height(spacing.xl))
         }
     }

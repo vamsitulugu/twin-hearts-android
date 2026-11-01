@@ -14,7 +14,6 @@ interface ProRepository {
     suspend fun status(): AppResult<ProStatus>
     suspend fun createOrder(plan: ProPlan): AppResult<ProOrder>
     suspend fun verify(orderId: String, paymentId: String, signature: String): AppResult<ProStatus>
-    suspend fun history(): AppResult<List<ProPayment>>
 }
 
 @Singleton
@@ -54,11 +53,6 @@ class ProRepositoryImpl @Inject constructor(
             .map { it.toDomain() }
     }
 
-    override suspend fun history() = withSession { s ->
-        safeApiCall { api.history(s.userId, s.coupleId) }.map { dto ->
-            dto.payments.map { ProPayment(ProPlan.fromId(it.plan), it.amount.toInt(), it.paymentId, it.paidAt) }
-        }
-    }
 }
 
 internal fun ProStatusDto.toDomain() = ProStatus(isPro = isPro, plan = ProPlan.fromId(plan), expiresAt = expiresAt)

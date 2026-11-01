@@ -40,6 +40,7 @@ object NetworkModule {
         .writeTimeout(60, TimeUnit.SECONDS)
         .callTimeout(90, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
+        .addInterceptor(AppHeadersInterceptor())
         .build()
 
     @Provides

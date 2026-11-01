@@ -6,6 +6,7 @@ import com.twinhearts.app.core.network.ServerWarmer
 import com.twinhearts.app.core.notifications.AppForeground
 import com.twinhearts.app.core.notifications.NotificationChannels
 import com.twinhearts.app.core.notifications.PushTokenRegistrar
+import com.twinhearts.app.core.telemetry.AppTelemetry
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,12 +26,20 @@ class TwinHeartsApp : Application() {
     @Inject lateinit var sessionStore: SessionStore
     @Inject lateinit var pushTokens: PushTokenRegistrar
     @Inject lateinit var serverWarmer: ServerWarmer
+    @Inject lateinit var telemetry: AppTelemetry
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onCreate() {
         super.onCreate()
         registerActivityLifecycleCallbacks(AppForeground)
+        // If the app crashes, save a short note (error type + code locations, no personal data)
+        // and send it to the admin Health page on the next start.
+        val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, error ->
+            telemetry.saveCrash(error)
+            previousHandler?.uncaughtException(thread, error)
+        }
         NotificationChannels.ensure(this)
         // Start waking the sleeping server before the first screen asks for anything.
         serverWarmer.warm()

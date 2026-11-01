@@ -11,11 +11,17 @@ import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.lifecycleScope
+import com.twinhearts.app.core.appconfig.AppConfigRepository
+import com.twinhearts.app.core.appconfig.UpdateGate
+import com.twinhearts.app.core.telemetry.AppTelemetry
+import kotlinx.coroutines.launch
 import com.twinhearts.app.core.design.TwinSplash
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.core.navigation.TwinApp
@@ -37,6 +43,8 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     @Inject lateinit var notificationNavigator: NotificationNavigator
     @Inject lateinit var notifier: TwinNotifier
     @Inject lateinit var serverWarmer: com.twinhearts.app.core.network.ServerWarmer
+    @Inject lateinit var telemetry: AppTelemetry
+    @Inject lateinit var appConfig: AppConfigRepository
 
     private var splashStart = 0L
     @Volatile private var splashReady = false
@@ -48,11 +56,6 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
 
     override fun onPaymentError(code: Int, response: String?, data: PaymentData?) {
         paymentBridge.error(code, response)
-    }
-
-    override fun onStart() {
-        super.onStart()
-        serverWarmer.warm() // throttled: a no-op if the server was pinged in the last 4 minutes
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -79,6 +82,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                 var showSplash by rememberSaveable { mutableStateOf(savedInstanceState == null) }
                 Box(Modifier.fillMaxSize()) {
                     TwinApp()
+                    UpdateGate(appConfig.update.collectAsState().value)
                     if (showSplash) {
                         TwinSplash(
                             startedAtUptimeMillis = splashStart,
@@ -99,6 +103,14 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
 
     override fun onStart() {
         super.onStart()
+        serverWarmer.warm() // throttled: a no-op if the server was pinged in the last 4 minutes
+        // Tell the admin dashboard this person is active, send a crash saved by the last run,
+        // and fetch the admin's update notice and feature flags.
+        lifecycleScope.launch {
+            telemetry.flushPendingCrash()
+            telemetry.ping()
+            appConfig.refresh()
+        }
         notifier.onAppOpened() // chat and call notifications are done once the app is open
         // Ads: checks Pro first, then consent, then starts the ad SDK. Does nothing for Pro couples.
         adsManager.onAppStart(this)

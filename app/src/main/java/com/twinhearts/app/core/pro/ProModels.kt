@@ -46,8 +46,6 @@ data class ProOrder(
     val email: String,
 )
 
-data class ProPayment(val plan: ProPlan?, val rupees: Int, val paymentId: String?, val paidAt: String?)
-
 /** What Razorpay's checkout reported back (see PaymentBridge). */
 sealed interface PaymentResult {
     data class Success(val orderId: String, val paymentId: String, val signature: String) : PaymentResult
