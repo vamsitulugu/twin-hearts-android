@@ -31,6 +31,7 @@ import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.RepeatOne
 import androidx.compose.material.icons.rounded.Shuffle
@@ -81,6 +82,7 @@ internal data class PlayerActions(
     val onRepeat: () -> Unit,
     val onLike: (Song) -> Unit,
     val onLyrics: (Song) -> Unit,
+    val onSingTogether: (Song) -> Unit,
     val onQueue: () -> Unit,
     val onSleep: () -> Unit,
     val onClose: () -> Unit,
@@ -234,6 +236,7 @@ internal fun NowPlayingScreen(state: PlayerState, actions: PlayerActions, modifi
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
                 ShortcutButton(Icons.Rounded.Lyrics, stringResource(R.string.music_action_lyrics), false) { actions.onLyrics(song) }
+                ShortcutButton(Icons.Rounded.Videocam, stringResource(R.string.music_together_tile), false) { actions.onSingTogether(song) }
                 ShortcutButton(Icons.Rounded.QueueMusic, stringResource(R.string.music_queue_title), false, actions.onQueue)
                 ShortcutButton(Icons.Rounded.Bedtime, stringResource(R.string.music_sleep_title), state.sleepAtMs != null, actions.onSleep)
             }

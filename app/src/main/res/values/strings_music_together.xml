@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Music: Sing Together (video-call karaoke). Wording follows the web app's couple-karaoke.js and music/library.js. -->
+<resources>
+    <string name="music_together_tile">Sing Together</string>
+    <string name="music_together_tile_hint">video</string>
+    <string name="music_together_menu">Sing together (video)</string>
+    <string name="music_together_pick_title">Choose a song to sing together</string>
+    <string name="music_together_pick_subtitle">We\'ll invite %1$s to join you on video</string>
+    <string name="music_together_pick_none">Upload a song first 🎵</string>
+    <string name="music_together_pick_playing">Playing now</string>
+
+    <string name="music_together_invited">❤️ %1$s invited you to sing.</string>
+    <string name="music_together_invited_song">%1$s</string>
+    <string name="music_together_accept">Accept</string>
+    <string name="music_together_decline">Decline</string>
+    <string name="music_together_waiting">Waiting for your partner to accept…</string>
+    <string name="music_together_waiting_note">This will open automatically if they say yes.</string>
+    <string name="music_together_cancel">Cancel</string>
+
+    <string name="music_together_connecting">Connecting to your partner…</string>
+    <string name="music_together_reconnecting">Reconnecting…</string>
+    <string name="music_together_you">You</string>
+    <string name="music_together_partner_fallback">Partner</string>
+    <string name="music_together_lyrics_waiting">🎤 Waiting for lyrics…</string>
+    <string name="music_together_lyrics_loading">🎧 Loading lyrics…</string>
+    <string name="music_together_lyrics_none">🎤 No synced lyrics for this song yet</string>
+
+    <string name="music_together_leave">Leave</string>
+    <string name="music_together_previous">Previous</string>
+    <string name="music_together_play">Play</string>
+    <string name="music_together_pause">Pause</string>
+    <string name="music_together_next">Next</string>
+    <string name="music_together_mic_on">Mute mic</string>
+    <string name="music_together_mic_off">Unmute mic</string>
+    <string name="music_together_cam_on">Camera off</string>
+    <string name="music_together_cam_off">Camera on</string>
+    <string name="music_together_flip">Switch camera</string>
+    <string name="music_together_speaker_on">Mute partner</string>
+    <string name="music_together_speaker_off">Unmute partner</string>
+    <string name="music_together_seek">Song position</string>
+
+    <string name="music_together_notice_declined">Invite declined 💔</string>
+    <string name="music_together_notice_no_answer">No answer to the invite</string>
+    <string name="music_together_notice_left">Your partner left the room 💔</string>
+    <string name="music_together_notice_host_only">Only the host controls playback 🎤</string>
+    <string name="music_together_notice_song_missing">That song is not on this phone</string>
+    <string name="music_together_notice_no_cam_mic">Camera/mic access denied — joining audio-lyrics only</string>
+    <string name="music_together_notice_flip_failed">Could not switch camera</string>
+    <string name="music_together_notice_not_connected">Not connected yet</string>
+
+    <string name="music_together_access_title">Camera and microphone</string>
+    <string name="music_together_access_message">Sing Together shows your face and carries your voice to %1$s. Without them you can still sing along with the lyrics.</string>
+    <string name="music_together_access_allow">Allow</string>
+    <string name="music_together_access_skip">Not now</string>
+</resources>

@@ -59,6 +59,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.twinhearts.app.feature.music.singtogether.ui.SingSongPickerSheet
+import com.twinhearts.app.feature.music.singtogether.ui.SingTogetherOverlay
+import com.twinhearts.app.feature.music.singtogether.ui.SingTogetherViewModel
+import com.twinhearts.app.feature.music.singtogether.ui.rememberSingAccess
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.twinhearts.app.R
 import com.twinhearts.app.core.common.AppError
@@ -103,6 +107,7 @@ private sealed interface MusicDialog {
     data class DeletePlaylist(val playlistId: String) : MusicDialog
     data class PickSongs(val playlistId: String) : MusicDialog
     data object Queue : MusicDialog
+    data object SingPicker : MusicDialog
     data object Sleep : MusicDialog
 }
 
@@ -115,6 +120,7 @@ private fun MusicScreenContent(
     onBack: () -> Unit,
     viewModel: MusicViewModel = hiltViewModel(),
     recordingsViewModel: RecordingsViewModel = hiltViewModel(),
+    together: SingTogetherViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val player by viewModel.player.collectAsStateWithLifecycle()
@@ -159,6 +165,8 @@ private fun MusicScreenContent(
     val partner = who?.partnerName.orEmpty().ifBlank { stringResource(R.string.music_partner_fallback) }
     val youLabel = stringResource(R.string.music_rec_you)
     val fullSongs = LibraryQueries.full(songs)
+    val singAccess = rememberSingAccess(partner)
+    val startSing: (Song) -> Unit = { song -> singAccess.ask { together.invite(song, fullSongs) } }
     val currentId = player.current?.id
 
     fun songById(id: String): Song? = songs.firstOrNull { it.id == id }
@@ -176,6 +184,7 @@ private fun MusicScreenContent(
         onToggleLike = { dialog = null; viewModel.toggleLike(song) },
         onAddToPlaylist = { dialog = MusicDialog.AddToPlaylist(song.id) },
         onSing = { dialog = null; viewModel.open(MusicPage.Sing(song.id)) },
+        onSingTogether = { dialog = null; startSing(song) },
         onLyrics = { dialog = null; viewModel.open(MusicPage.Lyrics(song.id)) },
         onDetails = { dialog = MusicDialog.Details(song.id) },
         onShare = {
@@ -267,6 +276,7 @@ private fun MusicScreenContent(
                                         onAddSongs = openPicker,
                                         onOpenScope = { viewModel.open(MusicPage.Songs(it)) },
                                         onKaraoke = { viewModel.open(MusicPage.KaraokeList) },
+                                        onSingTogether = { dialog = MusicDialog.SingPicker },
                                         onPlayAll = { shuffle -> viewModel.playAll(fullSongs, shuffle) },
                                         onSearch = { viewModel.open(MusicPage.Search) },
                                         onSearchOnline = { viewModel.open(MusicPage.OnlineSearch) },
@@ -493,12 +503,14 @@ private fun MusicScreenContent(
                         onRepeat = viewModel::cycleRepeat,
                         onLike = { s -> songById(s.id)?.let(viewModel::toggleLike) },
                         onLyrics = { s -> viewModel.closePlayer(); viewModel.open(MusicPage.Lyrics(s.id)) },
+                        onSingTogether = { s -> startSing(s) },
                         onQueue = { dialog = MusicDialog.Queue },
                         onSleep = { dialog = MusicDialog.Sleep },
                         onClose = viewModel::closePlayer,
                     ),
                 )
             }
+            SingTogetherOverlay(viewModel = together, onAccept = { singAccess.ask { together.accept() } })
         }
     }
 
@@ -574,6 +586,13 @@ private fun MusicScreenContent(
                 onDismiss = close,
             )
         }
+        MusicDialog.SingPicker -> SingSongPickerSheet(
+            songs = fullSongs,
+            currentSongId = currentId,
+            partnerName = partner,
+            onPick = { dialog = null; startSing(it) },
+            onDismiss = close,
+        )
         MusicDialog.Queue -> com.twinhearts.app.feature.music.ui.QueueSheet(player, onPick = viewModel::playQueueIndex, onDismiss = close)
         MusicDialog.Sleep -> SleepTimerSheet(player.sleepAtMs, onSet = { viewModel.setSleepTimer(it); dialog = null }, onDismiss = close)
     }

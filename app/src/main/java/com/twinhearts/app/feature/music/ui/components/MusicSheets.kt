@@ -29,6 +29,7 @@ import androidx.compose.material.icons.rounded.PlaylistAdd
 import androidx.compose.material.icons.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.CheckBox
 import androidx.compose.material3.AlertDialog
@@ -79,6 +80,7 @@ internal data class SongMenuActions(
     val onToggleLike: () -> Unit,
     val onAddToPlaylist: () -> Unit,
     val onSing: () -> Unit,
+    val onSingTogether: () -> Unit,
     val onLyrics: () -> Unit,
     val onDetails: () -> Unit,
     val onShare: () -> Unit,
@@ -143,6 +145,7 @@ internal fun SongMenuSheet(song: Song, mine: Boolean, actions: SongMenuActions, 
             )
             SheetAction(Icons.Rounded.PlaylistAdd, stringResource(R.string.music_action_add_playlist), actions.onAddToPlaylist)
             SheetAction(Icons.Rounded.Mic, stringResource(R.string.music_action_sing), actions.onSing)
+            SheetAction(Icons.Rounded.Videocam, stringResource(R.string.music_together_menu), actions.onSingTogether)
             SheetAction(Icons.Rounded.Lyrics, stringResource(R.string.music_action_lyrics), actions.onLyrics)
             SheetAction(Icons.Rounded.Info, stringResource(R.string.music_action_details), actions.onDetails)
             SheetAction(Icons.Rounded.Share, stringResource(R.string.music_action_share), actions.onShare)

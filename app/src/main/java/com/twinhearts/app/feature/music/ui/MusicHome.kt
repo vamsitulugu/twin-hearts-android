@@ -44,6 +44,7 @@ import androidx.compose.material.icons.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -87,6 +88,7 @@ internal data class MusicHomeActions(
     val onAddSongs: () -> Unit,
     val onOpenScope: (LibraryScope) -> Unit,
     val onKaraoke: () -> Unit,
+    val onSingTogether: () -> Unit,
     val onPlayAll: (shuffle: Boolean) -> Unit,
     val onSearch: () -> Unit,
     val onSearchOnline: () -> Unit,
@@ -172,6 +174,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.content(
             item { LibraryChip(Icons.Rounded.Star, stringResource(R.string.music_tile_featured), featured.size.toString()) { actions.onOpenScope(LibraryScope.Featured) } }
             item { AddSongsButton(actions.onAddSongs) }
             item { LibraryChip(Icons.Rounded.Mic, stringResource(R.string.music_tile_karaoke), stringResource(R.string.music_tile_karaoke_ready, ready.size), actions.onKaraoke) }
+            item { LibraryChip(Icons.Rounded.Videocam, stringResource(R.string.music_together_tile), stringResource(R.string.music_together_tile_hint), actions.onSingTogether) }
         }
     }
 
