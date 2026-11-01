@@ -267,8 +267,6 @@ private fun TwinNavigation(
                             items = bottomBarItems,
                             selectedKey = selectedItem?.key,
                             onItemClick = onBarClick,
-                            // Settings and Live Map paint their page flat near-black, so the bar slot matches it.
-                            slotFill = if (selectedItem?.key == Routes.Settings || selectedItem?.key == Routes.LiveMap) Color(0xFF0A0A0C) else Color.Transparent,
                         )
                     }
                 },
