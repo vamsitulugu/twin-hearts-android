@@ -53,6 +53,8 @@ data class HomeUiState(
     /** The couple's own card pictures; a missing slot shows the built-in picture. */
     val cardPhotos: Map<CardPhotoSlot, CardPhoto> = emptyMap(),
     val isSending: Boolean = false,
+    /** My profile picture; null shows the first letter of my name. */
+    val avatarUrl: String? = null,
     val message: HomeMessage? = null,
     /** A hug the user tapped "Later" on, so it is not shown again until a new one arrives. */
     val dismissedHugId: Long? = null,
@@ -80,6 +82,9 @@ class HomeViewModel @Inject constructor(
 
     /** Silent refresh: a failed check never replaces what is already on screen. */
     fun refresh() {
+        viewModelScope.launch {
+            repository.myAvatarUrl()?.let { url -> _state.update { it.copy(avatarUrl = url) } }
+        }
         viewModelScope.launch {
             (repository.overview() as? AppResult.Success)?.let { result ->
                 _state.update {

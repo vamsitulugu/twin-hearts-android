@@ -17,6 +17,10 @@ interface HomeApi {
     @GET("api/data/state/{coupleId}")
     suspend fun getState(@Path("coupleId") coupleId: String): JsonElement
 
+    /** The profile row (`avatar_url` is my picture). Raw JSON so one odd field can't break Home. */
+    @GET("api/profile/{userId}")
+    suspend fun getProfile(@Path("userId") userId: String): JsonElement
+
     @POST("api/data/state")
     suspend fun saveState(@Body body: SaveStateBody): SaveStateResponse
 

@@ -25,6 +25,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -143,6 +145,8 @@ class SingTogetherEngine @Inject constructor(
     private var lastHostSync: HostSync? = null
     private val clock = SyncClock()
     private var lyricsToken = 0
+    private var iceJob: Deferred<List<PeerConnection.IceServer>>? = null
+    private var lyricsRaw: String? = null
 
     private var peerReady = false
     private var answered = false
@@ -179,6 +183,8 @@ class SingTogetherEngine @Inject constructor(
     }
 
     private suspend fun startListening() {
+        // Let the Music page load first; listening for invites can wait a moment.
+        delay(LISTEN_DELAY_MS)
         val me = repository.identity() ?: return
         if (watchers == 0) return
         who = me
@@ -323,7 +329,13 @@ class SingTogetherEngine @Inject constructor(
                 _state.update { it.copy(stale = false) }
                 onHostControl(msg)
             }
-            "request_sync" -> if (s.isHost) broadcastSyncTick()
+            "request_sync" -> if (s.isHost) {
+                broadcastSyncTick()
+                val id = roomSongId
+                val raw = lyricsRaw
+                if (id != null && !raw.isNullOrBlank() && s.lines.isNotEmpty()) shareLyrics(id, raw)
+            }
+            "lyrics" -> onSharedLyrics(msg)
             "reaction" -> msg.text("emoji")?.let { showReaction(it) }
             // A "leave" from an earlier room can still sit in the list; 5 s covers the phones' clock gap.
             "leave" -> if ((msg.long("ts") ?: 0L) >= joinedAt - CLOCK_TOLERANCE_MS) {
@@ -353,6 +365,8 @@ class SingTogetherEngine @Inject constructor(
             )
         }
         enterCallAudio()
+        // Relay servers are asked for while the song and library load, not one after the other.
+        iceJob = scope.async { iceServers() }
 
         if (!host) {
             val library = (repository.library(me) as? AppResult.Success)?.data?.songs.orEmpty()
@@ -533,10 +547,34 @@ class SingTogetherEngine @Inject constructor(
                 repository.findLyrics(me, song)
                 raw = readLyricsText(me, song)
             }
+            // The partner's phone may still be saving them: look again a few times before giving up.
+            var tries = 0
+            while (raw.isNullOrBlank() && tries < LYRICS_RETRIES && token == lyricsToken) {
+                delay(LYRICS_RETRY_MS)
+                raw = readLyricsText(me, song)
+                tries++
+            }
             if (token != lyricsToken) return@launch // another song started while this one was loading
+            lyricsRaw = raw
+            // The host also hands the text to the guest, so both screens always show the same words.
+            if (_state.value.isHost && !raw.isNullOrBlank()) shareLyrics(song.id, raw)
             val lines = DuetLrcParser.parse(raw)
             _state.update { it.copy(lines = lines, lyrics = if (lines.isEmpty()) LyricsLoad.Missing else LyricsLoad.Ready) }
         }
+    }
+
+    private fun shareLyrics(songId: String, raw: String) {
+        val ch = channel ?: return
+        scope.launch { ch.send("lyrics") { put("songId", songId); put("lrc", raw) } }
+    }
+
+    private fun onSharedLyrics(msg: JsonObject) {
+        if (_state.value.isHost || msg.text("songId") != roomSongId) return
+        val raw = msg.text("lrc") ?: return
+        val lines = DuetLrcParser.parse(raw)
+        if (lines.isEmpty()) return
+        lyricsRaw = raw
+        _state.update { it.copy(lines = lines, lyrics = LyricsLoad.Ready) }
     }
 
     /** Raw lyrics text. It is read here (not through the library) because the duet speaker tags must survive. */
@@ -555,7 +593,7 @@ class SingTogetherEngine @Inject constructor(
         val hasCamera = granted(Manifest.permission.CAMERA)
         val hasMic = granted(Manifest.permission.RECORD_AUDIO)
         val rtc = try {
-            SingRtc(context, factory, egl, iceServers(), hasCamera, hasMic, this)
+            SingRtc(context, factory, egl, iceJob?.await() ?: iceServers(), hasCamera, hasMic, this)
         } catch (e: IllegalStateException) {
             notice(SingNotice.CouldNotConnect)
             leaveRoom(tellPartner = true)
@@ -863,6 +901,8 @@ class SingTogetherEngine @Inject constructor(
         roomSongId = null
         loadingSongId = null
         lastHostSync = null
+        lyricsRaw = null
+        iceJob = null
         clock.reset()
     }
 
@@ -901,7 +941,10 @@ class SingTogetherEngine @Inject constructor(
     private fun JsonObject.flag(key: String): Boolean? = (this[key] as? JsonPrimitive)?.booleanOrNull
 
     private companion object {
-        const val IDLE_POLL_MS = 2_000L
+        const val IDLE_POLL_MS = 4_000L
+        const val LISTEN_DELAY_MS = 2_500L
+        const val LYRICS_RETRIES = 5
+        const val LYRICS_RETRY_MS = 3_000L
         const val ROOM_POLL_MS = 700L
         const val SYNC_EVERY_MS = 1_500L
         const val SNAPSHOT_AFTER_CONTROL_MS = 120L

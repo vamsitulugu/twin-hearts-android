@@ -31,5 +31,8 @@ Host drives the song; guest mirrors (one-song queue, so it can't skip alone). Dr
 | "Record Our Duet" button | Not built: needs both video feeds and both voices mixed into one file, which I can not test without compiling. Own session. |
 | Room in background | Android stops the camera when the app is hidden; music continues. |
 
+## v3
+Guest lyrics: retries the cache 5 times and the host sends the text over the channel (`lyrics` message). Faster Music page: invite listening starts after 2.5 s and polls every 4 s while idle; relay servers are fetched in parallel.
+
 ## Known cost
 Signalling polls the whole couple document (2 s idle while Music is open, 0.7 s in a room), like the web. A lighter endpoint would be a backend change (R-63).

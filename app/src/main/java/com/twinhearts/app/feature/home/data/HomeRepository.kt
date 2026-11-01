@@ -38,6 +38,9 @@ interface HomeRepository {
     suspend fun overview(): AppResult<HomeOverview>
     suspend fun send(kind: LoveKind): AppResult<Unit>
 
+    /** My profile picture link, or null when there is none (the letter is shown then). */
+    suspend fun myAvatarUrl(): String?
+
     /** Saves MY mood for [date] (ISO "2026-10-26"); `null` clears it. Never touches my partner's. */
     suspend fun setMood(date: LocalDate, mood: MoodKind?): AppResult<Unit>
 
@@ -58,6 +61,12 @@ class HomeRepositoryImpl @Inject constructor(
 
     private suspend fun session(): Session? = sessionStore.session.first()
     private val notSignedIn = AppResult.Failure(AppError.Unauthorized())
+
+    override suspend fun myAvatarUrl(): String? {
+        val session = session() ?: return null
+        val row = (safeApiCall { api.getProfile(session.userId) } as? AppResult.Success)?.data as? JsonObject
+        return (row?.get("avatar_url") as? JsonPrimitive)?.takeIf { it.isString }?.content?.takeIf { it.isNotBlank() }
+    }
 
     override suspend fun overview(): AppResult<HomeOverview> {
         val session = session() ?: return notSignedIn

@@ -143,7 +143,7 @@ internal fun HomeContent(
                 .background(HomeCardStyle.Hero),
             verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.l),
         ) {
-            HomeHeader(myName = myName, onProfileClick = { onShortcut(HomeShortcut.OurProfile) })
+            HomeHeader(myName = myName, avatarUrl = state.avatarUrl, onProfileClick = { onShortcut(HomeShortcut.OurProfile) })
             HomeHero(myName = myName, nowMillis = nowMillis)
             HomeSearchRow(onShortcut)
             HomeChips(onShortcut)

@@ -89,6 +89,13 @@ private val noPullRefreshRoutes: List<KClass<out Any>> = listOf(
     Routes.Games::class, Routes.Vault::class, Routes.Pro::class,
 )
 
+/** Pages that show the bottom bar although they are not tabs. */
+private val barPages: List<KClass<out Any>> = listOf(
+    Routes.Profile::class, Routes.Us::class, Routes.Level::class, Routes.Places::class, Routes.Memories::class,
+    Routes.Collection::class, Routes.Study::class, Routes.PeriodTracker::class, Routes.Surprises::class,
+    Routes.Money::class, Routes.Calendar::class, Routes.BucketList::class,
+)
+
 /** Root composable: background, side menu, bottom bar (only on the five tab screens) and the nav graph. */
 @Composable
 fun TwinApp(viewModel: AppViewModel = hiltViewModel()) {
@@ -193,9 +200,11 @@ private fun TwinNavigation(
     // My Space and the Secret Vault also keep the bottom bar, as in the reference screens.
     val onMySpace = destination?.hasRoute<Routes.MySpace>() == true
     val onVault = destination?.hasRoute<Routes.Vault>() == true
+    // These pages keep the bottom bar too (no tab highlighted), so people can jump back to Home, Chat, Map.
+    val onBarPage = destination?.hierarchy?.any { d -> barPages.any { d.hasRoute(it) } } == true
     val showBottomBar = (selectedItem != null &&
             selectedItem.key != Routes.TwinAi &&
-            selectedItem.key != Routes.Chat) || onFights || onMySpace || onVault
+            selectedItem.key != Routes.Chat) || onFights || onMySpace || onVault || onBarPage
 
     // Back closes the menu first.
     BackHandler(enabled = drawerState.isOpen) { scope.launch { drawerState.close() } }

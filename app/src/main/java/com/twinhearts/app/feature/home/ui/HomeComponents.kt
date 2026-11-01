@@ -147,7 +147,7 @@ private fun ShinyLogo(modifier: Modifier = Modifier) {
 
 /** Logo + name on the left, my avatar (opens the profile) on the right. */
 @Composable
-internal fun HomeHeader(myName: String, onProfileClick: () -> Unit) {
+internal fun HomeHeader(myName: String, avatarUrl: String?, onProfileClick: () -> Unit) {
     val colors = TwinTheme.colors
     Row(
         modifier = Modifier
@@ -165,7 +165,7 @@ internal fun HomeHeader(myName: String, onProfileClick: () -> Unit) {
                 .weight(1f)
                 .padding(start = TwinTheme.spacing.m),
         )
-        SpinningProfileButton(myName = myName, onClick = onProfileClick)
+        SpinningProfileButton(myName = myName, avatarUrl = avatarUrl, onClick = onProfileClick)
     }
 }
 
@@ -175,7 +175,7 @@ internal fun HomeHeader(myName: String, onProfileClick: () -> Unit) {
  * for no animations (R-55); only the ring rotates, the avatar and its tap target stay still.
  */
 @Composable
-private fun SpinningProfileButton(myName: String, onClick: () -> Unit) {
+private fun SpinningProfileButton(myName: String, avatarUrl: String?, onClick: () -> Unit) {
     val reduceMotion = rememberReduceMotion()
     val angle = if (reduceMotion) {
         null
@@ -208,7 +208,7 @@ private fun SpinningProfileButton(myName: String, onClick: () -> Unit) {
                 .graphicsLayer { rotationZ = angle?.value ?: 0f }
                 .border(2.dp, ringBrush, CircleShape),
         )
-        Avatar(name = myName, size = ProfileSize)
+        Avatar(name = myName, size = ProfileSize, imageUrl = avatarUrl)
     }
 }
 
