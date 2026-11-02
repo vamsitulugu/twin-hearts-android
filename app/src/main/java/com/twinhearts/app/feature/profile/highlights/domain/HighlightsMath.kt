@@ -7,6 +7,10 @@ object HighlightsMath {
     const val MAX_PICK: Int = 10
     const val TITLE_MAX: Int = 24
 
+    /** Highlights of one person: mine (main profile) or my partner's (partner profile). */
+    fun ownedBy(all: List<Highlight>, owner: HighlightsOwner): List<Highlight> =
+        all.filter { it.mine == (owner == HighlightsOwner.Mine) }
+
     /** Categories that have at least one highlight, in the fixed menu order. Drives the filter chips. */
     fun usedCategories(all: List<Highlight>): List<HighlightCategory> =
         HighlightCategory.entries.filter { category -> all.any { it.category == category } }

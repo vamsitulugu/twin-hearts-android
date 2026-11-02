@@ -29,6 +29,7 @@ import com.twinhearts.app.core.design.TwinBackground
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.core.design.TwinTopBar
 import com.twinhearts.app.feature.profile.highlights.ui.HighlightsSection
+import com.twinhearts.app.feature.profile.highlights.ui.PartnerProfilePage
 import com.twinhearts.app.feature.profile.ui.screens.AddDateSheet
 import com.twinhearts.app.feature.profile.ui.screens.AddMilestoneSheet
 import com.twinhearts.app.feature.profile.ui.screens.ConfirmDialog
@@ -113,6 +114,7 @@ fun ProfileScreen(
                     when (screen) {
                         ProfileScreenKind.Main -> R.string.profile_title
                         ProfileScreenKind.Partner -> R.string.profile_partner_details
+                        ProfileScreenKind.PartnerProfile -> R.string.profile_hl_partner_profile
                         ProfileScreenKind.Settings -> R.string.profile_settings_title
                         ProfileScreenKind.Milestones -> R.string.profile_stat_milestones
                         ProfileScreenKind.Love -> R.string.profile_love_languages
@@ -137,7 +139,7 @@ fun ProfileScreen(
                                 uploadingAvatar = state.uploadingAvatar,
                                 onMore = { vm.open(ProfileScreenKind.Settings) },
                                 onPickAvatar = { photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                                onViewPartnerAvatar = { overlay = Overlay.ViewPhoto },
+                                onOpenPartnerProfile = { vm.open(ProfileScreenKind.PartnerProfile) },
                                 onEditProfile = { overlay = Overlay.EditProfile },
                                 onPartnerDetails = { vm.open(ProfileScreenKind.Partner) },
                                 onAddDate = { overlay = Overlay.AddDate },
@@ -158,6 +160,11 @@ fun ProfileScreen(
                                 onLoveLanguage = { vm.open(ProfileScreenKind.Love) },
                                 onSendRequest = vm::sendPartnerRequest,
                                 onRemove = { overlay = Overlay.RemoveFirst },
+                            )
+                            ProfileScreenKind.PartnerProfile -> PartnerProfilePage(
+                                imageUrl = data.partnerAvatarUrl,
+                                name = data.partnerName,
+                                onViewAvatar = { overlay = Overlay.ViewPhoto },
                             )
                             ProfileScreenKind.Settings -> SettingsPage(
                                 onEditProfile = { overlay = Overlay.EditProfile },

@@ -69,6 +69,7 @@ import com.twinhearts.app.feature.profile.highlights.domain.ClipKind
 import com.twinhearts.app.feature.profile.highlights.domain.Highlight
 import com.twinhearts.app.feature.profile.highlights.domain.HighlightCategory
 import com.twinhearts.app.feature.profile.highlights.domain.HighlightsMath
+import com.twinhearts.app.feature.profile.highlights.domain.HighlightsOwner
 import com.twinhearts.app.feature.profile.highlights.domain.PickedClip
 import com.twinhearts.app.feature.profile.highlights.domain.UploadTarget
 import com.twinhearts.app.feature.profile.ui.components.ProfileSheet
@@ -89,7 +90,11 @@ private val MINI = 40.dp
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun HighlightsSection(modifier: Modifier = Modifier, vm: HighlightsViewModel = hiltViewModel()) {
+fun HighlightsSection(
+    modifier: Modifier = Modifier,
+    owner: HighlightsOwner = HighlightsOwner.Mine,
+    vm: HighlightsViewModel = hiltViewModel(),
+) {
     val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val colors = TwinTheme.colors
@@ -136,21 +141,24 @@ fun HighlightsSection(modifier: Modifier = Modifier, vm: HighlightsViewModel = h
 
     val snapshot = (state.phase as? HighlightsPhase.Ready)?.snapshot
     val all = snapshot?.highlights.orEmpty()
-    val used = HighlightsMath.usedCategories(all)
-    val filter = state.filter?.takeIf { it in used }
-    val shown = HighlightsMath.visible(all, filter)
+    val owned = HighlightsMath.ownedBy(all, owner)
+    val isMine = owner == HighlightsOwner.Mine
+    val used = HighlightsMath.usedCategories(owned)
+    val filter = state.filters[owner]?.takeIf { it in used }
+    val shown = HighlightsMath.visible(owned, filter)
 
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
         if (used.size >= 2) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
-                item { TwinFilterChip(stringResource(R.string.profile_hl_all), filter == null, { vm.setFilter(null) }) }
+                item { TwinFilterChip(stringResource(R.string.profile_hl_all), filter == null, { vm.setFilter(owner, null) }) }
                 items(used, key = { it.wire }) { category ->
-                    TwinFilterChip("${category.emoji} ${stringResource(category.label)}", filter == category, { vm.setFilter(category) })
+                    TwinFilterChip("${category.emoji} ${stringResource(category.label)}", filter == category, { vm.setFilter(owner, category) })
                 }
             }
         }
         LazyRow(horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m)) {
-            item(key = "new") {
+            // Only my own row has the "+" circle; my partner's highlights are watch-only.
+            if (isMine) item(key = "new") {
                 CircleItem(label = stringResource(R.string.profile_hl_new), description = stringResource(R.string.profile_hl_new_cd), onClick = { addToId = null; showSource = true }) {
                     Box(Modifier.size(CIRCLE).border(1.5.dp, colors.inkMuted, CircleShape), contentAlignment = Alignment.Center) {
                         Icon(Icons.Rounded.Add, contentDescription = null, tint = colors.ink, modifier = Modifier.size(32.dp))
@@ -179,8 +187,11 @@ fun HighlightsSection(modifier: Modifier = Modifier, vm: HighlightsViewModel = h
                     modifier = Modifier.clickable(role = Role.Button, onClick = vm::retry).padding(horizontal = TwinTheme.spacing.s, vertical = TwinTheme.spacing.xs),
                 )
             }
-            state.phase is HighlightsPhase.Ready && all.isEmpty() ->
-                Text(stringResource(R.string.profile_hl_empty), style = MaterialTheme.typography.bodySmall, color = colors.inkMuted)
+            state.phase is HighlightsPhase.Ready && owned.isEmpty() ->
+                Text(
+                    if (isMine) stringResource(R.string.profile_hl_empty)
+                    else stringResource(R.string.profile_hl_partner_empty, snapshot?.partnerName.orEmpty().ifBlank { stringResource(R.string.profile_hl_partner) }),
+                    style = MaterialTheme.typography.bodySmall, color = colors.inkMuted)
         }
     }
 

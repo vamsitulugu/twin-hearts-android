@@ -60,4 +60,8 @@
     <string name="profile_hl_close">Close</string>
     <string name="profile_hl_you">You</string>
     <string name="profile_hl_partner">Partner</string>
+    <string name="profile_hl_partner_profile">Profile</string>
+    <string name="profile_hl_section_title">Highlights</string>
+    <string name="profile_hl_partner_empty">%1$s hasn’t added any highlights yet.</string>
+    <string name="profile_hl_open_partner_cd">Open partner profile</string>
 </resources>

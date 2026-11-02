@@ -26,6 +26,9 @@ enum class HighlightCategory(val wire: String, val emoji: String, @StringRes val
     }
 }
 
+/** Whose highlights a row shows. */
+enum class HighlightsOwner { Mine, Partner }
+
 enum class ClipKind { Image, Video }
 
 data class HighlightClip(

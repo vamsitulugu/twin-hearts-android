@@ -5,7 +5,7 @@ import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.feature.profile.domain.model.ProfileData
 
 /** The six sub-screens of the Profile. The page keeps its own back stack, so Back returns to the screen before. */
-enum class ProfileScreenKind { Main, Partner, Settings, Milestones, Love, Story }
+enum class ProfileScreenKind { Main, Partner, PartnerProfile, Settings, Milestones, Love, Story }
 
 /** Loading / content / error of the page (R-41). Empty states live inside the lists (no milestones, no next date). */
 sealed interface ProfilePhase {

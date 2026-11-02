@@ -2,6 +2,7 @@ package com.twinhearts.app.feature.profile.highlights.ui
 
 import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.feature.profile.highlights.domain.HighlightCategory
+import com.twinhearts.app.feature.profile.highlights.domain.HighlightsOwner
 import com.twinhearts.app.feature.profile.highlights.domain.HighlightsSnapshot
 import com.twinhearts.app.feature.profile.highlights.domain.PickedClip
 
@@ -39,7 +40,8 @@ sealed interface HighlightsMessage {
 
 data class HighlightsUiState(
     val phase: HighlightsPhase = HighlightsPhase.Loading,
-    val filter: HighlightCategory? = null,
+    /** The selected category chip of each row (absent = All). */
+    val filters: Map<HighlightsOwner, HighlightCategory> = emptyMap(),
     val pending: PendingUpload? = null,
     val progress: UploadProgress? = null,
     val uploadError: AppError? = null,

@@ -47,6 +47,7 @@ import com.twinhearts.app.feature.profile.domain.model.ConnectionState
 import com.twinhearts.app.feature.profile.domain.model.ImportantDate
 import com.twinhearts.app.feature.profile.domain.model.ImportantKind
 import com.twinhearts.app.feature.profile.domain.model.ProfileData
+import com.twinhearts.app.feature.profile.highlights.ui.PartnerRing
 import com.twinhearts.app.feature.profile.ui.components.ProfileAvatar
 import com.twinhearts.app.feature.profile.ui.components.ProfileChip
 import com.twinhearts.app.feature.profile.ui.components.formatDate
@@ -66,7 +67,7 @@ fun MainPage(
     uploadingAvatar: Boolean,
     onMore: () -> Unit,
     onPickAvatar: () -> Unit,
-    onViewPartnerAvatar: () -> Unit,
+    onOpenPartnerProfile: () -> Unit,
     onEditProfile: () -> Unit,
     onPartnerDetails: () -> Unit,
     onAddDate: () -> Unit,
@@ -114,7 +115,10 @@ fun MainPage(
                     }
                 }
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    ProfileAvatar(data.partnerAvatarUrl, stringResource(R.string.profile_view_partner_photo), onViewPartnerAvatar.takeIf { data.partnerAvatarUrl != null })
+                    // The animated ring says "there is more here"; tapping opens my partner's profile with their highlights.
+                    PartnerRing {
+                        ProfileAvatar(data.partnerAvatarUrl, stringResource(R.string.profile_hl_open_partner_cd), onOpenPartnerProfile)
+                    }
                     Text(data.partnerName, style = MaterialTheme.typography.titleMedium, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = TwinTheme.spacing.s))
                     val seen = data.partnerSeenAtMs
                     val presence = when {

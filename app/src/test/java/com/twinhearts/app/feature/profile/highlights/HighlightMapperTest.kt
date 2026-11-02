@@ -6,6 +6,7 @@ import com.twinhearts.app.feature.profile.highlights.data.remote.HighlightItemDt
 import com.twinhearts.app.feature.profile.highlights.domain.ClipKind
 import com.twinhearts.app.feature.profile.highlights.domain.HighlightCategory
 import com.twinhearts.app.feature.profile.highlights.domain.HighlightsMath
+import com.twinhearts.app.feature.profile.highlights.domain.HighlightsOwner
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -39,5 +40,11 @@ class HighlightMapperTest {
         val list = dtos.toHighlights("user1")
         assertEquals(listOf(HighlightCategory.Travel, HighlightCategory.Dates), HighlightsMath.usedCategories(list))
         assertEquals(listOf("p"), HighlightsMath.visible(list, HighlightCategory.Dates).map { it.id })
+    }
+
+    @Test fun eachRowShowsOnlyItsOwner() {
+        val list = dtos.toHighlights("user1")
+        assertEquals(listOf("m"), HighlightsMath.ownedBy(list, HighlightsOwner.Mine).map { it.id })
+        assertEquals(listOf("p"), HighlightsMath.ownedBy(list, HighlightsOwner.Partner).map { it.id })
     }
 }

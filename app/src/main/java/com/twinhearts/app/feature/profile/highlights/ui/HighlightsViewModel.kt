@@ -7,6 +7,7 @@ import com.twinhearts.app.feature.profile.highlights.data.HighlightsRepository
 import com.twinhearts.app.feature.profile.highlights.domain.ClipProblem
 import com.twinhearts.app.feature.profile.highlights.domain.HighlightCategory
 import com.twinhearts.app.feature.profile.highlights.domain.HighlightsMath
+import com.twinhearts.app.feature.profile.highlights.domain.HighlightsOwner
 import com.twinhearts.app.feature.profile.highlights.domain.UploadTarget
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -52,7 +53,9 @@ class HighlightsViewModel @Inject constructor(
         refresh()
     }
 
-    fun setFilter(category: HighlightCategory?) = _state.update { it.copy(filter = category) }
+    fun setFilter(owner: HighlightsOwner, category: HighlightCategory?) = _state.update {
+        it.copy(filters = if (category == null) it.filters - owner else it.filters + (owner to category))
+    }
 
     fun messageShown() = _state.update { it.copy(message = null) }
 
