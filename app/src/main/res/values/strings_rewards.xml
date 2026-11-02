@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Twin Rewards (Step 1: wallet, daily check-in, streaks). Wording matches the web app (rewards.js). -->
+<resources>
+    <string name="rewards_title">Twin Rewards</string>
+    <string name="rewards_gold_coins">Gold Coins</string>
+    <string name="rewards_earned_total">earned in total</string>
+    <string name="rewards_day_streak">Day streak</string>
+    <string name="rewards_checkin_title">Daily check-in</string>
+    <string name="rewards_day_of">Day %1$d of 7</string>
+    <string name="rewards_day_short">Day %1$d</string>
+    <string name="rewards_claim">Claim +%1$d</string>
+    <string name="rewards_claiming">Claiming…</string>
+    <string name="rewards_claimed">✓ Claimed</string>
+    <string name="rewards_claimed_today">✓ Claimed today</string>
+    <string name="rewards_note_done">Come back tomorrow to keep your %1$d-day streak going.</string>
+    <string name="rewards_note_keep">Claim today to make it %1$d days in a row.</string>
+    <string name="rewards_note_start">Claim today to start your streak.</string>
+    <string name="rewards_couple_title">Couple streak</string>
+    <string name="rewards_couple_days">days you both checked in</string>
+    <string name="rewards_you">You</string>
+    <string name="rewards_partner_fallback">Partner</string>
+    <string name="rewards_couple_both">You both checked in today 💞</string>
+    <string name="rewards_couple_waiting">Waiting for %1$s to check in today</string>
+    <string name="rewards_couple_turn">%1$s already checked in — your turn 💌</string>
+    <string name="rewards_couple_ask">Check in — and ask %1$s to do the same</string>
+    <string name="rewards_history_title">Coin history</string>
+    <string name="rewards_history_empty">No coins yet. Claim your first daily reward above.</string>
+    <string name="rewards_loading">Loading…</string>
+    <string name="rewards_kind_checkin">Daily check-in</string>
+    <string name="rewards_kind_other">Reward</string>
+    <string name="rewards_toast">+%1$d Gold Coins 🪙  ·  %2$d-day streak 🔥</string>
+</resources>
