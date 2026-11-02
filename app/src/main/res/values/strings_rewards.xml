@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Twin Rewards (Step 1: wallet, check-in, streaks · Step 2: Gift Shop). Wording matches the web app (rewards.js / chat.js). -->
+<!-- Twin Rewards (Step 1: wallet, check-in, streaks · Step 2: Gift Shop · Step 3: Spin & Scratch). Wording matches web app. -->
 <resources>
     <string name="rewards_title">Twin Rewards</string>
     <string name="rewards_gold_coins">Gold Coins</string>
@@ -50,4 +50,30 @@
     <string name="chat_gift_from_you">You sent a gift 💝</string>
     <string name="chat_gift_for_you">A gift for you 💝</string>
     <string name="chat_gift_send_back">Send one back 🎁</string>
+
+    <!-- Step 3: Spin & Win and Scratch Cards -->
+    <string name="rewards_spins">Spins</string>
+    <string name="rewards_spin_ready">Spin ready</string>
+    <string name="rewards_spun">Spun</string>
+    <string name="rewards_spin_title">🎡 Spin &amp; Win</string>
+    <string name="rewards_spin_avail">1 Free spin available</string>
+    <string name="rewards_spin_used">Free spin used</string>
+    <string name="rewards_spin_btn">Spin Wheel 🎡</string>
+    <string name="rewards_spinning_btn">Spinning…</string>
+    <string name="rewards_spun_today">Spun Today ✓</string>
+    <string name="rewards_spin_note_ready">Spin the wheel to win up to 100 Gold Coins!</string>
+    <string name="rewards_spin_note_done">Come back tomorrow for your next free spin.</string>
+    <string name="rewards_kind_spin">Spin &amp; Win</string>
+    <string name="rewards_kind_scratch">Lucky Scratch</string>
+
+    <string name="rewards_scratch_title">🎫 Lucky Couple Scratch</string>
+    <string name="rewards_scratch_avail">1 Card ready</string>
+    <string name="rewards_scratch_used">Scratched today</string>
+    <string name="rewards_scratch_reveal">Reveal Prize ✨</string>
+    <string name="rewards_scratch_revealing">Revealing…</string>
+    <string name="rewards_scratch_tap_hint">Tap or drag to reveal your prize</string>
+    <string name="rewards_scratch_note_ready">Scratch the card or tap Reveal Prize.</string>
+    <string name="rewards_scratch_note_done">You claimed your daily card. Next card tomorrow!</string>
+    <string name="rewards_scratch_fortune_claimed">Daily Fortune Claimed</string>
+    <string name="rewards_scratch_surprise">Romantic Surprise</string>
 </resources>

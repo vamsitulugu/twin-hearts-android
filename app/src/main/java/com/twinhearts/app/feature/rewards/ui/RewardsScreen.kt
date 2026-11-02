@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.rewards.ui
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -27,8 +29,8 @@ import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.core.design.TwinTopBar
 
 /**
- * Twin Rewards page (web: #page-rewards, rewards.js). Wallet, 7-day check-in, couple streak, coin history.
- * Every number comes from the server; this screen only shows it and asks to claim.
+ * Twin Rewards page (web: #page-rewards, rewards.js). Wallet, 7-day check-in, Spin & Win, Lucky Scratch, couple streak, coin history.
+ * Every number comes from the server; this screen only shows it and animates results.
  * On tablets the content is centred in a column no wider than 720 dp (web: two columns on laptops).
  */
 @Composable
@@ -36,7 +38,17 @@ fun RewardsScreen(
     viewModel: RewardsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     LaunchedEffect(Unit) { viewModel.refresh(withHistory = true) }
+
+    val earned = state.justEarned
+    if (earned > 0) {
+        val text = stringResource(R.string.rewards_toast, earned, state.summary?.streak ?: 0)
+        LaunchedEffect(earned) {
+            Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
+            viewModel.consumeEarned()
+        }
+    }
 
     TwinBackground {
         Column(Modifier.fillMaxSize()) {
@@ -65,6 +77,21 @@ fun RewardsScreen(
                     ) {
                         item { HeroCard(summary) }
                         item { CheckInCard(summary, state.claiming, viewModel::claim) }
+                        item {
+                            SpinWheelCard(
+                                summary = summary,
+                                spinning = state.spinning,
+                                onSpin = { viewModel.spin() },
+                            )
+                        }
+                        item {
+                            ScratchCard(
+                                summary = summary,
+                                scratching = state.scratching,
+                                lastResult = state.lastScratchResult,
+                                onScratch = { viewModel.scratch() },
+                            )
+                        }
                         item { CoupleStreakCard(summary, state.partnerName) }
                         item { HistoryCard(state.history) }
                     }

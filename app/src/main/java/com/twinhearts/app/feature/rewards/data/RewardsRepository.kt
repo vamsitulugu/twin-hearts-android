@@ -10,12 +10,18 @@ import com.twinhearts.app.feature.rewards.data.remote.GiftDto
 import com.twinhearts.app.feature.rewards.data.remote.SendGiftBody
 import com.twinhearts.app.feature.rewards.data.remote.RewardsApi
 import com.twinhearts.app.feature.rewards.data.remote.RewardsSummaryDto
+import com.twinhearts.app.feature.rewards.data.remote.ScratchBody
+import com.twinhearts.app.feature.rewards.data.remote.SpinBody
+import com.twinhearts.app.feature.rewards.data.remote.SpinSliceDto
 import com.twinhearts.app.feature.rewards.domain.CoinTx
 import com.twinhearts.app.feature.rewards.domain.CycleDay
 import com.twinhearts.app.feature.rewards.domain.Gift
 import com.twinhearts.app.feature.rewards.domain.GiftSent
 import com.twinhearts.app.feature.rewards.domain.GiftShop
 import com.twinhearts.app.feature.rewards.domain.RewardsSummary
+import com.twinhearts.app.feature.rewards.domain.ScratchResult
+import com.twinhearts.app.feature.rewards.domain.SpinResult
+import com.twinhearts.app.feature.rewards.domain.SpinWheelSlice
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -32,6 +38,12 @@ interface RewardsRepository {
 
     /** Step 2: buy [giftId]. [tapId] is one id per Send tap (a retry with the same id is never charged twice). */
     suspend fun sendGift(giftId: String, tapId: String): AppResult<GiftSent>
+
+    /** Step 3: Spin & Win wheel. */
+    suspend fun spin(tapId: String): AppResult<SpinResult>
+
+    /** Step 3: Lucky Scratch card. */
+    suspend fun scratch(tapId: String): AppResult<ScratchResult>
 }
 
 class RewardsRepositoryImpl @Inject constructor(
@@ -72,9 +84,23 @@ class RewardsRepositoryImpl @Inject constructor(
         return safeApiCall { api.sendGift(SendGiftBody(s.coupleId, s.userId, giftId, tapId), s.userId) }
             .map { r -> GiftSent(r.balance, r.gift?.toDomain(), r.duplicate) }
     }
+
+    override suspend fun spin(tapId: String): AppResult<SpinResult> {
+        val s = sessionStore.session.first() ?: return AppResult.Failure(AppError.Unauthorized())
+        return safeApiCall { api.spin(SpinBody(s.coupleId, s.userId, tapId), s.userId) }
+            .map { SpinResult(it.sliceIndex, it.coins, it.label, it.balance, it.duplicate) }
+    }
+
+    override suspend fun scratch(tapId: String): AppResult<ScratchResult> {
+        val s = sessionStore.session.first() ?: return AppResult.Failure(AppError.Unauthorized())
+        return safeApiCall { api.scratch(ScratchBody(s.coupleId, s.userId, tapId), s.userId) }
+            .map { ScratchResult(it.prizeId, it.coins, it.title, it.message, it.emoji, it.balance, it.duplicate) }
+    }
 }
 
 private fun GiftDto.toDomain() = Gift(id, name, emoji, price, tier, effect, blurb)
+
+private fun SpinSliceDto.toDomain() = SpinWheelSlice(index, coins, label, emoji, color)
 
 private fun RewardsSummaryDto.toDomain() = RewardsSummary(
     balance = balance,
@@ -87,6 +113,11 @@ private fun RewardsSummaryDto.toDomain() = RewardsSummary(
     coupleStreak = coupleStreak,
     coupleDoneToday = coupleDoneToday,
     partnerCheckedInToday = partnerCheckedInToday,
+    spinsAvailable = spinsAvailable,
+    spunToday = spunToday,
+    scratchesAvailable = scratchesAvailable,
+    scratchedToday = scratchedToday,
+    wheelSlices = wheelSlices.map { it.toDomain() },
     claimed = claimed,
     earned = earned,
 )

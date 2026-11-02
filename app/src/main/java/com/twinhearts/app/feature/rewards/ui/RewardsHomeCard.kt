@@ -73,6 +73,13 @@ fun RewardsHomeCard(
                 Text("${s.streak}", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = colors.ink)
                 Text(stringResource(R.string.rewards_day_streak), style = MaterialTheme.typography.labelSmall, color = colors.inkMuted)
             }
+            Spacer(Modifier.width(14.dp))
+            WheelIcon()
+            Spacer(Modifier.width(5.dp))
+            Column {
+                Text(if (s.spinsAvailable > 0) "1" else "0", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = colors.ink)
+                Text(stringResource(if (s.spinsAvailable > 0) R.string.rewards_spin_ready else R.string.rewards_spun), style = MaterialTheme.typography.labelSmall, color = colors.inkMuted)
+            }
             Spacer(Modifier.weight(1f))
             ClaimButton(
                 claimed = s.checkedInToday, claiming = state.claiming, coins = s.todayCoins,

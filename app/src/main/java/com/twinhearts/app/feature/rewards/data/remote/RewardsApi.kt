@@ -43,6 +43,14 @@ interface RewardsApi {
     /** Step 2: buy a gift. The server charges the coins and posts the gift in the chat. */
     @POST("api/rewards/gift")
     suspend fun sendGift(@Body body: SendGiftBody, @Header("x-user-id") header: String): SendGiftDto
+
+    /** Step 3: Spin & Win. */
+    @POST("api/rewards/spin")
+    suspend fun spin(@Body body: SpinBody, @Header("x-user-id") header: String): SpinDto
+
+    /** Step 3: Lucky Scratch card. */
+    @POST("api/rewards/scratch")
+    suspend fun scratch(@Body body: ScratchBody, @Header("x-user-id") header: String): ScratchDto
 }
 
 @Serializable
@@ -57,6 +65,15 @@ data class CycleDayDto(
 )
 
 @Serializable
+data class SpinSliceDto(
+    val index: Int = 0,
+    val coins: Int = 0,
+    val label: String = "",
+    val emoji: String = "🪙",
+    val color: String = "#F59E0B",
+)
+
+@Serializable
 data class RewardsSummaryDto(
     val balance: Int = 0,
     val lifetimeEarned: Int = 0,
@@ -68,6 +85,11 @@ data class RewardsSummaryDto(
     val coupleStreak: Int = 0,
     val coupleDoneToday: Boolean = false,
     val partnerCheckedInToday: Boolean = false,
+    val spinsAvailable: Int = 1,
+    val spunToday: Boolean = false,
+    val scratchesAvailable: Int = 1,
+    val scratchedToday: Boolean = false,
+    val wheelSlices: List<SpinSliceDto> = emptyList(),
     /** Only on the check-in answer: true when THIS call paid the coins. */
     val claimed: Boolean = false,
     val earned: Int = 0,
@@ -106,3 +128,35 @@ data class SendGiftBody(val coupleId: String, val userId: String, val giftId: St
 
 @Serializable
 data class SendGiftDto(val balance: Int = 0, val duplicate: Boolean = false, val gift: GiftDto? = null)
+
+/** Step 3: Spin & Win */
+@Serializable
+data class SpinBody(val coupleId: String, val userId: String, val clientId: String)
+
+@Serializable
+data class SpinDto(
+    val ok: Boolean = false,
+    val duplicate: Boolean = false,
+    val sliceIndex: Int = 0,
+    val coins: Int = 0,
+    val label: String = "",
+    val balance: Int = 0,
+    val spinsAvailable: Int = 0,
+)
+
+/** Step 3: Lucky Scratch */
+@Serializable
+data class ScratchBody(val coupleId: String, val userId: String, val clientId: String)
+
+@Serializable
+data class ScratchDto(
+    val ok: Boolean = false,
+    val duplicate: Boolean = false,
+    val prizeId: String = "",
+    val coins: Int = 0,
+    val title: String = "",
+    val message: String = "",
+    val emoji: String = "💖",
+    val balance: Int = 0,
+    val scratchesAvailable: Int = 0,
+)

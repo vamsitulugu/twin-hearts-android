@@ -7,12 +7,15 @@ import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.feature.rewards.data.RewardsRepository
 import com.twinhearts.app.feature.rewards.domain.CoinTx
 import com.twinhearts.app.feature.rewards.domain.RewardsSummary
+import com.twinhearts.app.feature.rewards.domain.ScratchResult
+import com.twinhearts.app.feature.rewards.domain.SpinResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.UUID
 import javax.inject.Inject
 
 data class RewardsUiState(
@@ -20,10 +23,14 @@ data class RewardsUiState(
     val history: List<CoinTx>? = null,
     val loading: Boolean = true,
     val claiming: Boolean = false,
+    val spinning: Boolean = false,
+    val scratching: Boolean = false,
     val error: AppError? = null,
     /** Coins just won; the screen shows it once, then calls [RewardsViewModel.consumeEarned]. */
     val justEarned: Int = 0,
     val partnerName: String = "",
+    val lastSpinResult: SpinResult? = null,
+    val lastScratchResult: ScratchResult? = null,
 )
 
 /** One ViewModel for the Rewards page and the Home card. The server owns every number. */
@@ -69,6 +76,62 @@ class RewardsViewModel @Inject constructor(
                     loadHistory()
                 }
                 is AppResult.Failure -> _state.update { it.copy(claiming = false, error = if (it.summary == null) r.error else it.error) }
+            }
+        }
+    }
+
+    fun spin(onSuccess: (SpinResult) -> Unit = {}) {
+        val current = _state.value
+        if (current.spinning || current.summary?.spunToday != false) return
+        _state.update { it.copy(spinning = true) }
+        viewModelScope.launch {
+            val tapId = "spin_" + UUID.randomUUID().toString()
+            when (val r = repository.spin(tapId)) {
+                is AppResult.Success -> {
+                    _state.update {
+                        it.copy(
+                            spinning = false,
+                            lastSpinResult = r.data,
+                            summary = it.summary?.copy(
+                                balance = r.data.balance,
+                                spunToday = true,
+                                spinsAvailable = 0,
+                            ),
+                            justEarned = r.data.coins,
+                        )
+                    }
+                    loadHistory()
+                    onSuccess(r.data)
+                }
+                is AppResult.Failure -> _state.update { it.copy(spinning = false, error = r.error) }
+            }
+        }
+    }
+
+    fun scratch(onSuccess: (ScratchResult) -> Unit = {}) {
+        val current = _state.value
+        if (current.scratching || current.summary?.scratchedToday != false) return
+        _state.update { it.copy(scratching = true) }
+        viewModelScope.launch {
+            val tapId = "scratch_" + UUID.randomUUID().toString()
+            when (val r = repository.scratch(tapId)) {
+                is AppResult.Success -> {
+                    _state.update {
+                        it.copy(
+                            scratching = false,
+                            lastScratchResult = r.data,
+                            summary = it.summary?.copy(
+                                balance = r.data.balance,
+                                scratchedToday = true,
+                                scratchesAvailable = 0,
+                            ),
+                            justEarned = r.data.coins,
+                        )
+                    }
+                    loadHistory()
+                    onSuccess(r.data)
+                }
+                is AppResult.Failure -> _state.update { it.copy(scratching = false, error = r.error) }
             }
         }
     }
