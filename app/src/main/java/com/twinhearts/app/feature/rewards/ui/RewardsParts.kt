@@ -56,14 +56,10 @@ import com.twinhearts.app.core.design.GlassButtonStyle
 import com.twinhearts.app.core.design.GlassCard
 import com.twinhearts.app.core.design.TwinColors
 import com.twinhearts.app.core.design.TwinTheme
-import com.twinhearts.app.feature.rewards.domain.CoinTx
 import com.twinhearts.app.feature.rewards.domain.CycleDay
 import com.twinhearts.app.feature.rewards.domain.RewardsSummary
 import com.twinhearts.app.feature.rewards.domain.ScratchResult
 import com.twinhearts.app.feature.rewards.domain.StoreItem
-import java.time.OffsetDateTime
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 private val TwinColors.surfaceSubtle: Color get() = Color.White.copy(alpha = 0.06f)
 
@@ -546,44 +542,6 @@ internal fun SectionTitle(text: String) {
     Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TwinTheme.colors.ink)
 }
 
-@Composable
-internal fun HistoryCard(items: List<CoinTx>?) {
-    val colors = TwinTheme.colors
-    GlassCard(Modifier.fillMaxWidth()) {
-        SectionTitle(stringResource(R.string.rewards_history_title))
-        Spacer(Modifier.height(8.dp))
-        when {
-            items == null -> Text(stringResource(R.string.rewards_loading), style = MaterialTheme.typography.bodySmall, color = colors.inkMuted)
-            items.isEmpty() -> Text(stringResource(R.string.rewards_history_empty), style = MaterialTheme.typography.bodySmall, color = colors.inkMuted)
-            else -> items.forEachIndexed { i, tx ->
-                if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(colors.lineSoft))
-                Row(Modifier.fillMaxWidth().padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(kindLabel(tx.kind, tx.note), color = colors.ink, fontSize = 14.sp)
-                        Text(shortDate(tx.createdAtIso), color = colors.inkMuted, fontSize = 11.5.sp)
-                    }
-                    Text(
-                        text = (if (tx.amount >= 0) "+" else "") + tx.amount,
-                        fontWeight = FontWeight.Bold,
-                        color = if (tx.amount >= 0) colors.success else colors.error,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun kindLabel(kind: String, note: String = ""): String = when (kind) {
-    "checkin" -> stringResource(R.string.rewards_kind_checkin)
-    "gift" -> if (note.isNotBlank()) stringResource(R.string.rewards_kind_gift_named, note) else stringResource(R.string.rewards_kind_gift)
-    "gift_refund" -> stringResource(R.string.rewards_kind_gift_refund)
-    "spin" -> stringResource(R.string.rewards_kind_spin)
-    "scratch" -> stringResource(R.string.rewards_kind_scratch)
-    "store_purchase" -> if (note.isNotBlank()) stringResource(R.string.rewards_kind_store_named, note) else stringResource(R.string.rewards_kind_store)
-    else -> stringResource(R.string.rewards_kind_other)
-}
-
 /** Step 4: Twin Store card (themes, frames, decor, games) */
 @Composable
 internal fun TwinStoreCard(
@@ -853,8 +811,4 @@ private fun StoreItemRow(
         }
     }
 }
-
-private val shortFmt = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
-
-private fun shortDate(iso: String): String = runCatching { OffsetDateTime.parse(iso).atZoneSameInstant(java.time.ZoneId.systemDefault()).format(shortFmt) }.getOrDefault("")
 

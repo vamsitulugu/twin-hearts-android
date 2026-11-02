@@ -81,10 +81,6 @@ fun RewardsHomeCard(
                 Text(stringResource(if (s.spinsAvailable > 0) R.string.rewards_spin_ready else R.string.rewards_spun), style = MaterialTheme.typography.labelSmall, color = colors.inkMuted)
             }
             Spacer(Modifier.weight(1f))
-            ClaimButton(
-                claimed = s.checkedInToday, claiming = state.claiming, coins = s.todayCoins,
-                onClick = viewModel::claim,
-            )
         }
     }
 }

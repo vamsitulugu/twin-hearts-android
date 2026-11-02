@@ -177,13 +177,6 @@ internal fun HomeContent(
             modifier = Modifier.padding(horizontal = TwinTheme.spacing.screenEdge),
             verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
         ) {
-            RewardsHomeCard(onOpen = { onShortcut(HomeShortcut.Rewards) })
-            Text(
-                text = stringResource(R.string.home_stay_connected),
-                style = MaterialTheme.typography.headlineSmall,
-                color = TwinTheme.colors.ink,
-            )
-            if (session != null && !paired) ConnectPartnerCard(onClick = onConnectPartner)
             StayConnectedCard(
                 last = state.loveCard.last,
                 nowMillis = nowMillis,
@@ -194,6 +187,8 @@ internal fun HomeContent(
                 onSetOwnImage = { photoEditorSlot = it.ordinal },
                 onUseDefaultImage = onUseDefaultCardPhoto,
             )
+            if (session != null && !paired) ConnectPartnerCard(onClick = onConnectPartner)
+            RewardsHomeCard(onOpen = { onShortcut(HomeShortcut.Rewards) })
             HomeBanner(state.message)
             if (showIncomingHug) {
                 IncomingHugCard(

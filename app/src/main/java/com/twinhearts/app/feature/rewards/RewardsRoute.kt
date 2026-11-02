@@ -11,7 +11,7 @@ import com.twinhearts.app.feature.rewards.ui.RewardsScreen
 fun NavGraphBuilder.rewardsGraph(navController: NavHostController) {
     composable<Routes.Rewards> {
         TwinNeutralPage {
-            RewardsScreen()
+            RewardsScreen(navController)
         }
     }
 }

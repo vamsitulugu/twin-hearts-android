@@ -52,6 +52,8 @@ object Routes {
     @Serializable data object Study
     @Serializable data object Level
     @Serializable data object Rewards
+    /** Spin & Win page: separate screen opened from the Rewards Wallet tab. */
+    @Serializable data object SpinWheel
     @Serializable data object Places
 
     // Pages merged from the Phase 2-6 feature zips
