@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Our Profile › Highlights texts (R-53). Same wording as the web app's Highlights row. -->
+<resources>
+    <string name="profile_hl_new">New</string>
+    <string name="profile_hl_new_cd">New highlight</string>
+    <string name="profile_hl_open_cd">%1$s highlight</string>
+    <string name="profile_hl_title_new">New highlight</string>
+    <string name="profile_hl_title_add">Add to highlight</string>
+    <string name="profile_hl_record">Record video</string>
+    <string name="profile_hl_upload">Upload from device</string>
+    <string name="profile_hl_all">All</string>
+    <string name="profile_hl_cat_travel">Travel</string>
+    <string name="profile_hl_cat_love">Love</string>
+    <string name="profile_hl_cat_dates">Date Nights</string>
+    <string name="profile_hl_cat_friends">Friends</string>
+    <string name="profile_hl_cat_family">Family</string>
+    <string name="profile_hl_cat_food">Food</string>
+    <string name="profile_hl_cat_events">Events</string>
+    <string name="profile_hl_cat_fun">Fun</string>
+    <string name="profile_hl_cat_other">Other</string>
+    <string name="profile_hl_empty">Keep your favourite moments here — tap + to add a video or photo.</string>
+    <string name="profile_hl_load_error">Couldn’t load highlights.</string>
+    <string name="profile_hl_retry">Try again</string>
+    <plurals name="profile_hl_clips_ready">
+        <item quantity="one">%d clip ready</item>
+        <item quantity="other">%d clips ready</item>
+    </plurals>
+    <plurals name="profile_hl_clip_count">
+        <item quantity="one">%d clip</item>
+        <item quantity="other">%d clips</item>
+    </plurals>
+    <string name="profile_hl_mode_new">New highlight</string>
+    <string name="profile_hl_mode_existing">Add to existing</string>
+    <string name="profile_hl_name">Name</string>
+    <string name="profile_hl_name_hint">e.g. Goa trip</string>
+    <string name="profile_hl_category">Category</string>
+    <string name="profile_hl_add_button">Add to highlights</string>
+    <string name="profile_hl_uploading">Uploading %1$d of %2$d…</string>
+    <string name="profile_hl_partly_failed">%1$d of %2$d added. Tap to try again.</string>
+    <string name="profile_hl_choose_first">Choose a highlight first</string>
+    <string name="profile_hl_saved">Highlight saved 💕</string>
+    <string name="profile_hl_edit_saved">Saved 💕</string>
+    <string name="profile_hl_deleted">Highlight deleted</string>
+    <string name="profile_hl_clip_deleted">Clip deleted</string>
+    <string name="profile_hl_edit_title">Edit highlight</string>
+    <string name="profile_hl_edit">Edit name &amp; category</string>
+    <string name="profile_hl_add_more">Add more clips</string>
+    <string name="profile_hl_delete_clip">Delete this clip</string>
+    <string name="profile_hl_delete_clip_q">Delete this clip?</string>
+    <string name="profile_hl_delete_clip_msg">It will be removed from “%1$s” for both of you.</string>
+    <string name="profile_hl_delete_all">Delete highlight</string>
+    <string name="profile_hl_delete_all_q">Delete highlight?</string>
+    <string name="profile_hl_delete_all_msg">“%1$s” and all its clips will be removed for both of you.</string>
+    <string name="profile_hl_skipped">Some files were skipped</string>
+    <string name="profile_hl_too_big">That file is too large (150 MB max)</string>
+    <string name="profile_hl_not_media">Please choose a photo or a video</string>
+    <string name="profile_hl_camera_failed">Couldn’t open the camera</string>
+    <string name="profile_hl_clip_failed">Couldn’t play this clip.\nTap right to skip.</string>
+    <string name="profile_hl_more">More</string>
+    <string name="profile_hl_close">Close</string>
+    <string name="profile_hl_you">You</string>
+    <string name="profile_hl_partner">Partner</string>
+</resources>

@@ -14,6 +14,8 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.twinhearts.app.R
+import com.twinhearts.app.feature.ads.di.rememberAdsManager
+import com.twinhearts.app.feature.ads.ui.findActivity
 import com.twinhearts.app.feature.music.singtogether.domain.SingNotice
 import com.twinhearts.app.feature.music.singtogether.domain.SingPhase
 
@@ -33,6 +35,14 @@ internal fun SingTogetherOverlay(viewModel: SingTogetherViewModel, onAccept: () 
             Toast.makeText(context, context.getString(noticeText(notice)), Toast.LENGTH_LONG).show()
             viewModel.consumeNotice()
         }
+    }
+
+    // Ads: ONE ad as the singing session starts, then nothing interrupts it (the Music page is never
+    // covered by a timed ad either).
+    val ads = rememberAdsManager()
+    val activity = context.findActivity()
+    LaunchedEffect(state.phase) {
+        if (state.phase == SingPhase.Connecting && activity != null) ads.onSessionStart(activity)
     }
 
     when (state.phase) {

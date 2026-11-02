@@ -22,14 +22,17 @@ import com.twinhearts.app.feature.ads.domain.AdRules
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
+import java.lang.ref.WeakReference
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -45,7 +48,12 @@ import kotlin.coroutines.resume
  *  3. The couple is past the new-user grace (AdPolicy).
  *  4. Google's consent form is done (only shows in regions that require it, e.g. EU/UK).
  *
- * Full-screen ads are loaded in advance and shown only when AdPolicy says it is a fair moment.
+ * Full-screen ads are kind to the person:
+ *  - TIMED: one ad becomes due per `AdRules.INTERSTITIAL_INTERVAL_MILLIS` of the app being open on screen.
+ *    It never covers chat, calls, games, music / sing-together or movies. It waits and plays when the
+ *    person is back on a calm page (see AdBreakWatcher).
+ *  - SESSION START: Sing Together and Movies get one ad as they start, and nothing while they run.
+ * One ad is always loaded in advance.
  * If no ad is ready at that moment we show nothing: the person never waits for an ad.
  */
 @Singleton
@@ -73,7 +81,17 @@ class AdsManager @Inject constructor(
     private var interstitialLoadedAt = 0L
     private var loadingInterstitial = false
     private var loadFailures = 0
+    private var nextLoadAllowedAt = 0L
     private var showing = false
+
+    // Timer: "usage" is time the app was open on screen since the last ad. Only touched on the main thread.
+    private var activityRef: WeakReference<Activity>? = null
+    private var tickerJob: Job? = null
+    private var usageBeforeThisStretch = 0L
+    private var foregroundSince = 0L // 0 = app is in the background
+    private var screenSuitable = false // set by AdBreakWatcher on every screen change
+    private var suitableSince = 0L // when the current calm screen appeared (0 = not on a calm screen)
+    private var lastLoggedReason: Any? = null
 
     /** Called from MainActivity.onStart. The first call of a process is counted as one "session". */
     fun onAppStart(activity: Activity) {
@@ -81,6 +99,8 @@ class AdsManager @Inject constructor(
         if (!AdsConfig.enabled) return
         val firstOfProcess = !launched
         launched = true
+        activityRef = WeakReference(activity)
+        if (foregroundSince == 0L) foregroundSince = SystemClock.elapsedRealtime()
         if (firstOfProcess) {
             launchedAtElapsed = SystemClock.elapsedRealtime()
             watchProStatus()
@@ -89,42 +109,50 @@ class AdsManager @Inject constructor(
             if (firstOfProcess) prefs.recordSession(System.currentTimeMillis())
             refreshEligibility(activity)
         }
+        startTicker()
+    }
+
+    /** Called from MainActivity.onStop: the clock only runs while the app is on screen. */
+    fun onAppStop() {
+        if (foregroundSince != 0L) {
+            usageBeforeThisStretch += SystemClock.elapsedRealtime() - foregroundSince
+            foregroundSince = 0L
+        }
+        tickerJob?.cancel()
+        tickerJob = null
+    }
+
+    /** AdBreakWatcher tells us on every screen change whether an ad may cover the new screen. */
+    fun onScreenChanged(suitable: Boolean) {
+        // Every screen change restarts the "settle" clock, so a due ad never lands mid-transition.
+        suitableSince = if (suitable) SystemClock.elapsedRealtime() else 0L
+        screenSuitable = suitable
     }
 
     /**
-     * The person came back Home after using a feature for [timeInFeatureMillis].
-     * Shows a full-screen ad only if every rule in AdPolicy agrees and one is already loaded.
-     * [stillOnHome] is asked again just before showing, so we never pop up over a screen they moved on to.
+     * Sing Together or a Movie is starting: plays ONE ad now (if one is ready and the rules agree),
+     * so nothing has to interrupt the session later. If no ad is ready we skip it, never make anyone wait.
      */
-    fun onFeatureClosed(activity: Activity, timeInFeatureMillis: Long, stillOnHome: () -> Boolean) {
+    fun onSessionStart(activity: Activity) {
         if (!AdsConfig.enabled) return
-        if (timeInFeatureMillis < AdRules.MIN_TIME_IN_FEATURE_MILLIS) return
         scope.launch {
-            refreshEligibility(activity) // cheap: skipped unless the last check is old
-            if (!eligible) return@launch
+            refreshEligibility(activity)
+            if (!eligible || showing) return@launch
             val nowMillis = System.currentTimeMillis()
-            val history = prefs.addBreak(nowMillis)
-            val reason = AdPolicy.interstitialSkipReason(
-                history = history,
-                nowMillis = nowMillis,
-                epochDay = LocalDate.now().toEpochDay(),
-                sessionAgeMillis = SystemClock.elapsedRealtime() - launchedAtElapsed,
-                timeInFeatureMillis = timeInFeatureMillis,
-            )
+            val reason = AdPolicy.entrySkipReason(prefs.read(nowMillis), nowMillis, LocalDate.now().toEpochDay())
             if (reason != null) {
-                Log.d(TAG, "no full-screen ad: $reason")
+                Log.d(TAG, "no start ad: $reason")
                 return@launch
             }
-
-            val ready = interstitial?.takeIf { SystemClock.elapsedRealtime() - interstitialLoadedAt < AD_MAX_AGE_MILLIS }
+            val ready = readyInterstitial()
             if (ready == null) {
-                interstitial = null
                 loadInterstitial()
-                return@launch // nothing ready: skip silently, never make the person wait
+                Log.d(TAG, "no start ad: none loaded yet")
+                return@launch
             }
-            delay(SHOW_DELAY_MILLIS) // let Home finish drawing first
-            if (!eligible || showing || !stillOnHome()) return@launch
-            if (activity.isFinishing || activity.isDestroyed) return@launch
+            delay(START_AD_DELAY_MILLIS) // let the screen draw first
+            if (!eligible || showing || activity.isFinishing || activity.isDestroyed) return@launch
+            Log.d(TAG, "start ad: showing")
             show(activity, ready)
         }
     }
@@ -133,6 +161,64 @@ class AdsManager @Inject constructor(
     fun onHomeVisible(activity: Activity) {
         if (!AdsConfig.enabled || !launched) return
         scope.launch { refreshEligibility(activity) }
+    }
+
+    // ── the timer ────────────────────────────────────────────────────────────
+
+    private fun usageMillis(): Long =
+        usageBeforeThisStretch + if (foregroundSince != 0L) SystemClock.elapsedRealtime() - foregroundSince else 0L
+
+    private fun resetUsage() {
+        usageBeforeThisStretch = 0L
+        if (foregroundSince != 0L) foregroundSince = SystemClock.elapsedRealtime()
+    }
+
+    private fun startTicker() {
+        if (tickerJob?.isActive == true) return
+        tickerJob = scope.launch {
+            while (isActive) {
+                runCatching { tick() }.onFailure { Log.d(TAG, "tick failed: ${it.message}") }
+                delay(TICK_MILLIS)
+            }
+        }
+    }
+
+    /** Runs every few seconds while the app is open: keeps an ad loaded and shows it when the timer is due. */
+    private suspend fun tick() {
+        val activity = activityRef?.get() ?: return
+        if (activity.isFinishing || activity.isDestroyed) return
+        refreshEligibility(activity) // cheap: skipped unless the last check is old
+        if (!eligible || showing) return
+        loadInterstitial() // no-op when one is loaded/loading or we are backing off after a failure
+
+        val nowMillis = System.currentTimeMillis()
+        val reason = AdPolicy.interstitialSkipReason(
+            history = prefs.read(nowMillis),
+            nowMillis = nowMillis,
+            epochDay = LocalDate.now().toEpochDay(),
+            usageSinceLastAdMillis = usageMillis(),
+            // A screen counts as calm only after it has been on screen for a moment, so an ad never pops
+            // up in the middle of a page transition.
+            screenIsSuitable = screenSuitable && suitableSince != 0L &&
+                SystemClock.elapsedRealtime() - suitableSince >= AdRules.SETTLE_ON_SCREEN_MILLIS,
+        )
+        if (reason != lastLoggedReason) {
+            lastLoggedReason = reason
+            Log.d(TAG, "full-screen ad: " + (reason ?: "due, showing as soon as one is ready"))
+        }
+        if (reason != null) return
+
+        val ready = readyInterstitial()
+        if (ready == null) return // never make the person wait for an ad; the next tick asks Google for a fresh one
+        show(activity, ready)
+    }
+
+    /** The loaded ad if it is still fresh, otherwise null (and the stale one is dropped). */
+    private fun readyInterstitial(): InterstitialAd? {
+        val ad = interstitial ?: return null
+        if (SystemClock.elapsedRealtime() - interstitialLoadedAt < AD_MAX_AGE_MILLIS) return ad
+        interstitial = null
+        return null
     }
 
     // ── safety checks ────────────────────────────────────────────────────────
@@ -171,6 +257,7 @@ class AdsManager @Inject constructor(
             val graceReason = AdPolicy.bannerSkipReason(history, System.currentTimeMillis())
             if (graceReason != null) {
                 Log.d(TAG, "ads off: new-user protection ($graceReason)")
+                recheckAfter = RETRY_AFTER_FAILURE_MILLIS // look again soon, the grace is only minutes long
                 disable()
                 return
             }
@@ -233,6 +320,7 @@ class AdsManager @Inject constructor(
 
     private fun loadInterstitial() {
         if (!eligible || interstitial != null || loadingInterstitial || showing) return
+        if (SystemClock.elapsedRealtime() < nextLoadAllowedAt) return
         loadingInterstitial = true
         InterstitialAd.load(
             appContext,
@@ -252,13 +340,9 @@ class AdsManager @Inject constructor(
                     interstitial = null
                     Log.d(TAG, "interstitial failed: ${error.code} ${error.message}")
                     loadFailures += 1
-                    // Try again a few times, slowly, then give up until the next break.
-                    if (loadFailures <= MAX_LOAD_RETRIES) {
-                        scope.launch {
-                            delay(RETRY_DELAY_MILLIS * loadFailures)
-                            loadInterstitial()
-                        }
-                    }
+                    // "No fill" is common for new ad units: ask again later, slowly, but never give up for good.
+                    val wait = minOf(LOAD_BACKOFF_MILLIS * loadFailures, LOAD_BACKOFF_MAX_MILLIS)
+                    nextLoadAllowedAt = SystemClock.elapsedRealtime() + wait
                 }
             },
         )
@@ -274,6 +358,7 @@ class AdsManager @Inject constructor(
 
             override fun onAdDismissedFullScreenContent() {
                 showing = false
+                resetUsage() // the next ad is one full interval from now
                 loadInterstitial() // get the next one ready in the background
             }
 
@@ -291,9 +376,10 @@ class AdsManager @Inject constructor(
         const val RECHECK_MILLIS = 10L * 60 * 1000
         const val RETRY_AFTER_FAILURE_MILLIS = 20_000L
         const val TAG = "TwinAds"
-        const val SHOW_DELAY_MILLIS = 700L
         const val CONSENT_TIMEOUT_MILLIS = 90_000L
-        const val RETRY_DELAY_MILLIS = 30_000L
-        const val MAX_LOAD_RETRIES = 3
+        const val TICK_MILLIS = 5_000L
+        const val START_AD_DELAY_MILLIS = 500L
+        const val LOAD_BACKOFF_MILLIS = 30_000L
+        const val LOAD_BACKOFF_MAX_MILLIS = 5L * 60 * 1000
     }
 }

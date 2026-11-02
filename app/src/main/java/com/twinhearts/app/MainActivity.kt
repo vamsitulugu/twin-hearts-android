@@ -131,6 +131,11 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         adsManager.onAppStart(this)
     }
 
+    override fun onStop() {
+        adsManager.onAppStop() // the ad timer only counts time the app is open on screen
+        super.onStop()
+    }
+
 
     private companion object {
         /** Safety: never keep the system splash longer than this if the Compose splash is late. */

@@ -76,6 +76,8 @@ fun MainPage(
     onDreams: () -> Unit,
     onStory: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The Highlights row, shown right under the couple card (kept as a slot so this page stays stateless). */
+    highlights: @Composable () -> Unit = {},
 ) {
     val colors = TwinTheme.colors
     val context = LocalContext.current
@@ -131,6 +133,8 @@ fun MainPage(
                 }
             }
         }
+
+        highlights()
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
             ActionTile(Icons.Rounded.Person, stringResource(R.string.profile_edit_profile), onEditProfile, Modifier.weight(1f))

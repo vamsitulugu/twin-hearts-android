@@ -1,6 +1,5 @@
 package com.twinhearts.app.feature.ads.ui
 
-import android.os.SystemClock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalContext
@@ -11,8 +10,10 @@ import com.twinhearts.app.core.navigation.Routes
 import com.twinhearts.app.feature.ads.di.rememberAdsManager
 
 /**
- * Why this file exists: spots a "natural break" — the person used a feature for a while and pressed back
- * to Home — and tells AdsManager. AdsManager (and AdPolicy) then decide whether an ad is fair.
+ * Why this file exists: tells AdsManager which screen the person is on, so ads are always kind:
+ *  - a due (timed) ad waits while the person chats, calls, plays games, listens / sings or watches a movie,
+ *    and plays when they are back on a calm page;
+ *  - opening a Movie plays ONE ad at the start (Sing Together does the same from its own overlay).
  * One watcher in TwinApp covers every feature, so no feature screen needs ad code.
  */
 @Composable
@@ -21,28 +22,14 @@ fun AdBreakWatcher(navController: NavController) {
     val activity = LocalContext.current.findActivity()
 
     DisposableEffect(navController, ads, activity) {
-        var inFeature = false
-        var enteredAt = 0L
-        val listener = NavController.OnDestinationChangedListener { controller, destination, _ ->
+        var wasMovie = false
+        val listener = NavController.OnDestinationChangedListener { _, destination, _ ->
+            ads.onScreenChanged(canCoverWithAd(destination))
             if (destination.hasRoute<Routes.Home>() && activity != null) ads.onHomeVisible(activity)
-            when {
-                isBreakFeature(destination) -> {
-                    if (!inFeature) {
-                        inFeature = true
-                        enteredAt = SystemClock.elapsedRealtime()
-                    }
-                }
-                destination.hasRoute<Routes.Home>() && inFeature -> {
-                    inFeature = false
-                    val spent = SystemClock.elapsedRealtime() - enteredAt
-                    if (activity != null) {
-                        ads.onFeatureClosed(activity, spent) {
-                            controller.currentDestination?.hasRoute<Routes.Home>() == true
-                        }
-                    }
-                }
-                else -> inFeature = false
-            }
+
+            val isMovie = destination.hasRoute<Routes.Movie>()
+            if (isMovie && !wasMovie && activity != null) ads.onSessionStart(activity)
+            wasMovie = isMovie
         }
         navController.addOnDestinationChangedListener(listener)
         onDispose { navController.removeOnDestinationChangedListener(listener) }
@@ -50,18 +37,23 @@ fun AdBreakWatcher(navController: NavController) {
 }
 
 /**
- * Screens where leaving is a calm, finished moment: games and everyday planning tools.
- * Deliberately NOT here: Chat, Calls, Live Map, Twin AI, Settings, Pro, sign-in, Music and Movie
- * (audio/sync), and the personal pages (Memories, Collection, Globe, Love Counter, Fight Log,
- * Surprises, Vault, Period Tracker, My Space). An ad should never interrupt those.
+ * Screens a timed ad must NEVER cover: Chat and Twin AI (typing), calls, Live Map (navigating), Games,
+ * Music (playback and Sing Together), Movie (watching together), payment, sign-in and pairing.
+ * On these the ad waits; it plays on the first other page once it has been on screen for a moment.
  */
-private fun isBreakFeature(d: NavDestination): Boolean =
-    d.hasRoute<Routes.Games>() ||
-        d.hasRoute<Routes.Money>() ||
-        d.hasRoute<Routes.Calendar>() ||
-        d.hasRoute<Routes.Study>() ||
-        d.hasRoute<Routes.Places>() ||
-        d.hasRoute<Routes.MeetPlanner>() ||
-        d.hasRoute<Routes.DailyRoutine>() ||
-        d.hasRoute<Routes.BucketList>() ||
-        d.hasRoute<Routes.Level>()
+private fun canCoverWithAd(d: NavDestination): Boolean = !(
+    d.hasRoute<Routes.Chat>() ||
+        d.hasRoute<Routes.TwinAi>() ||
+        d.hasRoute<Routes.Call>() ||
+        d.hasRoute<Routes.LiveMap>() ||
+        d.hasRoute<Routes.Games>() ||
+        d.hasRoute<Routes.Music>() ||
+        d.hasRoute<Routes.Movie>() ||
+        d.hasRoute<Routes.Pro>() ||
+        d.hasRoute<Routes.GetStarted>() ||
+        d.hasRoute<Routes.SignIn>() ||
+        d.hasRoute<Routes.SignUp>() ||
+        d.hasRoute<Routes.ForgotPassword>() ||
+        d.hasRoute<Routes.CompleteProfile>() ||
+        d.hasRoute<Routes.Pairing>()
+    )

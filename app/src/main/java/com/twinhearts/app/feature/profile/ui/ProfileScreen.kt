@@ -28,6 +28,7 @@ import com.twinhearts.app.core.design.LoadingSkeleton
 import com.twinhearts.app.core.design.TwinBackground
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.core.design.TwinTopBar
+import com.twinhearts.app.feature.profile.highlights.ui.HighlightsSection
 import com.twinhearts.app.feature.profile.ui.screens.AddDateSheet
 import com.twinhearts.app.feature.profile.ui.screens.AddMilestoneSheet
 import com.twinhearts.app.feature.profile.ui.screens.ConfirmDialog
@@ -145,6 +146,7 @@ fun ProfileScreen(
                                 onDates = navigation.onOpenCalendar,
                                 onDreams = navigation.onOpenGoals,
                                 onStory = { vm.open(ProfileScreenKind.Story) },
+                                highlights = { HighlightsSection() },
                             )
                             ProfileScreenKind.Partner -> PartnerPage(
                                 data = data,

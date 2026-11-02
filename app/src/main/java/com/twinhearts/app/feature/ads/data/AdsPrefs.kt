@@ -24,7 +24,6 @@ class AdsPrefs @Inject constructor(
         val LAST_AD = longPreferencesKey("ads_last_interstitial")
         val COUNT_DAY = longPreferencesKey("ads_count_day")
         val COUNT_TODAY = intPreferencesKey("ads_count_today")
-        val BREAKS = intPreferencesKey("ads_breaks")
     }
 
     suspend fun read(nowMillis: Long): AdHistory = dataStore.data.first().toHistory(nowMillis)
@@ -37,20 +36,13 @@ class AdsPrefs @Inject constructor(
         }
     }
 
-    /** The person finished using a feature and came back Home: count one natural break. */
-    suspend fun addBreak(nowMillis: Long): AdHistory {
-        val updated = dataStore.edit { p -> p[Keys.BREAKS] = (p[Keys.BREAKS] ?: 0) + 1 }
-        return updated.toHistory(nowMillis)
-    }
-
-    /** A full-screen ad was really shown: reset the break counter, bump today's count. */
+    /** A full-screen ad was really shown: remember when, and bump today's count. */
     suspend fun recordShown(nowMillis: Long, epochDay: Long) {
         dataStore.edit { p ->
             val sameDay = p[Keys.COUNT_DAY] == epochDay
             p[Keys.LAST_AD] = nowMillis
             p[Keys.COUNT_DAY] = epochDay
             p[Keys.COUNT_TODAY] = if (sameDay) (p[Keys.COUNT_TODAY] ?: 0) + 1 else 1
-            p[Keys.BREAKS] = 0
         }
     }
 
@@ -60,6 +52,5 @@ class AdsPrefs @Inject constructor(
         lastInterstitialAtMillis = this[Keys.LAST_AD] ?: 0L,
         interstitialsToday = this[Keys.COUNT_TODAY] ?: 0,
         countDay = this[Keys.COUNT_DAY] ?: -1L,
-        breaksSinceLastAd = this[Keys.BREAKS] ?: 0,
     )
 }
