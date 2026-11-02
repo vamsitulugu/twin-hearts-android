@@ -80,7 +80,7 @@ internal data class HomeGroup(@StringRes val titleRes: Int, val items: List<Home
 internal val homeGroups = listOf(
     HomeGroup(
         R.string.home_group_us,
-        listOf(HomeShortcut.OurProfile, HomeShortcut.LoveCounter, HomeShortcut.Level, HomeShortcut.Rewards, HomeShortcut.FightLog, HomeShortcut.DreamGoals),
+        listOf(HomeShortcut.OurProfile, HomeShortcut.LoveCounter, HomeShortcut.Level, HomeShortcut.FightLog, HomeShortcut.DreamGoals),
     ),
     HomeGroup(
         R.string.home_group_explore,

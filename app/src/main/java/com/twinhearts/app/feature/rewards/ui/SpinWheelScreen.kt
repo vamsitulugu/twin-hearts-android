@@ -1,35 +1,43 @@
 package com.twinhearts.app.feature.rewards.ui
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
+import android.graphics.Paint
+import android.graphics.Typeface
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -38,18 +46,44 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.twinhearts.app.R
-import com.twinhearts.app.core.common.rememberReduceMotion
+import com.twinhearts.app.core.common.LocalReduceMotionSetting
 import com.twinhearts.app.core.design.GlassButton
 import com.twinhearts.app.core.design.GlassButtonStyle
 import com.twinhearts.app.core.design.GlassCard
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.core.design.TwinTopBar
-import com.twinhearts.app.feature.rewards.domain.RewardsSummary
 import com.twinhearts.app.feature.rewards.domain.SpinWheelSlice
+import kotlin.random.Random
+
+private enum class WheelPhase { Idle, Waiting, Landing }
+
+private val FallbackColors = listOf(
+    Color(0xFFF59E0B), Color(0xFFEC4899), Color(0xFF8B5CF6), Color(0xFF10B981),
+    Color(0xFF3B82F6), Color(0xFFF43F5E), Color(0xFF06B6D4), Color(0xFFEAB308),
+)
+/** Same defaults as the server (routes/rewards.js), used only if the summary arrives without a wheel. */
+private val FallbackSlices = listOf(
+    SpinWheelSlice(0, 10, "10 Coins", "🪙", "#F59E0B"),
+    SpinWheelSlice(1, 25, "25 Coins", "✨", "#EC4899"),
+    SpinWheelSlice(2, 15, "15 Coins", "🪙", "#8B5CF6"),
+    SpinWheelSlice(3, 50, "50 Coins", "🎉", "#10B981"),
+    SpinWheelSlice(4, 20, "20 Coins", "🪙", "#3B82F6"),
+    SpinWheelSlice(5, 100, "100 Coins", "💎", "#F43F5E"),
+    SpinWheelSlice(6, 15, "15 Coins", "🪙", "#06B6D4"),
+    SpinWheelSlice(7, 30, "30 Coins", "🌟", "#EAB308"),
+)
+private const val WAIT_DEGREES_PER_SECOND = 540f
+private const val LAND_MILLIS = 4200f
+private val LandEasing = CubicBezierEasing(0.12f, 0.6f, 0.1f, 1f)
 
 /**
- * Spin & Win page opened as a separate screen from the Rewards Wallet tab.
- * The coin balance is shown above the wheel.
+ * Spin & Win page. The coin balance is above the wheel, every slice shows how many coins it pays,
+ * and a "You won N coins" line appears above the wheel when it stops.
+ *
+ * The wheel is turned by the frame clock (not Compose's animateTo) so it also spins on phones whose
+ * animator scale is 0; only the in-app Reduce motion switch makes it jump straight to the result.
+ * While the server decides the prize the wheel keeps turning, then it slows down and stops with the
+ * winning slice under the pointer.
  */
 @Composable
 fun SpinWheelScreen(
@@ -58,24 +92,73 @@ fun SpinWheelScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val colors = TwinTheme.colors
     val summary = state.summary ?: return
-    val shown = rememberCountedBalance(summary.balance)
-    val slices = summary.wheelSlices
-    val rotationAnim = remember { Animatable(0f) }
-    val reduceMotion = rememberReduceMotion()
+    val appReduceMotion = LocalReduceMotionSetting.current
 
+    val slices = remember(summary.wheelSlices) { summary.wheelSlices.sortedBy { it.index }.ifEmpty { FallbackSlices } }
+    val sliceCount = slices.size
+
+    var rotation by remember { mutableFloatStateOf(0f) }
+    var phase by remember { mutableStateOf(WheelPhase.Idle) }
+    var balanceBefore by remember { mutableIntStateOf(summary.balance) }
+    var wonCoins by remember { mutableIntStateOf(-1) }
+
+    // The balance on screen only changes once the wheel has stopped.
+    val shown = rememberCountedBalance(if (phase == WheelPhase.Idle) summary.balance else balanceBefore)
+
+    // The server's answer is here -> stop waiting and land on its slice.
+    LaunchedEffect(state.lastSpinResult) {
+        if (state.lastSpinResult != null && phase == WheelPhase.Waiting) phase = WheelPhase.Landing
+    }
+    // The request ended without a result (offline, server asleep): give the wheel back.
     LaunchedEffect(state.spinning) {
-        if (state.spinning) {
-            val targetDegrees = rotationAnim.value + 360f * 5 + (0..7).random() * 45f
-            if (reduceMotion) {
-                rotationAnim.snapTo(targetDegrees)
-            } else {
-                rotationAnim.animateTo(
-                    targetValue = targetDegrees,
-                    animationSpec = tween(durationMillis = 3500, easing = FastOutSlowInEasing),
-                )
+        if (!state.spinning && phase == WheelPhase.Waiting && state.lastSpinResult == null) phase = WheelPhase.Idle
+    }
+
+    LaunchedEffect(phase) {
+        when (phase) {
+            WheelPhase.Idle -> Unit
+            WheelPhase.Waiting -> {
+                if (!appReduceMotion) {
+                    var last = withFrameNanos { it }
+                    while (true) {
+                        val now = withFrameNanos { it }
+                        rotation += (now - last) / 1_000_000_000f * WAIT_DEGREES_PER_SECOND
+                        last = now
+                    }
+                }
+            }
+            WheelPhase.Landing -> {
+                val result = state.lastSpinResult
+                if (result != null) {
+                    val position = slices.indexOfFirst { it.index == result.sliceIndex }
+                        .takeIf { it >= 0 } ?: result.sliceIndex.mod(sliceCount)
+                    val sweep = 360f / sliceCount
+                    val centre = position * sweep + sweep / 2f
+                    val jitter = (Random.nextFloat() - 0.5f) * sweep * 0.6f
+                    // The pointer is at the top (270 degrees on the canvas); rotate that slice under it.
+                    val desired = (((270f - centre - jitter) % 360f) + 360f) % 360f
+                    val start = rotation
+                    val target = (start - (start % 360f)) + desired + 360f * 6
+                    if (appReduceMotion) {
+                        rotation = target
+                    } else {
+                        val t0 = withFrameNanos { it }
+                        while (true) {
+                            val now = withFrameNanos { it }
+                            val t = ((now - t0) / 1_000_000f / LAND_MILLIS).coerceIn(0f, 1f)
+                            rotation = start + (target - start) * LandEasing.transform(t)
+                            if (t >= 1f) break
+                        }
+                    }
+                    wonCoins = result.coins
+                    viewModel.consumeEarned()
+                }
+                phase = WheelPhase.Idle
             }
         }
     }
+
+    val busy = phase != WheelPhase.Idle
 
     Column(modifier = Modifier.fillMaxSize()) {
         TwinTopBar(
@@ -84,7 +167,7 @@ fun SpinWheelScreen(
             onSyncClick = { viewModel.refresh() },
         )
 
-        // Coin balance shown above the wheel.
+        // Coin balance above the wheel.
         GlassCard(Modifier.fillMaxWidth()) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 CoinIcon(46.dp)
@@ -100,48 +183,29 @@ fun SpinWheelScreen(
                 }
             }
         }
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(10.dp))
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("▼", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                Box(modifier = Modifier.size(240.dp), contentAlignment = Alignment.Center) {
-                    androidx.compose.foundation.Canvas(
-                        modifier = Modifier
-                            .size(240.dp)
-                            .graphicsLayer { rotationZ = rotationAnim.value },
-                    ) {
-                        val numSlices = if (slices.isNotEmpty()) slices.size else 8
-                        val sweep = 360f / numSlices
-                        val radius = size.minDimension / 2f
-                        val colorsList = listOf(
-                            Color(0xFFF59E0B), Color(0xFFEC4899), Color(0xFF8B5CF6), Color(0xFF10B981),
-                            Color(0xFF3B82F6), Color(0xFFF43F5E), Color(0xFF06B6D4), Color(0xFFEAB308),
-                        )
-                        drawCircle(color = RewardsStyle.GoldDeep, radius = radius)
-                        drawCircle(color = RewardsStyle.Gold, radius = radius - 4f)
-                        for (i in 0 until numSlices) {
-                            drawArc(
-                                color = colorsList[i % colorsList.size],
-                                startAngle = i * sweep,
-                                sweepAngle = sweep,
-                                useCenter = true,
-                                size = Size(radius * 2 - 16f, radius * 2 - 16f),
-                                topLeft = Offset(8f, 8f),
-                            )
-                        }
-                        drawCircle(color = Color.White, radius = 28f)
-                        drawCircle(color = RewardsStyle.Gold, radius = 22f)
-                        drawCircle(color = RewardsStyle.GoldInk, radius = 16f)
-                    }
-                    Text("💖", fontSize = 16.sp)
-                }
+        // Result line above the wheel (kept in the layout so the wheel does not jump).
+        Box(Modifier.fillMaxWidth().height(28.dp), contentAlignment = Alignment.Center) {
+            if (wonCoins >= 0 && !busy) {
+                Text(
+                    text = if (wonCoins > 0) stringResource(R.string.rewards_spin_won, wonCoins) else stringResource(R.string.rewards_spin_won_none),
+                    color = RewardsStyle.Gold,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                )
             }
+        }
+
+        Box(Modifier.fillMaxWidth().padding(vertical = 4.dp), contentAlignment = Alignment.TopCenter) {
+            Box(
+                modifier = Modifier.fillMaxWidth(0.84f).aspectRatio(1f).padding(top = 10.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Wheel(slices = slices, sliceCount = sliceCount, rotation = { rotation }, modifier = Modifier.fillMaxSize())
+                Text("💖", fontSize = 16.sp)
+            }
+            Text("▼", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
         }
         Spacer(Modifier.height(12.dp))
 
@@ -150,7 +214,7 @@ fun SpinWheelScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            if (summary.spunToday) {
+            if (summary.spunToday && !busy) {
                 GlassButton(
                     text = stringResource(R.string.rewards_spun_today),
                     onClick = {},
@@ -164,12 +228,17 @@ fun SpinWheelScreen(
                         .weight(1f)
                         .height(TwinTheme.shapes.minTouch)
                         .clip(TwinTheme.shapes.pill)
-                        .background(BrushGradient())
-                        .clickable(enabled = !state.spinning, role = Role.Button, onClick = { viewModel.spin() }),
+                        .background(Brush.verticalGradient(listOf(RewardsStyle.Gold, RewardsStyle.GoldDeep)))
+                        .clickable(enabled = !busy, role = Role.Button) {
+                            balanceBefore = summary.balance
+                            wonCoins = -1
+                            phase = WheelPhase.Waiting
+                            viewModel.spin()
+                        },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        stringResource(if (state.spinning) R.string.rewards_spinning_btn else R.string.rewards_spin_btn),
+                        stringResource(if (busy) R.string.rewards_spinning_btn else R.string.rewards_spin_btn),
                         color = RewardsStyle.GoldInk,
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 14.5.sp,
@@ -179,7 +248,7 @@ fun SpinWheelScreen(
         }
         Spacer(Modifier.height(6.dp))
         Text(
-            stringResource(if (summary.spunToday) R.string.rewards_spin_note_done else R.string.rewards_spin_note_ready),
+            stringResource(if (summary.spunToday && !busy) R.string.rewards_spin_note_done else R.string.rewards_spin_note_ready),
             style = MaterialTheme.typography.bodySmall,
             color = colors.inkMuted,
         )
@@ -188,6 +257,60 @@ fun SpinWheelScreen(
     }
 }
 
-private fun BrushGradient() = androidx.compose.ui.graphics.Brush.verticalGradient(
-    listOf(RewardsStyle.Gold, RewardsStyle.GoldDeep),
-)
+/** The wheel itself: coloured slices with the coin amount printed on each one. [rotation] is in degrees. */
+@Composable
+private fun Wheel(
+    slices: List<SpinWheelSlice>,
+    sliceCount: Int,
+    rotation: () -> Float,
+    modifier: Modifier = Modifier,
+) {
+    val textPaint = remember {
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.WHITE
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textAlign = Paint.Align.CENTER
+            setShadowLayer(4f, 0f, 2f, android.graphics.Color.argb(160, 0, 0, 0))
+        }
+    }
+    Canvas(modifier = modifier.graphicsLayer { rotationZ = rotation() }) {
+        val sweep = 360f / sliceCount
+        val radius = size.minDimension / 2f
+        val rim = 6.dp.toPx()
+        val inner = radius - rim
+        textPaint.textSize = 17.sp.toPx()
+
+        drawCircle(color = RewardsStyle.GoldDeep, radius = radius)
+        drawCircle(color = RewardsStyle.Gold, radius = radius - 2.dp.toPx())
+        for (i in 0 until sliceCount) {
+            val fill = slices.getOrNull(i)?.colorHex?.let { hex ->
+                runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrNull()
+            } ?: FallbackColors[i % FallbackColors.size]
+            drawArc(
+                color = fill,
+                startAngle = i * sweep,
+                sweepAngle = sweep,
+                useCenter = true,
+                size = Size(inner * 2, inner * 2),
+                topLeft = Offset(rim, rim),
+            )
+        }
+        // Coin amount on every slice, reading outwards from the centre.
+        val labelRadius = inner * 0.66f
+        for (i in 0 until sliceCount) {
+            val slice = slices.getOrNull(i) ?: continue
+            val text = if (slice.coins > 0) "${slice.coins}" else slice.label.ifBlank { "0" }
+            rotate(degrees = i * sweep + sweep / 2f, pivot = center) {
+                drawContext.canvas.nativeCanvas.drawText(
+                    text,
+                    center.x + labelRadius,
+                    center.y + textPaint.textSize * 0.35f,
+                    textPaint,
+                )
+            }
+        }
+        drawCircle(color = Color.White, radius = 14.dp.toPx())
+        drawCircle(color = RewardsStyle.Gold, radius = 11.dp.toPx())
+        drawCircle(color = RewardsStyle.GoldInk, radius = 8.dp.toPx())
+    }
+}

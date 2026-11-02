@@ -60,6 +60,8 @@
     <string name="rewards_spin_used">Free spin used</string>
     <string name="rewards_spin_btn">Spin Wheel 🎡</string>
     <string name="rewards_spinning_btn">Spinning…</string>
+    <string name="rewards_spin_won">🎉 You won %1$d coins!</string>
+    <string name="rewards_spin_won_none">Better luck tomorrow!</string>
     <string name="rewards_spun_today">Spun Today ✓</string>
     <string name="rewards_spin_note_ready">Spin the wheel to win up to 100 Gold Coins!</string>
     <string name="rewards_spin_note_done">Come back tomorrow for your next free spin.</string>

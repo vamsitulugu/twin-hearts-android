@@ -1,0 +1,9 @@
+TWIN HEARTS - HOME FIXES (overlay zip)
+Unzip over the project root (yes to replace). Only changed files. Not compiled here (no Android SDK) - run one Gradle build.
+
+1. Profile ring now spins: driven by the frame clock, so it also turns when the phone has animations off / battery saver.
+   Only the in-app Settings > Reduce motion switch stops it.  (HomeComponents.kt)
+2. Home "Us" row: Rewards tile removed (Rewards card already opens it) -> 5 tiles in one row. (HomeShortcuts.kt)
+3. Spin & Win: wheel now spins while the server decides, then slows and stops on the server's slice under the pointer.
+   Coin amount printed on every slice, balance card above the wheel, "You won N coins" line above the wheel after it stops.
+   Balance updates only after the wheel stops.  (SpinWheelScreen.kt, strings_rewards.xml)

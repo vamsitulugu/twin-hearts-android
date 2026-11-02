@@ -1,6 +1,5 @@
 package com.twinhearts.app.feature.home.ui
 
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -42,6 +41,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.twinhearts.app.core.common.LocalReduceMotionSetting
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -94,6 +97,7 @@ private val LogoSize = 36.dp
 private val LogoCorner = 10.dp
 private const val SHINE_CYCLE_MILLIS = 3_600
 private const val SHINE_SWEEP_MILLIS = 900
+private const val RING_SECONDS = 2.6f
 private val ProfileSize = 38.dp
 private val ProfileRingSize = 46.dp
 private val SearchHeight = 48.dp
@@ -171,21 +175,27 @@ internal fun HomeHeader(myName: String, avatarUrl: String?, onProfileClick: () -
 
 /**
  * Profile avatar with a thin ring that spins around it at a constant speed, like a rolling wheel.
- * The ring is a comet-style sweep (transparent tail -> bright head). It stops when the phone asks
- * for no animations (R-55); only the ring rotates, the avatar and its tap target stay still.
+ * The ring is a comet-style sweep (transparent tail -> bright head). It keeps turning even when the phone's
+ * animator scale is 0 and stops only with the in-app Reduce motion switch; only the ring rotates, the avatar and its tap target stay still.
  */
 @Composable
 private fun SpinningProfileButton(myName: String, avatarUrl: String?, onClick: () -> Unit) {
-    val reduceMotion = rememberReduceMotion()
-    val angle = if (reduceMotion) {
-        null
-    } else {
-        rememberInfiniteTransition(label = "profileRing").animateFloat(
-            initialValue = 0f,
-            targetValue = 360f,
-            animationSpec = infiniteRepeatable(tween(durationMillis = 2600, easing = LinearEasing), RepeatMode.Restart),
-            label = "profileRingAngle",
-        )
+    // Driven by the frame clock on purpose: Compose's own infinite animations stop completely when the
+    // phone's animator scale is 0 (battery saver / "remove animations"), which is why the ring looked frozen.
+    // Only the in-app "Reduce motion" switch stops this ring.
+    val appReduceMotion = LocalReduceMotionSetting.current
+    var angle by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(appReduceMotion) {
+        if (appReduceMotion) {
+            angle = 0f
+        } else {
+            var last = withFrameNanos { it }
+            while (true) {
+                val now = withFrameNanos { it }
+                angle = (angle + (now - last) / 1_000_000_000f * (360f / RING_SECONDS)) % 360f
+                last = now
+            }
+        }
     }
     val ringBrush = remember {
         Brush.sweepGradient(
@@ -205,7 +215,7 @@ private fun SpinningProfileButton(myName: String, avatarUrl: String?, onClick: (
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer { rotationZ = angle?.value ?: 0f }
+                .graphicsLayer { rotationZ = angle }
                 .border(2.dp, ringBrush, CircleShape),
         )
         Avatar(name = myName, size = ProfileSize, imageUrl = avatarUrl)
