@@ -5,14 +5,17 @@ import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.core.common.map
 import com.twinhearts.app.core.data.SessionStore
 import com.twinhearts.app.core.network.safeApiCall
+import com.twinhearts.app.feature.rewards.data.remote.BuyItemBody
 import com.twinhearts.app.feature.rewards.data.remote.CheckInBody
+import com.twinhearts.app.feature.rewards.data.remote.EquipItemBody
 import com.twinhearts.app.feature.rewards.data.remote.GiftDto
-import com.twinhearts.app.feature.rewards.data.remote.SendGiftBody
 import com.twinhearts.app.feature.rewards.data.remote.RewardsApi
 import com.twinhearts.app.feature.rewards.data.remote.RewardsSummaryDto
 import com.twinhearts.app.feature.rewards.data.remote.ScratchBody
+import com.twinhearts.app.feature.rewards.data.remote.SendGiftBody
 import com.twinhearts.app.feature.rewards.data.remote.SpinBody
 import com.twinhearts.app.feature.rewards.data.remote.SpinSliceDto
+import com.twinhearts.app.feature.rewards.data.remote.StoreItemDto
 import com.twinhearts.app.feature.rewards.domain.CoinTx
 import com.twinhearts.app.feature.rewards.domain.CycleDay
 import com.twinhearts.app.feature.rewards.domain.Gift
@@ -22,6 +25,10 @@ import com.twinhearts.app.feature.rewards.domain.RewardsSummary
 import com.twinhearts.app.feature.rewards.domain.ScratchResult
 import com.twinhearts.app.feature.rewards.domain.SpinResult
 import com.twinhearts.app.feature.rewards.domain.SpinWheelSlice
+import com.twinhearts.app.feature.rewards.domain.StoreCatalog
+import com.twinhearts.app.feature.rewards.domain.StoreEquipResult
+import com.twinhearts.app.feature.rewards.domain.StoreItem
+import com.twinhearts.app.feature.rewards.domain.StorePurchaseResult
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -44,6 +51,15 @@ interface RewardsRepository {
 
     /** Step 3: Lucky Scratch card. */
     suspend fun scratch(tapId: String): AppResult<ScratchResult>
+
+    /** Step 4: Twin Store catalog. */
+    suspend fun store(): AppResult<StoreCatalog>
+
+    /** Step 4: Buy store item. */
+    suspend fun buyItem(itemId: String, tapId: String): AppResult<StorePurchaseResult>
+
+    /** Step 4: Equip or unequip store item. */
+    suspend fun equipItem(category: String, itemId: String): AppResult<StoreEquipResult>
 }
 
 class RewardsRepositoryImpl @Inject constructor(
@@ -96,11 +112,38 @@ class RewardsRepositoryImpl @Inject constructor(
         return safeApiCall { api.scratch(ScratchBody(s.coupleId, s.userId, tapId), s.userId) }
             .map { ScratchResult(it.prizeId, it.coins, it.title, it.message, it.emoji, it.balance, it.duplicate) }
     }
+
+    override suspend fun store(): AppResult<StoreCatalog> {
+        val s = sessionStore.session.first() ?: return AppResult.Failure(AppError.Unauthorized())
+        return safeApiCall { api.store(s.coupleId, s.userId, s.userId) }
+            .map { r ->
+                StoreCatalog(
+                    balance = r.balance,
+                    items = r.items.map { it.toDomain() },
+                    unlockedItemIds = r.unlockedItemIds,
+                    equipped = r.equipped,
+                )
+            }
+    }
+
+    override suspend fun buyItem(itemId: String, tapId: String): AppResult<StorePurchaseResult> {
+        val s = sessionStore.session.first() ?: return AppResult.Failure(AppError.Unauthorized())
+        return safeApiCall { api.buy(BuyItemBody(s.coupleId, s.userId, itemId, tapId), s.userId) }
+            .map { StorePurchaseResult(it.itemId, it.balance, it.unlockedItemIds, it.duplicate) }
+    }
+
+    override suspend fun equipItem(category: String, itemId: String): AppResult<StoreEquipResult> {
+        val s = sessionStore.session.first() ?: return AppResult.Failure(AppError.Unauthorized())
+        return safeApiCall { api.equip(EquipItemBody(s.coupleId, s.userId, category, itemId), s.userId) }
+            .map { StoreEquipResult(it.category, it.itemId, it.equipped) }
+    }
 }
 
 private fun GiftDto.toDomain() = Gift(id, name, emoji, price, tier, effect, blurb)
 
 private fun SpinSliceDto.toDomain() = SpinWheelSlice(index, coins, label, emoji, color)
+
+private fun StoreItemDto.toDomain() = StoreItem(id, name, category, price, emoji, description, previewColor)
 
 private fun RewardsSummaryDto.toDomain() = RewardsSummary(
     balance = balance,
@@ -118,6 +161,9 @@ private fun RewardsSummaryDto.toDomain() = RewardsSummary(
     scratchesAvailable = scratchesAvailable,
     scratchedToday = scratchedToday,
     wheelSlices = wheelSlices.map { it.toDomain() },
+    unlockedItemIds = unlockedItemIds,
+    equipped = equipped,
     claimed = claimed,
     earned = earned,
 )
+

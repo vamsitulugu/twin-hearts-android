@@ -51,6 +51,22 @@ interface RewardsApi {
     /** Step 3: Lucky Scratch card. */
     @POST("api/rewards/scratch")
     suspend fun scratch(@Body body: ScratchBody, @Header("x-user-id") header: String): ScratchDto
+
+    /** Step 4: Twin Store catalog */
+    @GET("api/rewards/store")
+    suspend fun store(
+        @Query("coupleId") coupleId: String,
+        @Query("userId") userId: String,
+        @Header("x-user-id") header: String,
+    ): StoreCatalogDto
+
+    /** Step 4: Buy a store item */
+    @POST("api/rewards/buy")
+    suspend fun buy(@Body body: BuyItemBody, @Header("x-user-id") header: String): BuyItemDto
+
+    /** Step 4: Equip or unequip a store item */
+    @POST("api/rewards/store/equip")
+    suspend fun equip(@Body body: EquipItemBody, @Header("x-user-id") header: String): EquipItemDto
 }
 
 @Serializable
@@ -90,6 +106,8 @@ data class RewardsSummaryDto(
     val scratchesAvailable: Int = 1,
     val scratchedToday: Boolean = false,
     val wheelSlices: List<SpinSliceDto> = emptyList(),
+    val unlockedItemIds: List<String> = emptyList(),
+    val equipped: Map<String, String> = emptyMap(),
     /** Only on the check-in answer: true when THIS call paid the coins. */
     val claimed: Boolean = false,
     val earned: Int = 0,
@@ -160,3 +178,47 @@ data class ScratchDto(
     val balance: Int = 0,
     val scratchesAvailable: Int = 0,
 )
+
+/** Step 4: Twin Store */
+@Serializable
+data class StoreItemDto(
+    val id: String = "",
+    val name: String = "",
+    val category: String = "",
+    val price: Int = 0,
+    val emoji: String = "✨",
+    val description: String = "",
+    val previewColor: String = "",
+)
+
+@Serializable
+data class StoreCatalogDto(
+    val balance: Int = 0,
+    val items: List<StoreItemDto> = emptyList(),
+    val unlockedItemIds: List<String> = emptyList(),
+    val equipped: Map<String, String> = emptyMap(),
+)
+
+@Serializable
+data class BuyItemBody(val coupleId: String, val userId: String, val itemId: String, val clientId: String)
+
+@Serializable
+data class BuyItemDto(
+    val ok: Boolean = false,
+    val balance: Int = 0,
+    val itemId: String = "",
+    val unlockedItemIds: List<String> = emptyList(),
+    val duplicate: Boolean = false,
+)
+
+@Serializable
+data class EquipItemBody(val coupleId: String, val userId: String, val category: String, val itemId: String)
+
+@Serializable
+data class EquipItemDto(
+    val ok: Boolean = false,
+    val category: String = "",
+    val itemId: String = "",
+    val equipped: Map<String, String> = emptyMap(),
+)
+

@@ -92,6 +92,20 @@ fun RewardsScreen(
                                 onScratch = { viewModel.scratch() },
                             )
                         }
+                        item {
+                            TwinStoreCard(
+                                balance = summary.balance,
+                                storeItems = state.storeItems,
+                                unlockedItemIds = state.unlockedItemIds,
+                                equipped = state.equipped,
+                                storeFilter = state.storeFilter,
+                                purchasingItemId = state.purchasingItemId,
+                                equippingItemId = state.equippingItemId,
+                                onFilterChange = viewModel::setStoreFilter,
+                                onBuy = viewModel::buyItem,
+                                onEquip = viewModel::equipItem,
+                            )
+                        }
                         item { CoupleStreakCard(summary, state.partnerName) }
                         item { HistoryCard(state.history) }
                     }

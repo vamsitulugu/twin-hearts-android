@@ -9,6 +9,8 @@ import com.twinhearts.app.feature.rewards.domain.CoinTx
 import com.twinhearts.app.feature.rewards.domain.RewardsSummary
 import com.twinhearts.app.feature.rewards.domain.ScratchResult
 import com.twinhearts.app.feature.rewards.domain.SpinResult
+import com.twinhearts.app.feature.rewards.domain.StoreItem
+import com.twinhearts.app.feature.rewards.domain.StorePurchaseResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,6 +33,13 @@ data class RewardsUiState(
     val partnerName: String = "",
     val lastSpinResult: SpinResult? = null,
     val lastScratchResult: ScratchResult? = null,
+    /** Step 4: Twin Store */
+    val storeItems: List<StoreItem> = emptyList(),
+    val unlockedItemIds: List<String> = emptyList(),
+    val equipped: Map<String, String> = emptyMap(),
+    val storeFilter: String = "all",
+    val purchasingItemId: String? = null,
+    val equippingItemId: String? = null,
 )
 
 /** One ViewModel for the Rewards page and the Home card. The server owns every number. */
@@ -50,11 +59,22 @@ class RewardsViewModel @Inject constructor(
     fun refresh(withHistory: Boolean = false) {
         viewModelScope.launch {
             when (val r = repository.summary()) {
-                is AppResult.Success -> _state.update { it.copy(summary = r.data, loading = false, error = null) }
+                is AppResult.Success -> _state.update {
+                    it.copy(
+                        summary = r.data,
+                        unlockedItemIds = if (r.data.unlockedItemIds.isNotEmpty()) r.data.unlockedItemIds else it.unlockedItemIds,
+                        equipped = if (r.data.equipped.isNotEmpty()) r.data.equipped else it.equipped,
+                        loading = false,
+                        error = null,
+                    )
+                }
                 // Keep an older result on screen if a refresh fails; only show the error when there is nothing to show.
                 is AppResult.Failure -> _state.update { it.copy(loading = false, error = if (it.summary == null) r.error else null) }
             }
-            if (withHistory) loadHistory()
+            if (withHistory) {
+                loadHistory()
+                loadStore()
+            }
         }
     }
 
@@ -137,4 +157,71 @@ class RewardsViewModel @Inject constructor(
     }
 
     fun consumeEarned() = _state.update { it.copy(justEarned = 0) }
+
+    fun loadStore() {
+        viewModelScope.launch {
+            when (val r = repository.store()) {
+                is AppResult.Success -> {
+                    _state.update {
+                        it.copy(
+                            storeItems = r.data.items,
+                            unlockedItemIds = r.data.unlockedItemIds,
+                            equipped = r.data.equipped,
+                        )
+                    }
+                }
+                is AppResult.Failure -> { /* Keep current on failure */ }
+            }
+        }
+    }
+
+    fun setStoreFilter(filter: String) {
+        _state.update { it.copy(storeFilter = filter) }
+    }
+
+    fun buyItem(item: StoreItem, onSuccess: (StorePurchaseResult) -> Unit = {}) {
+        val current = _state.value
+        if (current.purchasingItemId != null) return
+        val currentBalance = current.summary?.balance ?: 0
+        if (currentBalance < item.price) return
+
+        _state.update { it.copy(purchasingItemId = item.id) }
+        viewModelScope.launch {
+            val tapId = "buy_" + UUID.randomUUID().toString()
+            when (val r = repository.buyItem(item.id, tapId)) {
+                is AppResult.Success -> {
+                    _state.update {
+                        it.copy(
+                            purchasingItemId = null,
+                            unlockedItemIds = r.data.unlockedItemIds,
+                            summary = it.summary?.copy(balance = r.data.balance),
+                        )
+                    }
+                    loadHistory()
+                    onSuccess(r.data)
+                }
+                is AppResult.Failure -> _state.update { it.copy(purchasingItemId = null, error = r.error) }
+            }
+        }
+    }
+
+    fun equipItem(category: String, itemId: String) {
+        val current = _state.value
+        if (current.equippingItemId != null) return
+        _state.update { it.copy(equippingItemId = itemId) }
+        viewModelScope.launch {
+            when (val r = repository.equipItem(category, itemId)) {
+                is AppResult.Success -> {
+                    _state.update {
+                        it.copy(
+                            equippingItemId = null,
+                            equipped = r.data.equipped,
+                        )
+                    }
+                }
+                is AppResult.Failure -> _state.update { it.copy(equippingItemId = null, error = r.error) }
+            }
+        }
+    }
 }
+

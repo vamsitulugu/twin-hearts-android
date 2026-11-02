@@ -7,6 +7,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Casino
@@ -52,14 +54,18 @@ import com.twinhearts.app.core.common.rememberReduceMotion
 import com.twinhearts.app.core.design.GlassButton
 import com.twinhearts.app.core.design.GlassButtonStyle
 import com.twinhearts.app.core.design.GlassCard
+import com.twinhearts.app.core.design.TwinColors
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.feature.rewards.domain.CoinTx
 import com.twinhearts.app.feature.rewards.domain.CycleDay
 import com.twinhearts.app.feature.rewards.domain.RewardsSummary
 import com.twinhearts.app.feature.rewards.domain.ScratchResult
+import com.twinhearts.app.feature.rewards.domain.StoreItem
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+
+private val TwinColors.surfaceSubtle: Color get() = Color.White.copy(alpha = 0.06f)
 
 /** Coin gold and flame orange: fixed brand accents (web: --rw-gold, --rw-flame in rewards.css). */
 internal object RewardsStyle {
@@ -574,9 +580,281 @@ private fun kindLabel(kind: String, note: String = ""): String = when (kind) {
     "gift_refund" -> stringResource(R.string.rewards_kind_gift_refund)
     "spin" -> stringResource(R.string.rewards_kind_spin)
     "scratch" -> stringResource(R.string.rewards_kind_scratch)
+    "store_purchase" -> if (note.isNotBlank()) stringResource(R.string.rewards_kind_store_named, note) else stringResource(R.string.rewards_kind_store)
     else -> stringResource(R.string.rewards_kind_other)
+}
+
+/** Step 4: Twin Store card (themes, frames, decor, games) */
+@Composable
+internal fun TwinStoreCard(
+    balance: Int,
+    storeItems: List<StoreItem>,
+    unlockedItemIds: List<String>,
+    equipped: Map<String, String>,
+    storeFilter: String,
+    purchasingItemId: String?,
+    equippingItemId: String?,
+    onFilterChange: (String) -> Unit,
+    onBuy: (StoreItem) -> Unit,
+    onEquip: (String, String) -> Unit,
+) {
+    val colors = TwinTheme.colors
+    val tabs = listOf(
+        "all" to stringResource(R.string.rewards_store_tab_all),
+        "theme" to stringResource(R.string.rewards_store_tab_themes),
+        "frame" to stringResource(R.string.rewards_store_tab_frames),
+        "decor" to stringResource(R.string.rewards_store_tab_decor),
+        "game" to stringResource(R.string.rewards_store_tab_games),
+    )
+
+    val displayedItems = if (storeFilter == "all") {
+        storeItems
+    } else {
+        storeItems.filter { it.category == storeFilter }
+    }
+
+    GlassCard(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            SectionTitle(stringResource(R.string.rewards_store_title))
+            Spacer(Modifier.weight(1f))
+            Text(
+                stringResource(R.string.rewards_store_subtitle),
+                style = MaterialTheme.typography.labelSmall,
+                color = colors.inkMuted,
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // Category Filter Chips
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            tabs.forEach { (key, label) ->
+                val selected = storeFilter == key
+                val bg = if (selected) Brush.verticalGradient(listOf(RewardsStyle.Gold, RewardsStyle.GoldDeep)) else null
+                val bgColor = if (!selected) colors.surfaceSubtle else Color.Transparent
+                val border = if (selected) BorderStroke(1.dp, RewardsStyle.GoldDeep) else BorderStroke(1.dp, colors.lineSoft)
+
+                Box(
+                    modifier = Modifier
+                        .clip(TwinTheme.shapes.pill)
+                        .border(border, TwinTheme.shapes.pill)
+                        .then(if (bg != null) Modifier.background(bg) else Modifier.background(bgColor))
+                        .clickable { onFilterChange(key) }
+                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = label,
+                        fontSize = 12.5.sp,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (selected) RewardsStyle.GoldInk else colors.ink,
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        // Items list
+        if (displayedItems.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    stringResource(R.string.rewards_loading),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.inkMuted,
+                )
+            }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                displayedItems.forEach { item ->
+                    val isUnlocked = unlockedItemIds.contains(item.id)
+                    val isEquipped = isUnlocked && equipped[item.category] == item.id
+                    val isPurchasing = purchasingItemId == item.id
+                    val isEquipping = equippingItemId == item.id
+                    val canAfford = balance >= item.price
+
+                    StoreItemRow(
+                        item = item,
+                        isUnlocked = isUnlocked,
+                        isEquipped = isEquipped,
+                        isPurchasing = isPurchasing,
+                        isEquipping = isEquipping,
+                        canAfford = canAfford,
+                        onBuy = { onBuy(item) },
+                        onToggleEquip = {
+                            if (isEquipped) {
+                                onEquip(item.category, "")
+                            } else {
+                                onEquip(item.category, item.id)
+                            }
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StoreItemRow(
+    item: StoreItem,
+    isUnlocked: Boolean,
+    isEquipped: Boolean,
+    isPurchasing: Boolean,
+    isEquipping: Boolean,
+    canAfford: Boolean,
+    onBuy: () -> Unit,
+    onToggleEquip: () -> Unit,
+) {
+    val colors = TwinTheme.colors
+    val previewColor = remember(item.previewColor) {
+        if (item.previewColor.isNotBlank()) {
+            runCatching {
+                val parsed = android.graphics.Color.parseColor(item.previewColor)
+                Color(parsed)
+            }.getOrNull()
+        } else null
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .border(
+                BorderStroke(
+                    1.dp,
+                    if (isEquipped) colors.success.copy(alpha = 0.6f)
+                    else if (isUnlocked) colors.lineSoft
+                    else colors.lineSoft.copy(alpha = 0.5f)
+                ),
+                RoundedCornerShape(14.dp),
+            )
+            .background(
+                if (isEquipped) colors.success.copy(alpha = 0.08f)
+                else colors.surfaceSubtle.copy(alpha = 0.6f)
+            )
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Icon / Emoji with optional preview color circle
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(previewColor?.copy(alpha = 0.25f) ?: colors.surfaceSubtle)
+                .border(1.dp, previewColor ?: colors.lineSoft, RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(item.emoji, fontSize = 22.sp)
+        }
+
+        Spacer(Modifier.size(12.dp))
+
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(item.name, fontWeight = FontWeight.Bold, color = colors.ink, fontSize = 14.sp)
+                Box(
+                    modifier = Modifier
+                        .clip(TwinTheme.shapes.pill)
+                        .background(colors.surfaceSubtle)
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                ) {
+                    Text(
+                        item.category.uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.inkMuted,
+                        fontSize = 9.sp,
+                    )
+                }
+            }
+            Spacer(Modifier.height(2.dp))
+            Text(item.description, style = MaterialTheme.typography.bodySmall, color = colors.inkMuted, fontSize = 12.sp)
+        }
+
+        Spacer(Modifier.size(8.dp))
+
+        // Action button
+        when {
+            isEquipped -> {
+                Box(
+                    modifier = Modifier
+                        .clip(TwinTheme.shapes.pill)
+                        .background(colors.success.copy(alpha = 0.16f))
+                        .border(1.dp, colors.success, TwinTheme.shapes.pill)
+                        .clickable(enabled = !isEquipping, onClick = onToggleEquip)
+                        .padding(horizontal = 12.dp, vertical = 7.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = stringResource(R.string.rewards_store_active),
+                        color = colors.success,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                    )
+                }
+            }
+            isUnlocked -> {
+                Box(
+                    modifier = Modifier
+                        .clip(TwinTheme.shapes.pill)
+                        .background(colors.surfaceSubtle)
+                        .border(1.dp, colors.lineSoft, TwinTheme.shapes.pill)
+                        .clickable(enabled = !isEquipping, onClick = onToggleEquip)
+                        .padding(horizontal = 14.dp, vertical = 7.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = if (isEquipping) stringResource(R.string.rewards_store_equipping) else stringResource(R.string.rewards_store_equip),
+                        color = colors.ink,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                    )
+                }
+            }
+            else -> {
+                Box(
+                    modifier = Modifier
+                        .clip(TwinTheme.shapes.pill)
+                        .then(
+                            if (canAfford && !isPurchasing) Modifier.background(
+                                Brush.verticalGradient(listOf(RewardsStyle.Gold, RewardsStyle.GoldDeep))
+                            ) else Modifier.background(colors.surfaceSubtle)
+                        )
+                        .border(
+                            1.dp,
+                            if (canAfford) RewardsStyle.GoldDeep.copy(alpha = 0.5f) else colors.lineSoft,
+                            TwinTheme.shapes.pill,
+                        )
+                        .clickable(enabled = canAfford && !isPurchasing, onClick = onBuy)
+                        .padding(horizontal = 12.dp, vertical = 7.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = when {
+                            isPurchasing -> stringResource(R.string.rewards_store_unlocking)
+                            else -> stringResource(R.string.rewards_store_unlock, item.price)
+                        },
+                        color = if (canAfford) RewardsStyle.GoldInk else colors.inkMuted,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 12.sp,
+                    )
+                }
+            }
+        }
+    }
 }
 
 private val shortFmt = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
 
 private fun shortDate(iso: String): String = runCatching { OffsetDateTime.parse(iso).atZoneSameInstant(java.time.ZoneId.systemDefault()).format(shortFmt) }.getOrDefault("")
+

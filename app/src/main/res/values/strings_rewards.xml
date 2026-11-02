@@ -76,4 +76,22 @@
     <string name="rewards_scratch_note_done">You claimed your daily card. Next card tomorrow!</string>
     <string name="rewards_scratch_fortune_claimed">Daily Fortune Claimed</string>
     <string name="rewards_scratch_surprise">Romantic Surprise</string>
+
+    <!-- Step 4: Twin Store & Spend Sinks -->
+    <string name="rewards_store_title">🛍️ Twin Store</string>
+    <string name="rewards_store_subtitle">Spend coins on couple themes, frames &amp; decor</string>
+    <string name="rewards_store_tab_all">All</string>
+    <string name="rewards_store_tab_themes">Themes</string>
+    <string name="rewards_store_tab_frames">Frames</string>
+    <string name="rewards_store_tab_decor">Decor</string>
+    <string name="rewards_store_tab_games">Games</string>
+    <string name="rewards_store_active">Active ✓</string>
+    <string name="rewards_store_equip">Equip</string>
+    <string name="rewards_store_equipping">Equipping…</string>
+    <string name="rewards_store_unlock">🪙 %1$d</string>
+    <string name="rewards_store_unlocking">Unlocking…</string>
+    <string name="rewards_store_need_coins">Need %1$d more</string>
+    <string name="rewards_kind_store">Twin Store</string>
+    <string name="rewards_kind_store_named">Store: %1$s</string>
 </resources>
+

@@ -30,6 +30,9 @@ data class RewardsSummary(
     val scratchesAvailable: Int = 1,
     val scratchedToday: Boolean = false,
     val wheelSlices: List<SpinWheelSlice> = emptyList(),
+    /** Step 4: Twin Store unlocks & active equipped items */
+    val unlockedItemIds: List<String> = emptyList(),
+    val equipped: Map<String, String> = emptyMap(),
     /** Set only right after a claim: true if that tap paid, and how much. */
     val claimed: Boolean = false,
     val earned: Int = 0,
@@ -72,3 +75,35 @@ data class ScratchResult(
     val balance: Int,
     val duplicate: Boolean,
 )
+
+/** Step 4: Twin Store item (themes, frames, decor, game decks). */
+data class StoreItem(
+    val id: String,
+    val name: String,
+    val category: String, // "theme", "frame", "decor", "game"
+    val price: Int,
+    val emoji: String,
+    val description: String,
+    val previewColor: String = "",
+)
+
+data class StoreCatalog(
+    val balance: Int,
+    val items: List<StoreItem>,
+    val unlockedItemIds: List<String>,
+    val equipped: Map<String, String>,
+)
+
+data class StorePurchaseResult(
+    val itemId: String,
+    val balance: Int,
+    val unlockedItemIds: List<String>,
+    val duplicate: Boolean,
+)
+
+data class StoreEquipResult(
+    val category: String,
+    val itemId: String,
+    val equipped: Map<String, String>,
+)
+
