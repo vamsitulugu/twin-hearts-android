@@ -89,7 +89,6 @@ import com.twinhearts.app.core.design.PillSwitch
 import com.twinhearts.app.core.design.LocalOpenSidebar
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.feature.chat.data.PhotoPick
-import com.twinhearts.app.feature.chat.domain.CoupleGifts
 import com.twinhearts.app.feature.chat.domain.DisappearPresets
 import com.twinhearts.app.feature.chat.domain.Stickers
 import com.twinhearts.app.feature.chat.domain.agoAmount
@@ -100,6 +99,7 @@ import com.twinhearts.app.feature.chat.domain.model.MessageKind
 import com.twinhearts.app.feature.chat.domain.model.PartnerPresence
 import com.twinhearts.app.feature.chat.domain.model.PresenceState
 import com.twinhearts.app.feature.chat.domain.model.SendEffect
+import com.twinhearts.app.feature.rewards.ui.GiftShopSheet
 import kotlinx.coroutines.delay
 import java.io.File
 import java.time.Instant
@@ -136,6 +136,7 @@ fun ChatScreen(
     onBack: () -> Unit,
     onCall: () -> Unit,
     onVideoCall: () -> Unit,
+    onOpenRewards: () -> Unit = {},
     viewModel: ChatViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -298,6 +299,7 @@ fun ChatScreen(
         onVote = viewModel::vote,
         onJump = { scrollTo = it },
         onVoiceFailed = { viewModel.showBanner(ChatBanner.Info(R.string.chat_record_failed)) },
+        onGiftBack = { sheet = Sheet.Gift },
     )
     val composerActions = ComposerActions(
         onTextChange = { text = it },
@@ -478,11 +480,13 @@ fun ChatScreen(
             onPick = { viewModel.sendEmojiCard("sticker", it.emoji, it.name) },
             onDismiss = { sheet = Sheet.None },
         )
-        Sheet.Gift -> EmojiCardSheet(
-            title = stringResource(R.string.chat_attach_gift),
-            items = CoupleGifts,
-            onPick = { viewModel.sendEmojiCard("gift", it.emoji, it.name) },
+        Sheet.Gift -> GiftShopSheet(
             onDismiss = { sheet = Sheet.None },
+            onSent = { gift -> viewModel.onGiftSent(gift.effect) },
+            onEarn = {
+                sheet = Sheet.None
+                onOpenRewards()
+            },
         )
         Sheet.Gif -> GifSheet(state.gifs, onSearch = viewModel::searchGifs, onPick = viewModel::sendGif, onDismiss = { sheet = Sheet.None })
         Sheet.Poll -> PollSheet(onCreate = viewModel::sendPoll, onDismiss = { sheet = Sheet.None })

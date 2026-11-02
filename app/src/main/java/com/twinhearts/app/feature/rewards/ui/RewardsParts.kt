@@ -251,7 +251,7 @@ internal fun HistoryCard(items: List<CoinTx>?) {
                 if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(colors.lineSoft))
                 Row(Modifier.fillMaxWidth().padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text(kindLabel(tx.kind), color = colors.ink, fontSize = 14.sp)
+                        Text(kindLabel(tx.kind, tx.note), color = colors.ink, fontSize = 14.sp)
                         Text(shortDate(tx.createdAtIso), color = colors.inkMuted, fontSize = 11.5.sp)
                     }
                     Text(
@@ -266,8 +266,10 @@ internal fun HistoryCard(items: List<CoinTx>?) {
 }
 
 @Composable
-private fun kindLabel(kind: String): String = when (kind) {
+private fun kindLabel(kind: String, note: String = ""): String = when (kind) {
     "checkin" -> stringResource(R.string.rewards_kind_checkin)
+    "gift" -> if (note.isNotBlank()) stringResource(R.string.rewards_kind_gift_named, note) else stringResource(R.string.rewards_kind_gift)
+    "gift_refund" -> stringResource(R.string.rewards_kind_gift_refund)
     else -> stringResource(R.string.rewards_kind_other)
 }
 

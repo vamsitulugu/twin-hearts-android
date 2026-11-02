@@ -20,4 +20,20 @@ data class RewardsSummary(
     val earned: Int = 0,
 )
 
-data class CoinTx(val id: Long, val amount: Int, val kind: String, val createdAtIso: String)
+/** [note] is the gift name for a gift row, empty otherwise. */
+data class CoinTx(val id: Long, val amount: Int, val kind: String, val createdAtIso: String, val note: String = "")
+
+/** One gift in the Gift Shop. [effect] is the chat animation it plays (confetti / hearts / balloons). */
+data class Gift(
+    val id: String,
+    val name: String,
+    val emoji: String,
+    val price: Int,
+    val tier: String,
+    val effect: String,
+    val blurb: String,
+)
+
+data class GiftShop(val balance: Int, val gifts: List<Gift>)
+
+data class GiftSent(val balance: Int, val gift: Gift?, val duplicate: Boolean)

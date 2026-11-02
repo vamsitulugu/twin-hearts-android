@@ -115,6 +115,8 @@ private val QuoteBar = 3.dp
 private val SwipeTrigger = 64.dp
 private val SwipeMax = 96.dp
 private val StickerSize = 56.dp
+private val PaidGiftSize = 62.dp
+private val PaidGiftPremiumSize = 72.dp
 private val PillShadowGap = 2.dp
 private const val IMAGE_RATIO = 1.3f
 private const val WAVE_BARS = 26
@@ -166,6 +168,8 @@ internal class BubbleActions(
     val onVote: (ChatMessage, String) -> Unit,
     val onJump: (Long) -> Unit,
     val onVoiceFailed: () -> Unit,
+    /** Twin Rewards: "Send one back" on a gift from my partner opens the Gift Shop. */
+    val onGiftBack: () -> Unit = {},
 ) {
     companion object {
         val None = BubbleActions({}, {}, {}, {}, { _, _ -> }, { _, _ -> }, {}, {}, {}, { _, _ -> }, {}, {})
@@ -538,7 +542,7 @@ private fun BubbleBody(message: ChatMessage, votes: Map<String, Int>, voice: Voi
             PictureBody(message, actions)
         message.kind == MessageKind.Video -> VideoBody(message, actions.onOpenUrl)
         message.kind == MessageKind.File -> FileCard(message, actions.onOpenUrl)
-        message.kind == MessageKind.Sticker || message.kind == MessageKind.Gift -> EmojiCard(message)
+        message.kind == MessageKind.Sticker || message.kind == MessageKind.Gift -> EmojiCard(message, actions.onGiftBack)
         message.kind == MessageKind.Location -> InfoCard(
             icon = "📍",
             title = stringResource(R.string.chat_location_title),
@@ -759,8 +763,12 @@ private fun FileCard(message: ChatMessage, onOpen: (String) -> Unit) {
 }
 
 @Composable
-private fun EmojiCard(message: ChatMessage) {
+private fun EmojiCard(message: ChatMessage, onGiftBack: () -> Unit = {}) {
     val colors = TwinTheme.colors
+    if (message.kind == MessageKind.Gift && message.giftPaid) {
+        PaidGiftCard(message, onGiftBack)
+        return
+    }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             message.emoji.orEmpty(),
@@ -772,6 +780,48 @@ private fun EmojiCard(message: ChatMessage) {
                 if (message.kind == MessageKind.Gift) stringResource(R.string.chat_gift_label, name) else name,
                 style = MaterialTheme.typography.labelLarge,
                 color = colors.inkMuted,
+            )
+        }
+    }
+}
+
+/** A gift bought with Gold Coins (Twin Rewards step 2): bigger, gold glow, and "Send one back" for the receiver. */
+@Composable
+private fun PaidGiftCard(message: ChatMessage, onGiftBack: () -> Unit) {
+    val colors = TwinTheme.colors
+    val gold = Color(0xFFF5B83D)
+    val size = if (message.giftTier == "premium") PaidGiftPremiumSize else PaidGiftSize
+    Column(
+        modifier = Modifier
+            .widthIn(min = 140.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(gold.copy(alpha = 0.14f))
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            message.emoji.orEmpty(),
+            style = MaterialTheme.typography.displayMedium.copy(fontSize = with(LocalDensity.current) { size.toSp() }),
+        )
+        Text(message.label.orEmpty(), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = colors.ink)
+        Text(
+            stringResource(if (message.mine) R.string.chat_gift_from_you else R.string.chat_gift_for_you),
+            style = MaterialTheme.typography.labelMedium,
+            color = colors.inkMuted,
+        )
+        if (!message.mine) {
+            Text(
+                stringResource(R.string.chat_gift_send_back),
+                color = Color(0xFF3A2400),
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 12.sp,
+                modifier = Modifier
+                    .padding(top = 4.dp)
+                    .clip(RoundedCornerShape(percent = 50))
+                    .background(gold)
+                    .clickable(onClick = onGiftBack)
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
             )
         }
     }

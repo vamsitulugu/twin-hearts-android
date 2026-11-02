@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Twin Rewards (Step 1: wallet, daily check-in, streaks). Wording matches the web app (rewards.js). -->
+<!-- Twin Rewards (Step 1: wallet, check-in, streaks · Step 2: Gift Shop). Wording matches the web app (rewards.js / chat.js). -->
 <resources>
     <string name="rewards_title">Twin Rewards</string>
     <string name="rewards_gold_coins">Gold Coins</string>
@@ -29,4 +29,25 @@
     <string name="rewards_kind_checkin">Daily check-in</string>
     <string name="rewards_kind_other">Reward</string>
     <string name="rewards_toast">+%1$d Gold Coins 🪙  ·  %2$d-day streak 🔥</string>
+    <string name="rewards_kind_gift">Gift sent</string>
+    <string name="rewards_kind_gift_named">Gift: %1$s</string>
+    <string name="rewards_kind_gift_refund">Gift refunded</string>
+
+    <!-- Step 2: Gift Shop -->
+    <string name="gift_shop_title">Gift Shop</string>
+    <string name="gift_shop_subtitle">Send something sweet to %1$s</string>
+    <string name="gift_shop_partner_fallback">your partner</string>
+    <string name="gift_shop_earn">+ Earn</string>
+    <string name="gift_shop_send">Send to %1$s</string>
+    <string name="gift_shop_sending">Sending…</string>
+    <string name="gift_shop_need">You need %1$d more coins</string>
+    <string name="gift_shop_earn_coins">Earn coins</string>
+    <string name="gift_shop_retry">Try again</string>
+    <string name="gift_shop_not_enough">Not enough Gold Coins yet</string>
+    <string name="gift_shop_offline">Could not send — check your connection and tap Send again</string>
+    <string name="gift_shop_failed">Could not send the gift. Please try again.</string>
+    <string name="chat_gift_sent_banner">Gift sent 💝</string>
+    <string name="chat_gift_from_you">You sent a gift 💝</string>
+    <string name="chat_gift_for_you">A gift for you 💝</string>
+    <string name="chat_gift_send_back">Send one back 🎁</string>
 </resources>

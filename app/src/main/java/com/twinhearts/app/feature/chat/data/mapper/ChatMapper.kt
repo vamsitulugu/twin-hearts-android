@@ -87,6 +87,8 @@ fun ChatMessageDto.toDomain(myRole: String): ChatMessage? {
         viewed = viewedAt.asText() != null,
         emoji = meta?.get("emoji")?.stringOrNull(),
         label = meta?.get("name")?.stringOrNull(),
+        giftPaid = kind == MessageKind.Gift && meta?.get("paid").asFlag(),
+        giftTier = meta?.get("tier")?.stringOrNull(),
         latitude = meta?.get("lat")?.numberOrNull(),
         longitude = meta?.get("lng")?.numberOrNull(),
         pollOptions = (meta?.get("options") as? JsonArray)?.mapNotNull { it.stringOrNull() }.orEmpty(),

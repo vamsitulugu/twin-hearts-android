@@ -20,6 +20,7 @@ fun NavGraphBuilder.chatGraph(navController: NavHostController) {
             onBack = { navController.navigate(Routes.Home) { launchSingleTop = true } },
             onCall = { navController.navigate(Routes.Call(video = false)) },
             onVideoCall = { navController.navigate(Routes.Call(video = true)) },
+            onOpenRewards = { navController.navigate(Routes.Rewards) },
         )
     }
 }

@@ -2,6 +2,7 @@ package com.twinhearts.app.feature.rewards.data.remote
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
@@ -30,6 +31,18 @@ interface RewardsApi {
         @Query("limit") limit: Int,
         @Header("x-user-id") header: String,
     ): HistoryDto
+
+    /** Step 2: Gift Shop catalog and my balance. */
+    @GET("api/rewards/gifts")
+    suspend fun gifts(
+        @Query("coupleId") coupleId: String,
+        @Query("userId") userId: String,
+        @Header("x-user-id") header: String,
+    ): GiftsDto
+
+    /** Step 2: buy a gift. The server charges the coins and posts the gift in the chat. */
+    @POST("api/rewards/gift")
+    suspend fun sendGift(@Body body: SendGiftBody, @Header("x-user-id") header: String): SendGiftDto
 }
 
 @Serializable
@@ -66,7 +79,30 @@ data class CoinTxDto(
     val amount: Int = 0,
     val kind: String = "",
     @SerialName("created_at") val createdAt: String = "",
+    /** Step 2: a gift row carries `{ giftId, name, emoji }`. */
+    val meta: JsonObject? = null,
 )
 
 @Serializable
 data class HistoryDto(val items: List<CoinTxDto> = emptyList())
+
+@Serializable
+data class GiftDto(
+    val id: String = "",
+    val name: String = "",
+    val emoji: String = "",
+    val price: Int = 0,
+    val tier: String = "special",
+    val effect: String = "hearts",
+    val blurb: String = "",
+)
+
+@Serializable
+data class GiftsDto(val balance: Int = 0, val gifts: List<GiftDto> = emptyList())
+
+/** [clientId] is one id per Send tap: if the answer is lost and the app retries, the server never charges twice. */
+@Serializable
+data class SendGiftBody(val coupleId: String, val userId: String, val giftId: String, val clientId: String)
+
+@Serializable
+data class SendGiftDto(val balance: Int = 0, val duplicate: Boolean = false, val gift: GiftDto? = null)

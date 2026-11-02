@@ -54,6 +54,10 @@ data class ChatMessage(
     val emoji: String? = null,
     /** Name of a sticker, gift or contact card. */
     val label: String? = null,
+    /** Twin Rewards: true for a gift bought in the Gift Shop (older free gifts are false). */
+    val giftPaid: Boolean = false,
+    /** Gift Shop tier: sweet, special or premium. */
+    val giftTier: String? = null,
     val latitude: Double? = null,
     val longitude: Double? = null,
     val pollOptions: List<String> = emptyList(),

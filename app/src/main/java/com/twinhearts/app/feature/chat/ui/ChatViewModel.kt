@@ -765,6 +765,16 @@ class ChatViewModel @Inject constructor(
     fun effectDone() = _state.update { it.copy(effect = null) }
     fun showBanner(banner: ChatBanner?) = _state.update { it.copy(banner = banner) }
 
+    /**
+     * Twin Rewards step 2: a gift was bought in the Gift Shop. The SERVER already put it in the chat, so
+     * this only plays its animation, says so, and reads the newest messages so the gift shows at once.
+     */
+    fun onGiftSent(effectApi: String?) {
+        SendEffect.fromApi(effectApi)?.let { fx -> _state.update { it.copy(effect = fx) } }
+        showBanner(ChatBanner.Info(R.string.chat_gift_sent_banner))
+        poll(full = true)
+    }
+
     private companion object {
         const val SECONDS_PER_MINUTE = 60L
         const val MIN_POLL_OPTIONS = 2
