@@ -1,0 +1,1 @@
+Android: profile ring now drawn on a Canvas with the rotation applied in the draw call, driven by the frame clock (spins even with animations off / battery saver; ignores Reduce motion). File: HomeComponents.kt (overlay on top of the previous home/spin zip).

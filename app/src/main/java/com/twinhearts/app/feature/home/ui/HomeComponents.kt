@@ -41,7 +41,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import com.twinhearts.app.core.common.LocalReduceMotionSetting
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.LaunchedEffect
@@ -174,37 +176,24 @@ internal fun HomeHeader(myName: String, avatarUrl: String?, onProfileClick: () -
 }
 
 /**
- * Profile avatar with a thin ring that spins around it at a constant speed, like a rolling wheel.
- * The ring is a comet-style sweep (transparent tail -> bright head). It keeps turning even when the phone's
- * animator scale is 0 and stops only with the in-app Reduce motion switch; only the ring rotates, the avatar and its tap target stay still.
+ * Profile avatar with a thin comet-style ring (transparent tail -> bright head) that turns around it
+ * at a constant speed. The angle comes from the frame clock and the ring is drawn with the
+ * rotation applied inside the draw call, so it keeps turning even when the phone has animations
+ * off or battery saver on, and regardless of the in-app Reduce motion switch (it is a tiny
+ * decorative ring). Only the ring rotates; the avatar and the tap target stay still.
  */
 @Composable
 private fun SpinningProfileButton(myName: String, avatarUrl: String?, onClick: () -> Unit) {
-    // Driven by the frame clock on purpose: Compose's own infinite animations stop completely when the
-    // phone's animator scale is 0 (battery saver / "remove animations"), which is why the ring looked frozen.
-    // Only the in-app "Reduce motion" switch stops this ring.
-    val appReduceMotion = LocalReduceMotionSetting.current
     var angle by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(appReduceMotion) {
-        if (appReduceMotion) {
-            angle = 0f
-        } else {
-            var last = withFrameNanos { it }
-            while (true) {
-                val now = withFrameNanos { it }
-                angle = (angle + (now - last) / 1_000_000_000f * (360f / RING_SECONDS)) % 360f
-                last = now
-            }
+    LaunchedEffect(Unit) {
+        var last = withFrameNanos { it }
+        while (true) {
+            val now = withFrameNanos { it }
+            angle = (angle + (now - last) / 1_000_000_000f * (360f / RING_SECONDS)) % 360f
+            last = now
         }
     }
-    val ringBrush = remember {
-        Brush.sweepGradient(
-            0.00f to Color.Transparent,
-            0.55f to Color.White.copy(alpha = 0.10f),
-            0.85f to HomeCardStyle.QuoteAccent.copy(alpha = 0.75f),
-            1.00f to Color.White,
-        )
-    }
+    val tail = HomeCardStyle.QuoteAccent
     Box(
         modifier = Modifier
             .size(ProfileRingSize)
@@ -212,12 +201,23 @@ private fun SpinningProfileButton(myName: String, avatarUrl: String?, onClick: (
             .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer { rotationZ = angle }
-                .border(2.dp, ringBrush, CircleShape),
-        )
+        Canvas(Modifier.fillMaxSize()) {
+            val stroke = 2.dp.toPx()
+            val brush = Brush.sweepGradient(
+                0.00f to Color.Transparent,
+                0.55f to Color.White.copy(alpha = 0.10f),
+                0.85f to tail.copy(alpha = 0.75f),
+                1.00f to Color.White,
+                center = center,
+            )
+            rotate(degrees = angle, pivot = center) {
+                drawCircle(
+                    brush = brush,
+                    radius = (size.minDimension - stroke) / 2f,
+                    style = Stroke(width = stroke),
+                )
+            }
+        }
         Avatar(name = myName, size = ProfileSize, imageUrl = avatarUrl)
     }
 }
