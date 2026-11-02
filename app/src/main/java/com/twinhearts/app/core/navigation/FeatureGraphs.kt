@@ -25,6 +25,7 @@ import com.twinhearts.app.feature.study.studyGraph
 import com.twinhearts.app.feature.twinai.twinAiGraph
 import com.twinhearts.app.feature.places.ui.placesGraph
 import com.twinhearts.app.feature.level.levelGraph
+import com.twinhearts.app.feature.rewards.rewardsGraph
 import com.twinhearts.app.feature.profile.profileGraph
 import com.twinhearts.app.feature.pro.proGraph
 import com.twinhearts.app.feature.settings.settingsGraph
@@ -65,6 +66,7 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
     liveMapGraph(navController) // Live Map
     usGraph(navController) // 3.1 Us
     levelGraph(navController) // 3.2 Couple Level
+    rewardsGraph(navController) // Twin Rewards
     placesGraph(navController) // Places
     profileGraph(navController) // 2.6 Our Profile
     proGraph(navController) // Pro (Razorpay)

@@ -37,6 +37,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.twinhearts.app.R
+import com.twinhearts.app.feature.rewards.ui.RewardsHomeCard
 import com.twinhearts.app.core.data.Session
 import com.twinhearts.app.core.design.TwinBackground
 import com.twinhearts.app.core.design.TwinTheme
@@ -176,6 +177,7 @@ internal fun HomeContent(
             modifier = Modifier.padding(horizontal = TwinTheme.spacing.screenEdge),
             verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
         ) {
+            RewardsHomeCard(onOpen = { onShortcut(HomeShortcut.Rewards) })
             Text(
                 text = stringResource(R.string.home_stay_connected),
                 style = MaterialTheme.typography.headlineSmall,

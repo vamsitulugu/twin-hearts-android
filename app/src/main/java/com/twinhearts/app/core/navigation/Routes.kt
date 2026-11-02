@@ -51,6 +51,7 @@ object Routes {
     @Serializable data object Music
     @Serializable data object Study
     @Serializable data object Level
+    @Serializable data object Rewards
     @Serializable data object Places
 
     // Pages merged from the Phase 2-6 feature zips

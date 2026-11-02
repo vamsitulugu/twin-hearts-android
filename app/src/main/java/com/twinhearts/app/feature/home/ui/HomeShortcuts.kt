@@ -16,6 +16,7 @@ import androidx.compose.material.icons.rounded.Help
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.MenuBook
+import androidx.compose.material.icons.rounded.MonetizationOn
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.PhotoCamera
@@ -49,6 +50,7 @@ enum class HomeShortcut(@StringRes val labelRes: Int, val icon: ImageVector) {
     OurProfile(R.string.home_page_profile, Icons.Rounded.Group),
     LoveCounter(R.string.home_page_love_counter, Icons.Rounded.Favorite),
     Level(R.string.home_page_level, Icons.Rounded.EmojiEvents),
+    Rewards(R.string.home_page_rewards, Icons.Rounded.MonetizationOn),
     FightLog(R.string.home_page_fights, Icons.Rounded.Gavel),
     DreamGoals(R.string.home_page_dream_goals, Icons.Rounded.TrackChanges),
 
@@ -78,7 +80,7 @@ internal data class HomeGroup(@StringRes val titleRes: Int, val items: List<Home
 internal val homeGroups = listOf(
     HomeGroup(
         R.string.home_group_us,
-        listOf(HomeShortcut.OurProfile, HomeShortcut.LoveCounter, HomeShortcut.Level, HomeShortcut.FightLog, HomeShortcut.DreamGoals),
+        listOf(HomeShortcut.OurProfile, HomeShortcut.LoveCounter, HomeShortcut.Level, HomeShortcut.Rewards, HomeShortcut.FightLog, HomeShortcut.DreamGoals),
     ),
     HomeGroup(
         R.string.home_group_explore,

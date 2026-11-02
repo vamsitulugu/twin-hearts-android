@@ -33,6 +33,7 @@ fun NavGraphBuilder.homeGraph(navController: NavHostController) {
                     HomeShortcut.DreamGoals -> navController.navigate(Routes.Us(tab = 2))
                     HomeShortcut.Places -> navController.navigate(Routes.Places)
                     HomeShortcut.Level -> navController.navigate(Routes.Level)
+                    HomeShortcut.Rewards -> navController.navigate(Routes.Rewards)
                     HomeShortcut.Collection -> navController.navigate(Routes.Collection)
                     HomeShortcut.Music -> navController.navigate(Routes.Music)
                     HomeShortcut.Study -> navController.navigate(Routes.Study)
