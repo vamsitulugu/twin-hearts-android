@@ -52,6 +52,22 @@ interface RewardsApi {
     @POST("api/rewards/scratch")
     suspend fun scratch(@Body body: ScratchBody, @Header("x-user-id") header: String): ScratchDto
 
+    /** Scratch cards won by finishing a couple game (my unscratched cards + the last few opened). */
+    @GET("api/rewards/cards")
+    suspend fun gameCards(
+        @Query("coupleId") coupleId: String,
+        @Query("userId") userId: String,
+        @Header("x-user-id") header: String,
+    ): GameCardsDto
+
+    /** A game finished: the server puts one card in BOTH partners' card pages. */
+    @POST("api/rewards/cards/grant")
+    suspend fun grantGameCard(@Body body: CardGrantBody, @Header("x-user-id") header: String): CardGrantDto
+
+    /** Scratch (or Skip) one card: the server picks the prize and pays the coins. */
+    @POST("api/rewards/cards/open")
+    suspend fun openGameCard(@Body body: CardOpenBody, @Header("x-user-id") header: String): CardOpenDto
+
     /** Phase 1: what can be earned today (server-owned amounts and daily caps). */
     @GET("api/rewards/earn/status")
     suspend fun earnStatus(
@@ -125,6 +141,8 @@ data class RewardsSummaryDto(
     val spunToday: Boolean = false,
     val scratchesAvailable: Int = 1,
     val scratchedToday: Boolean = false,
+    /** Unscratched cards from couple games, waiting on the My Scratch Cards page. */
+    val cardsWaiting: Int = 0,
     /** Phase 2: price and cap of extra (paid) spins, set by the server. */
     val paidSpinPrice: Int = 20,
     val paidSpinsLeft: Int = 0,
@@ -296,3 +314,53 @@ data class AdClaimBody(val coupleId: String, val userId: String, val token: Stri
 
 @Serializable
 data class AdClaimDto(val ok: Boolean = false, val earned: Int = 0, val duplicate: Boolean = false, val balance: Int = 0, val remaining: Int = 0)
+
+/** Scratch cards won from couple games. */
+@Serializable
+data class CardGrantBody(val coupleId: String, val userId: String, val game: String, val sessionId: String)
+
+@Serializable
+data class CardGrantDto(
+    val ok: Boolean = false,
+    val granted: Boolean = false,
+    val reason: String? = null,
+    val count: Int = 0,
+)
+
+@Serializable
+data class CardOpenBody(val coupleId: String, val userId: String, val cardId: Long, val skip: Boolean = false)
+
+@Serializable
+data class GameCardDto(val id: Long = 0, val game: String = "other", val createdAt: String? = null)
+
+@Serializable
+data class RecentCardDto(
+    val id: Long = 0,
+    val game: String = "other",
+    val coins: Int? = null,
+    val title: String? = null,
+    val message: String? = null,
+    val emoji: String? = null,
+)
+
+@Serializable
+data class GameCardsDto(
+    val cards: List<GameCardDto> = emptyList(),
+    val count: Int = 0,
+    val recent: List<RecentCardDto> = emptyList(),
+)
+
+@Serializable
+data class CardOpenDto(
+    val ok: Boolean = false,
+    val cardId: Long = 0,
+    val prizeId: String? = null,
+    val coins: Int = 0,
+    val title: String? = null,
+    val message: String? = null,
+    val emoji: String? = null,
+    val skipped: Boolean = false,
+    val duplicate: Boolean = false,
+    val balance: Int = 0,
+    val cardsLeft: Int = 0,
+)

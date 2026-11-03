@@ -71,6 +71,7 @@ class LudoViewModel @Inject constructor(
                 xp = WIN_XP,
                 coins = WIN_COINS,
                 win = true,
+                finished = true,
                 prize = Prize("🏆", R.string.games_ludo_prize_won, listOf(PrizeLine.Xp(WIN_XP), PrizeLine.Coins(WIN_COINS))),
             )
         }

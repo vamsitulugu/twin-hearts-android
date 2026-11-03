@@ -29,6 +29,8 @@ data class RewardsSummary(
     val spunToday: Boolean = false,
     val scratchesAvailable: Int = 1,
     val scratchedToday: Boolean = false,
+    /** Unscratched cards from couple games (My Scratch Cards page). */
+    val cardsWaiting: Int = 0,
     /** Phase 2: extra spins cost coins after the free daily spin. */
     val paidSpinPrice: Int = 20,
     val paidSpinsLeft: Int = 0,
@@ -133,3 +135,25 @@ data class AdTicket(val token: String, val minSeconds: Int, val coins: Int = 10)
 data class PendingAdReward(val token: String, val coins: Int)
 
 data class AdClaim(val earned: Int, val balance: Int, val remaining: Int)
+
+/** A scratch card won by finishing a couple game with your partner. [game] is the game key (ttt, ludo, ...). */
+data class GameCard(val id: Long, val game: String)
+
+/** A card that was already scratched (shown in "Recently scratched"). */
+data class RecentCard(val id: Long, val game: String, val coins: Int, val title: String, val emoji: String)
+
+data class GameCards(val cards: List<GameCard>, val recent: List<RecentCard>)
+
+/** What a card paid when it was opened (by scratching or with Skip). */
+data class CardPrize(
+    val cardId: Long,
+    val coins: Int,
+    val title: String,
+    val message: String,
+    val emoji: String,
+    val balance: Int,
+    val duplicate: Boolean,
+    val cardsLeft: Int,
+)
+
+data class CardGrant(val granted: Boolean, val count: Int)

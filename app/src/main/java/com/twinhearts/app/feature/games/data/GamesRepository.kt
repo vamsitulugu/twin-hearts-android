@@ -73,6 +73,12 @@ interface GamesRepository {
      * "human"). Empty when the phone is offline: the other checks still work.
      */
     suspend fun relatedWords(word: String): Set<String>
+
+    /**
+     * A game of two just finished: the server puts a scratch card in BOTH partners' "My Scratch Cards" page.
+     * Returns true when a card was added for me (false: limit reached, same game reported twice, or offline).
+     */
+    suspend fun gameFinished(game: GameId): Boolean
 }
 
 /**
@@ -85,6 +91,7 @@ class GamesRepositoryImpl @Inject constructor(
     private val sessionStore: SessionStore,
     private val json: Json,
     @ApplicationContext private val context: Context,
+    private val rewards: com.twinhearts.app.feature.rewards.data.RewardsRepository,
 ) : GamesRepository {
 
     private val relatedCache = HashMap<String, Set<String>>()
@@ -208,6 +215,12 @@ class GamesRepositoryImpl @Inject constructor(
 
     // Datamuse is a public word service on another host, so it is called directly (not through the
     // app's own client) and the couple's sign-in token is never sent to it.
+    override suspend fun gameFinished(game: GameId): Boolean {
+        val sessionId = game.key + "_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
+        val result = rewards.grantGameCard(game.key, sessionId)
+        return result is AppResult.Success && result.data.granted
+    }
+
     override suspend fun relatedWords(word: String): Set<String> = withContext(Dispatchers.IO) {
         val key = TextMatch.tight(word)
         if (key.isEmpty()) return@withContext emptySet()

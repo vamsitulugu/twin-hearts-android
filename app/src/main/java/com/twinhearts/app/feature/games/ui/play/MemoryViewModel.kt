@@ -61,6 +61,7 @@ class MemoryViewModel @Inject constructor(
     private fun announceFinish(finished: MemoryState) {
         award(
             win = finished.outcome.isWonBy(side),
+            finished = true,
             prize = Prize(
                 "🧠",
                 R.string.games_memory_prize_done,

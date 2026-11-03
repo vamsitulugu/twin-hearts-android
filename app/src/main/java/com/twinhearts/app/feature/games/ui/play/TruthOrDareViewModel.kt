@@ -89,7 +89,7 @@ class TruthOrDareViewModel @Inject constructor(
         cue(GameCue.Success)
         afterDelay(RESULT_MS) {
             if (mutate { TruthOrDareEngine.complete(it) }) {
-                award(xp = DONE_XP, coins = DONE_COINS, prize = donePrize())
+                award(xp = DONE_XP, coins = DONE_COINS, prize = donePrize(), finished = true)
             }
         }
     }
@@ -100,7 +100,7 @@ class TruthOrDareViewModel @Inject constructor(
         val closed = previous.current?.answer != null && current.current == null
         val answered = current.history.size > previous.history.size && current.streak > previous.streak
         if (closed && answered) {
-            award(xp = DONE_XP, coins = DONE_COINS, prize = donePrize())
+            award(xp = DONE_XP, coins = DONE_COINS, prize = donePrize(), finished = true)
         }
     }
 

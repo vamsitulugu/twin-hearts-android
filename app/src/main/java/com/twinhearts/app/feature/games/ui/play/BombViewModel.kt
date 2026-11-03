@@ -137,6 +137,7 @@ class BombViewModel @Inject constructor(
             xp = xp,
             coins = coins,
             win = true,
+            finished = true,
             prize = Prize("💚", R.string.games_bm_prize_won, listOf(PrizeLine.Xp(xp), PrizeLine.Coins(coins), PrizeLine.Streak(current.teamStreak))),
         )
     }

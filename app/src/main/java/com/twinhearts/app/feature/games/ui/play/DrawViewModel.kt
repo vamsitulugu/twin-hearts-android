@@ -118,6 +118,7 @@ class DrawViewModel @Inject constructor(
                 award(
                     xp = GUESS_XP,
                     coins = GUESS_COINS,
+                    finished = true,
                     prize = Prize("🎉", R.string.games_dw_correct, listOf(PrizeLine.Formatted(R.string.games_dw_word_was, word), PrizeLine.Xp(GUESS_XP))),
                 )
             } else {

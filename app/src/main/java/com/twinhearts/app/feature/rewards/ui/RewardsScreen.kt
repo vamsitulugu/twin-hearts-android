@@ -148,6 +148,7 @@ fun RewardsScreen(
                                 onClaim = viewModel::claim,
                                 onScratch = viewModel::scratch,
                                 onOpenSpinWheel = { navController.navigate(Routes.SpinWheel) },
+                                onOpenScratchCards = { navController.navigate(Routes.ScratchCards) },
                             )
                             1 -> TwinStoreTab(
                                 balance = summary.balance,
@@ -184,6 +185,7 @@ private fun WalletTab(
     onClaim: () -> Unit,
     onScratch: () -> Unit,
     onOpenSpinWheel: () -> Unit,
+    onOpenScratchCards: () -> Unit,
 ) {
     HeroCard(summary)
     CheckInCard(summary, claiming, onClaim)
@@ -220,6 +222,28 @@ private fun WalletTab(
     }
     Text(
         stringResource(R.string.rewards_spin_note_ready),
+        style = MaterialTheme.typography.bodySmall,
+        color = TwinTheme.colors.inkMuted,
+    )
+    // Scratch cards won by finishing couple games live on their own page, like Spin & Win.
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(TwinTheme.shapes.minTouch)
+            .clip(TwinTheme.shapes.pill)
+            .background(Brush.verticalGradient(listOf(RewardsStyle.Gold, RewardsStyle.GoldDeep)))
+            .clickable(role = Role.Button, onClick = onOpenScratchCards),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = if (summary.cardsWaiting > 0) stringResource(R.string.rewards_cards_entry_n, summary.cardsWaiting) else stringResource(R.string.rewards_cards_entry),
+            color = RewardsStyle.GoldInk,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 14.5.sp,
+        )
+    }
+    Text(
+        stringResource(if (summary.cardsWaiting > 0) R.string.rewards_cards_note_waiting else R.string.rewards_cards_note_none),
         style = MaterialTheme.typography.bodySmall,
         color = TwinTheme.colors.inkMuted,
     )

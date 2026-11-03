@@ -198,6 +198,7 @@ class PuzzleViewModel @Inject constructor(
             xp = xp,
             coins = coins,
             win = true,
+            finished = true,
             prize = Prize("🧩", R.string.games_pz_prize, listOf(PrizeLine.Xp(xp), PrizeLine.Coins(coins), PrizeLine.Streak(current.teamStreak))),
         )
     }

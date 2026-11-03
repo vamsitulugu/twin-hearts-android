@@ -112,7 +112,7 @@ class MindReaderViewModel @Inject constructor(
         val match = current.match ?: return
         if (current.phase != MrPhase.Reveal || paidRounds == current.totalRounds) return
         paidRounds = current.totalRounds
-        award(xp = MindReaderEngine.xp(match), coins = MindReaderEngine.coins(match))
+        award(xp = MindReaderEngine.xp(match), coins = MindReaderEngine.coins(match), finished = true)
         cue(
             when (match) {
                 MrMatch.Exact, MrMatch.Near -> GameCue.Success

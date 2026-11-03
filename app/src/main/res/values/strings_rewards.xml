@@ -127,5 +127,29 @@
     <string name="ad_scratch_collect">Collect</string>
     <string name="ad_scratch_close">Close</string>
     <string name="ad_scratch_failed">Could not add the coins. Please try again in a moment.</string>
+
+    <!-- Scratch cards won from couple games (My Scratch Cards page) -->
+    <string name="rewards_cards_title">🎫 My Scratch Cards</string>
+    <string name="rewards_cards_entry">🎫 My Scratch Cards</string>
+    <string name="rewards_cards_entry_n">🎫 My Scratch Cards (%1$d)</string>
+    <string name="rewards_cards_note_waiting">You have unscratched cards from your games 🎉</string>
+    <string name="rewards_cards_note_none">Finish a game together — you both win a scratch card.</string>
+    <string name="rewards_cards_unscratched">Unscratched</string>
+    <string name="rewards_cards_tap">Tap to scratch</string>
+    <string name="rewards_cards_empty_title">No scratch cards yet</string>
+    <string name="rewards_cards_empty_body">Finish a game together with your partner and you both get a scratch card here.</string>
+    <string name="rewards_cards_play">Play a game 🎮</string>
+    <string name="rewards_cards_recent">Recently scratched</string>
+    <string name="rewards_cards_hint">Scratch here ✨</string>
+    <string name="rewards_cards_prize_hint">+15–100 Gold Coins 🪙</string>
+    <string name="rewards_cards_skip">Skip ⏭ — reveal now</string>
+    <string name="rewards_cards_retry">Try again</string>
+    <string name="rewards_cards_failed">Could not open this card. Check your internet and try again.</string>
+    <string name="rewards_cards_load_failed">Could not load your scratch cards.</string>
+    <string name="rewards_cards_next">Next card (%1$d left) ›</string>
+    <string name="rewards_cards_all">All cards</string>
+    <string name="rewards_cards_won">+%1$d Gold Coins 🪙</string>
+    <string name="rewards_cards_scratch_note">Scratch it yourself, or tap Skip to see the prize right away.</string>
+    <string name="rewards_cards_back">Back to cards</string>
 </resources>
 

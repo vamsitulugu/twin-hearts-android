@@ -26,6 +26,7 @@ import com.twinhearts.app.feature.twinai.twinAiGraph
 import com.twinhearts.app.feature.places.ui.placesGraph
 import com.twinhearts.app.feature.level.levelGraph
 import com.twinhearts.app.feature.rewards.rewardsGraph
+import com.twinhearts.app.feature.rewards.scratchCardsGraph
 import com.twinhearts.app.feature.rewards.spinWheelGraph
 import com.twinhearts.app.feature.profile.profileGraph
 import com.twinhearts.app.feature.pro.proGraph
@@ -69,6 +70,7 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
     levelGraph(navController) // 3.2 Couple Level
     rewardsGraph(navController) // Twin Rewards
     spinWheelGraph(navController) // Spin & Win (separate page)
+    scratchCardsGraph(navController) // My Scratch Cards (cards won from games)
     placesGraph(navController) // Places
     profileGraph(navController) // 2.6 Our Profile
     proGraph(navController) // Pro (Razorpay)

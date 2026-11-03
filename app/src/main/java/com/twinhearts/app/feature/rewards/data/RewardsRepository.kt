@@ -8,6 +8,8 @@ import com.twinhearts.app.core.network.safeApiCall
 import com.twinhearts.app.feature.rewards.data.remote.AdClaimBody
 import com.twinhearts.app.feature.rewards.data.remote.AdStartBody
 import com.twinhearts.app.feature.rewards.data.remote.BuyItemBody
+import com.twinhearts.app.feature.rewards.data.remote.CardGrantBody
+import com.twinhearts.app.feature.rewards.data.remote.CardOpenBody
 import com.twinhearts.app.feature.rewards.data.remote.CheckInBody
 import com.twinhearts.app.feature.rewards.data.remote.EarnBody
 import com.twinhearts.app.feature.rewards.domain.AdClaim
@@ -24,7 +26,12 @@ import com.twinhearts.app.feature.rewards.data.remote.SendGiftBody
 import com.twinhearts.app.feature.rewards.data.remote.SpinBody
 import com.twinhearts.app.feature.rewards.data.remote.SpinSliceDto
 import com.twinhearts.app.feature.rewards.data.remote.StoreItemDto
+import com.twinhearts.app.feature.rewards.domain.CardGrant
+import com.twinhearts.app.feature.rewards.domain.CardPrize
 import com.twinhearts.app.feature.rewards.domain.CoinTx
+import com.twinhearts.app.feature.rewards.domain.GameCard
+import com.twinhearts.app.feature.rewards.domain.GameCards
+import com.twinhearts.app.feature.rewards.domain.RecentCard
 import com.twinhearts.app.feature.rewards.domain.CycleDay
 import com.twinhearts.app.feature.rewards.domain.Gift
 import com.twinhearts.app.feature.rewards.domain.GiftSent
@@ -59,6 +66,15 @@ interface RewardsRepository {
 
     /** Step 3: Lucky Scratch card. */
     suspend fun scratch(tapId: String): AppResult<ScratchResult>
+
+    /** My unscratched cards from couple games, plus the last few scratched ones. */
+    suspend fun gameCards(): AppResult<GameCards>
+
+    /** Scratch or Skip one card. The server picks the prize; opening the same card twice never pays twice. */
+    suspend fun openGameCard(cardId: Long, skip: Boolean): AppResult<CardPrize>
+
+    /** A couple game finished: puts a card in BOTH partners' pages. [sessionId] is one id per finished game. */
+    suspend fun grantGameCard(game: String, sessionId: String): AppResult<CardGrant>
 
     /** Phase 3: get the one-time ticket before a rewarded ad. purpose = "coins" or "spin". */
     suspend fun adStart(purpose: String): AppResult<AdTicket>
@@ -133,6 +149,29 @@ class RewardsRepositoryImpl @Inject constructor(
             .map { ScratchResult(it.prizeId, it.coins, it.title, it.message, it.emoji, it.balance, it.duplicate) }
     }
 
+    override suspend fun gameCards(): AppResult<GameCards> {
+        val s = sessionStore.session.first() ?: return AppResult.Failure(AppError.Unauthorized())
+        return safeApiCall { api.gameCards(s.coupleId, s.userId, s.userId) }.map { r ->
+            GameCards(
+                cards = r.cards.map { GameCard(it.id, it.game) },
+                recent = r.recent.map { RecentCard(it.id, it.game, it.coins ?: 0, it.title.orEmpty(), it.emoji ?: "💖") },
+            )
+        }
+    }
+
+    override suspend fun openGameCard(cardId: Long, skip: Boolean): AppResult<CardPrize> {
+        val s = sessionStore.session.first() ?: return AppResult.Failure(AppError.Unauthorized())
+        return safeApiCall { api.openGameCard(CardOpenBody(s.coupleId, s.userId, cardId, skip), s.userId) }.map {
+            CardPrize(it.cardId, it.coins, it.title.orEmpty(), it.message.orEmpty(), it.emoji ?: "💖", it.balance, it.duplicate, it.cardsLeft)
+        }
+    }
+
+    override suspend fun grantGameCard(game: String, sessionId: String): AppResult<CardGrant> {
+        val s = sessionStore.session.first() ?: return AppResult.Failure(AppError.Unauthorized())
+        return safeApiCall { api.grantGameCard(CardGrantBody(s.coupleId, s.userId, game, sessionId), s.userId) }
+            .map { CardGrant(it.granted, it.count) }
+    }
+
     override suspend fun adStart(purpose: String): AppResult<AdTicket> {
         val s = sessionStore.session.first() ?: return AppResult.Failure(AppError.Unauthorized())
         return safeApiCall { api.adStart(AdStartBody(s.coupleId, s.userId, purpose), s.userId) }
@@ -205,6 +244,7 @@ private fun RewardsSummaryDto.toDomain() = RewardsSummary(
     spunToday = spunToday,
     scratchesAvailable = scratchesAvailable,
     scratchedToday = scratchedToday,
+    cardsWaiting = cardsWaiting,
     paidSpinPrice = paidSpinPrice,
     paidSpinsLeft = paidSpinsLeft,
     adCoinsReward = adCoinsReward,

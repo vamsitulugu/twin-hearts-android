@@ -218,7 +218,9 @@ abstract class SyncedGameViewModel<S : Any>(
         coins: Int = 0,
         win: Boolean = false,
         prize: Prize? = null,
+        finished: Boolean = false,
     ) {
+        if (finished) gameFinished()
         viewModelScope.launch {
             val levelBefore = players?.me?.level ?: 1
             val result = repository.updateMyProfile { profile -> applyReward(profile, xp, coins, win) }
@@ -232,6 +234,16 @@ abstract class SyncedGameViewModel<S : Any>(
                 emit(GameEvent.ShowPrize(Prize("🏆", R.string.games_prize_level_up, listOf(PrizeLine.Level(result.data.level)))))
                 cue(GameCue.LevelUp)
             }
+        }
+    }
+
+    /**
+     * The game is finished (a round won, a puzzle done...): both partners get a scratch card in Rewards.
+     * The server ignores the same game reported twice within a few seconds (both phones may call this).
+     */
+    protected fun gameFinished() {
+        viewModelScope.launch {
+            if (repository.gameFinished(game)) emit(GameEvent.Message(R.string.games_card_won))
         }
     }
 

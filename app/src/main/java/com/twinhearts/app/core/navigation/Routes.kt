@@ -54,6 +54,8 @@ object Routes {
     @Serializable data object Rewards
     /** Spin & Win page: separate screen opened from the Rewards Wallet tab. */
     @Serializable data object SpinWheel
+    /** My Scratch Cards: the unscratched cards won by finishing couple games (opened from the Rewards Wallet tab). */
+    @Serializable data object ScratchCards
     @Serializable data object Places
 
     // Pages merged from the Phase 2-6 feature zips

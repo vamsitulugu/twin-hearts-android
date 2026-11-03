@@ -25,13 +25,14 @@ class TicTacToeViewModel @Inject constructor(
         if (!accepted) return
         when (state?.outcome) {
             Outcome.None, null -> cue(GameCue.Tap)
-            Outcome.Draw -> cue(GameCue.Tap)
+            Outcome.Draw -> { cue(GameCue.Tap); gameFinished() }
             else -> {
                 cue(GameCue.Success)
                 award(
                     xp = WIN_XP,
                     coins = WIN_COINS,
                     win = true,
+                    finished = true,
                     prize = Prize("🏆", R.string.games_ttt_prize_won, listOf(PrizeLine.Xp(WIN_XP), PrizeLine.Coins(WIN_COINS))),
                 )
             }
