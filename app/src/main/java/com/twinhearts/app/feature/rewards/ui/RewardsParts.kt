@@ -867,6 +867,7 @@ internal fun WatchAdCard(summary: RewardsSummary, player: AdPlayer, busy: Boolea
                     when {
                         left <= 0 -> stringResource(R.string.rewards_ad_done)
                         !player.ready -> stringResource(R.string.rewards_ad_loading)
+                        summary.adCoinsUnlimited -> stringResource(R.string.rewards_ad_sub_unlimited, summary.adCoinsReward)
                         else -> stringResource(R.string.rewards_ad_sub, summary.adCoinsReward, left)
                     },
                     style = MaterialTheme.typography.bodySmall,

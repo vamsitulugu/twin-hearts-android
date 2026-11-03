@@ -131,6 +131,8 @@ data class RewardsSummaryDto(
     /** Phase 3: rewarded ads (coins per ad and how many are left today). */
     val adCoinsReward: Int = 10,
     val adCoinsLeft: Int = 0,
+    /** True when coin ads have no daily cap (the server sends adCoinsLeft = 999 then). */
+    val adCoinsUnlimited: Boolean = false,
     val adSpinsLeft: Int = 0,
     val wheelSlices: List<SpinSliceDto> = emptyList(),
     val unlockedItemIds: List<String> = emptyList(),

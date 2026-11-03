@@ -13,7 +13,8 @@ import com.twinhearts.app.feature.ads.di.rememberAdsManager
  * Why this file exists: tells AdsManager which screen the person is on, so ads are always kind:
  *  - a due (timed) ad waits while the person chats, calls, plays games, listens / sings or watches a movie,
  *    and plays when they are back on a calm page;
- *  - opening a Movie plays ONE ad at the start (Sing Together does the same from its own overlay).
+ *  - opening a Movie plays ONE ad at the start (Sing Together does the same from its own overlay);
+ *  - staying 5+ minutes on any page (chat and the map included) earns one ad for when the person leaves it.
  * One watcher in TwinApp covers every feature, so no feature screen needs ad code.
  */
 @Composable
@@ -24,7 +25,7 @@ fun AdBreakWatcher(navController: NavController) {
     DisposableEffect(navController, ads, activity) {
         var wasMovie = false
         val listener = NavController.OnDestinationChangedListener { _, destination, _ ->
-            ads.onScreenChanged(canCoverWithAd(destination))
+            ads.onScreenChanged(canCoverWithAd(destination), countsForLeavingAd(destination))
             if (destination.hasRoute<Routes.Home>() && activity != null) ads.onHomeVisible(activity)
 
             val isMovie = destination.hasRoute<Routes.Movie>()
@@ -49,6 +50,21 @@ private fun canCoverWithAd(d: NavDestination): Boolean = !(
         d.hasRoute<Routes.Games>() ||
         d.hasRoute<Routes.Music>() ||
         d.hasRoute<Routes.Movie>() ||
+        d.hasRoute<Routes.Pro>() ||
+        d.hasRoute<Routes.GetStarted>() ||
+        d.hasRoute<Routes.SignIn>() ||
+        d.hasRoute<Routes.SignUp>() ||
+        d.hasRoute<Routes.ForgotPassword>() ||
+        d.hasRoute<Routes.CompleteProfile>() ||
+        d.hasRoute<Routes.Pairing>()
+    )
+
+/**
+ * Pages whose long stay earns an ad on the way out. Everything counts (chat, the map, a movie, any planner)
+ * except calls (a call ending must not be followed by an ad), payment and the sign-in / pairing screens.
+ */
+private fun countsForLeavingAd(d: NavDestination): Boolean = !(
+    d.hasRoute<Routes.Call>() ||
         d.hasRoute<Routes.Pro>() ||
         d.hasRoute<Routes.GetStarted>() ||
         d.hasRoute<Routes.SignIn>() ||

@@ -104,3 +104,8 @@ data class CloudLibrary(val movies: List<SharedMovie>, val usedBytes: Long, val 
 
 /** A short emoji the partner (or this phone) sent while watching. [id] is unique so each one floats once. */
 data class MovieReaction(val id: Long, val emoji: String, val fromMe: Boolean, val shownAtMs: Long = System.currentTimeMillis())
+
+/** One shared ad break. Times are on the SERVER clock, like the movie countdown. */
+data class AdBreak(val id: Long, val startAtMs: Long, val startedByRole: String, val allDone: Boolean)
+
+data class AdBreakAnswer(val serverNowMs: Long, val adBreak: AdBreak?)

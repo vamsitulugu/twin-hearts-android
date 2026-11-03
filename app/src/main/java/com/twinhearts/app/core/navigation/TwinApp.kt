@@ -55,6 +55,7 @@ import androidx.navigation.toRoute
 import com.twinhearts.app.R
 import com.twinhearts.app.core.pro.rememberProGate
 import com.twinhearts.app.feature.ads.ui.AdBreakWatcher
+import com.twinhearts.app.feature.ads.ui.EarnCoinsPrompt
 import com.twinhearts.app.feature.calls.ui.CallBannerHost
 import com.twinhearts.app.feature.calls.ui.IncomingCallWatcher
 import com.twinhearts.app.core.design.BottomBarItem
@@ -331,6 +332,8 @@ private fun TwinNavigation(
                                 modifier = Modifier.align(Alignment.BottomCenter),
                             )
                         }
+                        // "Watch a short ad, earn coins": a small card that slides in over calm pages every few minutes.
+                        EarnCoinsPrompt(Modifier.align(Alignment.TopCenter))
                     }
                 }
             }

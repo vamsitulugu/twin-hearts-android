@@ -29,8 +29,44 @@ class AdPolicyTest {
     private fun interstitial(h: AdHistory, usage: Long = interval, suitable: Boolean = true) =
         AdPolicy.interstitialSkipReason(h, now, today, usage, suitable)
 
-    @Test fun `a timed ad becomes due every 8 minutes`() {
-        assertEquals(8L * 60_000, AdRules.INTERSTITIAL_INTERVAL_MILLIS)
+    @Test fun `a timed ad becomes due every 5 minutes`() {
+        assertEquals(5L * 60_000, AdRules.INTERSTITIAL_INTERVAL_MILLIS)
+    }
+
+    private fun idle(h: AdHistory, dwell: Long = AdRules.IDLE_PAGE_MILLIS, suitable: Boolean = true) =
+        AdPolicy.idleExitSkipReason(h, now, today, dwell, suitable)
+
+    @Test fun `5 minutes on one page earns an ad when the person leaves it`() {
+        assertEquals(5L * 60_000, AdRules.IDLE_PAGE_MILLIS)
+        assertNull(idle(veteran()))
+        assertEquals(AdSkipReason.NotDueYet, idle(veteran(), dwell = AdRules.IDLE_PAGE_MILLIS - 1))
+    }
+
+    @Test fun `the leaving ad waits for a calm page and never follows another ad`() {
+        assertEquals(AdSkipReason.ScreenNotSuitable, idle(veteran(), suitable = false))
+        assertEquals(AdSkipReason.TooSoonSinceLastAd, idle(veteran(lastAd = now - 60_000L)))
+        assertEquals(AdSkipReason.DailyLimit, idle(veteran(lastAd = now - day / 2, countToday = AdRules.MAX_PER_DAY)))
+    }
+
+    private fun earn(h: AdHistory, usage: Long = AdRules.EARN_PROMPT_INTERVAL_MILLIS, suitable: Boolean = true) =
+        AdPolicy.earnPromptSkipReason(h, now, usage, suitable)
+
+    @Test fun `the earn-coins card comes every 4 minutes, with no daily limit`() {
+        assertEquals(4L * 60_000, AdRules.EARN_PROMPT_INTERVAL_MILLIS)
+        assertNull(earn(veteran()))
+        // Even a day that already used the whole interstitial allowance still gets the card.
+        assertNull(earn(veteran(lastAd = now - 1_000L, countToday = AdRules.MAX_PER_DAY)))
+        assertEquals(AdSkipReason.NotDueYet, earn(veteran(), usage = AdRules.EARN_PROMPT_INTERVAL_MILLIS - 1))
+        assertEquals(AdSkipReason.ScreenNotSuitable, earn(veteran(), suitable = false))
+        val fresh = veteran().copy(firstSeenAtMillis = now - AdRules.NEW_USER_GRACE_MILLIS / 2)
+        assertEquals(AdSkipReason.NewUserGrace, earn(fresh))
+    }
+
+    @Test fun `a movie ad break happens every 15 minutes and respects the new-install grace`() {
+        assertEquals(15L * 60_000, AdRules.MOVIE_BREAK_INTERVAL_MILLIS)
+        assertNull(AdPolicy.movieBreakSkipReason(veteran(), now))
+        val fresh = veteran().copy(firstSeenAtMillis = now - AdRules.NEW_USER_GRACE_MILLIS / 2)
+        assertEquals(AdSkipReason.NewUserGrace, AdPolicy.movieBreakSkipReason(fresh, now))
     }
 
     private fun entry(h: AdHistory) = AdPolicy.entrySkipReason(h, now, today)

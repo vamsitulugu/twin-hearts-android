@@ -36,6 +36,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.twinhearts.app.R
 import com.twinhearts.app.core.pro.rememberProGate
+import com.twinhearts.app.feature.ads.di.rememberAdsManager
+import com.twinhearts.app.feature.ads.ui.findActivity
+import kotlinx.coroutines.delay
 import com.twinhearts.app.core.common.UiState
 import com.twinhearts.app.core.common.asText
 import com.twinhearts.app.core.design.ErrorState
@@ -92,6 +95,16 @@ private fun MovieScreenContent(
     // Sentences the server wrote for the user are shown as they are.
     LaunchedEffect(watchVm) {
         watchVm.notes.collect { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+    }
+    // Ad break in the middle of the movie: the movie is paused for both phones, each shows its ad at the same
+    // moment, and the movie plays again once both are done (or after a minute at most).
+    val adsManager = rememberAdsManager()
+    val adBreak = state.adBreak
+    LaunchedEffect(adBreak?.id) {
+        val b = adBreak ?: return@LaunchedEffect
+        delay(b.startsInMs)
+        val activity = context.findActivity()
+        if (activity == null) watchVm.adBreakFinished(b.id) else adsManager.showMovieBreak(activity) { watchVm.adBreakFinished(b.id) }
     }
 
     TwinBackground(Modifier.fillMaxSize()) {

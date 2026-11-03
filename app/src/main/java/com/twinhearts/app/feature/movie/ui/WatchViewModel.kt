@@ -7,12 +7,16 @@ import com.twinhearts.app.R
 import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.core.common.UiState
+import com.twinhearts.app.feature.ads.data.AdsManager
+import com.twinhearts.app.feature.ads.domain.AdRules
 import com.twinhearts.app.feature.movie.data.MovieRepository
 import com.twinhearts.app.feature.movie.data.local.MovieLocalStore
 import com.twinhearts.app.feature.movie.data.local.SavedLocalMovie
 import com.twinhearts.app.feature.movie.data.upload.CloudUploader
 import com.twinhearts.app.feature.movie.data.upload.UploadRequest
 import com.twinhearts.app.feature.movie.data.upload.UploadState
+import com.twinhearts.app.feature.movie.domain.model.AdBreak
+import com.twinhearts.app.feature.movie.domain.model.AdBreakAnswer
 import com.twinhearts.app.feature.movie.domain.model.ChatMessage
 import com.twinhearts.app.feature.movie.domain.model.CloudLibrary
 import com.twinhearts.app.feature.movie.domain.model.HistoryItem
@@ -38,6 +42,9 @@ import kotlin.math.abs
 /** [NeedFile]: the movie has started but this phone has no copy of the file yet (asks the person to pick it). */
 enum class WatchStage { Setup, Countdown, NeedFile, Watching }
 
+/** An ad break this phone must show: [id] names it, [startsInMs] is how long to wait so both phones start together. */
+data class AdBreakCommand(val id: Long, val startsInMs: Long)
+
 data class WatchUiState(
     val loading: Boolean = true,
     val error: AppError? = null,
@@ -54,6 +61,8 @@ data class WatchUiState(
     /** Emoji floating over the movie right now (this phone's and the partner's). */
     val reactions: List<MovieReaction> = emptyList(),
     val keepScreenOn: Boolean = true,
+    /** Not null while a shared ad break is happening (the movie is paused for both phones). */
+    val adBreak: AdBreakCommand? = null,
 ) {
     /** The partner asked to start and this phone has not answered yet. */
     val inviteVisible: Boolean
@@ -70,6 +79,7 @@ class WatchViewModel @Inject constructor(
     private val repo: MovieRepository,
     private val uploader: CloudUploader,
     private val store: MovieLocalStore,
+    private val ads: AdsManager,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(WatchUiState())
@@ -93,6 +103,8 @@ class WatchViewModel @Inject constructor(
     private var sentFirstState = false
     private var reactionsSupported = true
     private var lastReactionAt = 0L
+    private var playedMs = 0L // time the movie has really played since the last ad break
+    private var handledBreakId = 0L
 
     init {
         viewModelScope.launch { store.keepScreenOn.collect { on -> _state.update { it.copy(keepScreenOn = on) } } }
@@ -128,6 +140,8 @@ class WatchViewModel @Inject constructor(
             if (tick % POLL_EVERY == 0) refreshRoom(first = false)
             if (tick % CHAT_EVERY == 0 && _state.value.stage == WatchStage.Watching) refreshChat()
             if (tick % REACTION_EVERY == 0 && _state.value.stage == WatchStage.Watching) refreshReactions()
+            trackAdBreak()
+            if (tick % AD_BREAK_POLL_EVERY == 0 && _state.value.stage == WatchStage.Watching) pollAdBreak()
             trimReactions()
             tick++
             delay(TICK_MS)
@@ -318,6 +332,66 @@ class WatchViewModel @Inject constructor(
         }
     }
 
+    // ── Shared ad break (every 15 minutes of watching, both phones, same moment) ──
+
+    /** Counts the minutes the movie really plays; one phone asks the server for a break every 15 of them. */
+    private fun trackAdBreak() {
+        val s = _state.value
+        if (s.stage != WatchStage.Watching || s.adBreak != null) return
+        if (s.room?.playing != true) return
+        playedMs += TICK_MS
+        if (playedMs < AdRules.MOVIE_BREAK_INTERVAL_MILLIS) return
+        playedMs = 0L
+        val who = s.who ?: return
+        if (!ads.movieBreakAllowed()) return // Pro couples (or ads off) never get a break
+        viewModelScope.launch {
+            // The server allows one break per 15 minutes for the couple, so two phones asking at once get one break.
+            (repo.adBreakRequest(who) as? AppResult.Success)?.let { handleAdBreak(it.data) }
+        }
+    }
+
+    private suspend fun pollAdBreak() {
+        val who = _state.value.who ?: return
+        (repo.adBreak(who) as? AppResult.Success)?.let { handleAdBreak(it.data) }
+    }
+
+    /** A new break was announced: the starter pauses the movie for both phones, then this phone shows its ad. */
+    private fun handleAdBreak(answer: AdBreakAnswer) {
+        val b: AdBreak = answer.adBreak ?: return
+        val who = _state.value.who ?: return
+        if (b.id == handledBreakId || b.allDone) return
+        if (answer.serverNowMs - b.startAtMs > AD_BREAK_STALE_MS) return // an old break (the app was closed): ignore
+        handledBreakId = b.id
+        playedMs = 0L
+        val room = _state.value.room
+        if (b.startedByRole == who.role && room != null) {
+            sendAction(playing = false, positionSec = room.expectedPositionSec(serverNowMs()))
+        }
+        _state.update { it.copy(adBreak = AdBreakCommand(b.id, (b.startAtMs - answer.serverNowMs).coerceAtLeast(0L))) }
+    }
+
+    /**
+     * This phone's ad is over (or there was none to show). Tell the partner, wait until they are done too
+     * (at most [AD_BREAK_WAIT_MS]), then play the movie again from where it paused.
+     */
+    fun adBreakFinished(id: Long) {
+        val who = _state.value.who ?: return
+        viewModelScope.launch {
+            var all = (repo.adBreakDone(who, id) as? AppResult.Success)?.data?.adBreak?.allDone == true
+            var waited = 0L
+            while (!all && waited < AD_BREAK_WAIT_MS) {
+                delay(1000)
+                waited += 1000
+                all = (repo.adBreak(who) as? AppResult.Success)?.data?.adBreak?.let { it.id != id || it.allDone } == true
+            }
+            _state.update { it.copy(adBreak = null) }
+            refreshRoom(first = false)
+            // Both phones may send "play" at the same position: same words twice is harmless.
+            val room = _state.value.room
+            if (room != null && !room.playing) sendAction(playing = true, positionSec = room.positionSec)
+        }
+    }
+
     // ── Movie chat ──
 
     private suspend fun refreshChat() {
@@ -465,6 +539,9 @@ class WatchViewModel @Inject constructor(
 
     private companion object {
         const val REACTION_EVERY = 4   // 1 s
+        const val AD_BREAK_POLL_EVERY = 12 // 3 s
+        const val AD_BREAK_STALE_MS = 2L * 60 * 1000
+        const val AD_BREAK_WAIT_MS = 60_000L
         const val REACTION_LIFE_MS = 3000L
         const val MAX_REACTIONS = 8
         const val NOT_FOUND = 404

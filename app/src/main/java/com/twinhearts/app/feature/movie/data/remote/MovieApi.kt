@@ -74,6 +74,11 @@ interface MovieApi {
     suspend fun abortUpload(@Path("c") c: String, @Path("m") m: String, @Header("x-user-id") uid: String): OkDto
 
     // ── Reactions: short-lived emoji (server change needed, see backend-changes/movie) ──
+    /** Shared ad break: ask for one (the server allows one per 15 minutes), read the current one, say "my ad is done". */
+    @POST("api/movie/{c}/ad-break") suspend fun requestAdBreak(@Path("c") c: String, @Body b: RoleBody): AdBreakAnswerDto
+    @GET("api/movie/{c}/ad-break") suspend fun adBreak(@Path("c") c: String): AdBreakAnswerDto
+    @POST("api/movie/{c}/ad-break/done") suspend fun adBreakDone(@Path("c") c: String, @Body b: AdBreakDoneBody): AdBreakAnswerDto
+
     @POST("api/movie/{c}/reaction") suspend fun sendReaction(@Path("c") c: String, @Body b: ReactionBody): OkDto
     @GET("api/movie/{c}/reactions") suspend fun reactions(@Path("c") c: String, @Query("after") after: Long): List<ReactionDto>
 }

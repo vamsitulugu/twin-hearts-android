@@ -74,6 +74,12 @@
     <string name="rewards_ad_title">Watch an ad</string>
     <string name="rewards_ad_sub">+%1$d 🪙 each · %2$d left today</string>
     <string name="rewards_ad_loading">Loading ad…</string>
+    <string name="rewards_ad_sub_unlimited">+%1$d 🪙 each · watch as many as you like</string>
+    <string name="earn_prompt_title">Earn free coins 🪙</string>
+    <string name="earn_prompt_sub">Watch a short ad. As many as you like.</string>
+    <string name="earn_prompt_watch">Watch</string>
+    <string name="earn_prompt_earned">+%1$d 🪙 added to your wallet</string>
+    <string name="earn_prompt_try_later">Could not add the reward. Please try again in a moment.</string>
     <string name="rewards_ad_done">Done for today ✓</string>
     <string name="rewards_ad_spin_btn">▶ Watch ad · free spin (%1$d left)</string>
     <string name="rewards_ad_failed">No reward this time. Watch the whole ad to earn it.</string>

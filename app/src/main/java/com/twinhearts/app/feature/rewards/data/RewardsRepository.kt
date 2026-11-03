@@ -208,6 +208,7 @@ private fun RewardsSummaryDto.toDomain() = RewardsSummary(
     paidSpinsLeft = paidSpinsLeft,
     adCoinsReward = adCoinsReward,
     adCoinsLeft = adCoinsLeft,
+    adCoinsUnlimited = adCoinsUnlimited,
     adSpinsLeft = adSpinsLeft,
     wheelSlices = wheelSlices.map { it.toDomain() },
     unlockedItemIds = unlockedItemIds,

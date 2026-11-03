@@ -5,6 +5,7 @@ import com.twinhearts.app.core.data.SessionStore
 import com.twinhearts.app.core.network.safeApiCall
 import com.twinhearts.app.feature.movie.data.mapper.toDomain
 import com.twinhearts.app.feature.movie.data.remote.AcceptBody
+import com.twinhearts.app.feature.movie.data.remote.AdBreakDoneBody
 import com.twinhearts.app.feature.movie.data.remote.AddFavoriteBody
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -19,6 +20,8 @@ import com.twinhearts.app.feature.movie.data.remote.RoleBody
 import com.twinhearts.app.feature.movie.data.remote.RoomDto
 import com.twinhearts.app.feature.movie.data.remote.StateBody
 import com.twinhearts.app.feature.movie.data.remote.UpdateFavoriteBody
+import com.twinhearts.app.feature.movie.domain.model.AdBreak
+import com.twinhearts.app.feature.movie.domain.model.AdBreakAnswer
 import com.twinhearts.app.feature.movie.domain.model.ChatMessage
 import com.twinhearts.app.feature.movie.domain.model.CloudLibrary
 import com.twinhearts.app.feature.movie.domain.model.HistoryItem
@@ -71,6 +74,10 @@ interface MovieRepository {
 
     /** Sends a poster picked on the phone (JPEG bytes) and returns its link. */
     suspend fun uploadPoster(who: MovieIdentity, jpeg: ByteArray): AppResult<String>
+
+    suspend fun requestAdBreak(who: MovieIdentity): AppResult<AdBreakAnswer>
+    suspend fun adBreak(who: MovieIdentity): AppResult<AdBreakAnswer>
+    suspend fun adBreakDone(who: MovieIdentity, id: Long): AppResult<AdBreakAnswer>
 
     suspend fun sendReaction(who: MovieIdentity, emoji: String): AppResult<Unit>
     suspend fun reactions(who: MovieIdentity, afterMs: Long): AppResult<List<MovieReaction>>
@@ -194,6 +201,19 @@ class MovieRepositoryImpl @Inject constructor(
 
     override suspend fun deleteShared(who: MovieIdentity, movieId: String) =
         safeApiCall { api.deleteShared(who.coupleId, movieId, who.userId); Unit }
+
+    override suspend fun requestAdBreak(who: MovieIdentity) =
+        safeApiCall { api.requestAdBreak(who.coupleId, RoleBody(who.role)).toDomain() }
+
+    override suspend fun adBreak(who: MovieIdentity) = safeApiCall { api.adBreak(who.coupleId).toDomain() }
+
+    override suspend fun adBreakDone(who: MovieIdentity, id: Long) =
+        safeApiCall { api.adBreakDone(who.coupleId, AdBreakDoneBody(who.role, id)).toDomain() }
+
+    private fun AdBreakAnswerDto.toDomain() = AdBreakAnswer(
+        serverNowMs = serverNow,
+        adBreak = adBreak?.let { AdBreak(it.id, it.startAt, it.startedBy, it.allDone) },
+    )
 
     override suspend fun sendReaction(who: MovieIdentity, emoji: String) =
         safeApiCall { api.sendReaction(who.coupleId, ReactionBody(who.role, emoji, relay = true)); Unit }

@@ -54,7 +54,13 @@ import kotlin.coroutines.resume
  *  - TIMED: one ad becomes due per `AdRules.INTERSTITIAL_INTERVAL_MILLIS` of the app being open on screen.
  *    It never covers chat, calls, games, music / sing-together or movies. It waits and plays when the
  *    person is back on a calm page (see AdBreakWatcher).
- *  - SESSION START: Sing Together and Movies get one ad as they start, and nothing while they run.
+ *  - LEAVING A PAGE: after `AdRules.IDLE_PAGE_MILLIS` on one page, one ad plays when the person goes back or
+ *    closes it (never while they are still there).
+ *  - SESSION START: Sing Together and Movies get one ad as they start.
+ *  - MOVIE BREAK: every `AdRules.MOVIE_BREAK_INTERVAL_MILLIS` of a movie both phones show one ad together
+ *    (the server picks the moment, see WatchViewModel).
+ *  - EARN CARD: every `AdRules.EARN_PROMPT_INTERVAL_MILLIS` a small card offers "watch an ad, earn coins".
+ *    It is the person's choice to tap it, so there is no daily limit (the server pays each watched ad).
  * One ad is always loaded in advance.
  * If no ad is ready at that moment we show nothing: the person never waits for an ad.
  */
@@ -80,6 +86,11 @@ class AdsManager @Inject constructor(
 
     /** True when a rewarded ad is loaded and can play right now. */
     val rewardedReady: StateFlow<Boolean> = _rewardedReady.asStateFlow()
+
+    private val _earnPromptVisible = MutableStateFlow(false)
+
+    /** True while the small "watch an ad, earn coins" card should be on screen. */
+    val earnPromptVisible: StateFlow<Boolean> = _earnPromptVisible.asStateFlow()
 
     private var rewarded: RewardedAd? = null
     private var rewardedLoadedAt = 0L
@@ -111,6 +122,14 @@ class AdsManager @Inject constructor(
     private var suitableSince = 0L // when the current calm screen appeared (0 = not on a calm screen)
     private var lastLoggedReason: Any? = null
 
+    // Total time the app has been on screen (never reset), the base for page-stay and earn-card timing.
+    private var fgTotalBefore = 0L
+    private var screenEnteredFg = -1L // when the current page appeared, on the clock above (-1 = no page yet)
+    private var screenCountsForIdle = false
+    private var idleDwell = 0L // how long the page we just left was open, while an ad for that is pending
+    private var idlePendingSince = 0L // elapsedRealtime when the pending leaving-ad was earned (0 = none)
+    private var earnClockStartFg = 0L // the card's 4-minute clock starts here
+
     /** Called from MainActivity.onStart. The first call of a process is counted as one "session". */
     fun onAppStart(activity: Activity) {
         Log.d(TAG, "onAppStart: adsEnabled=${AdsConfig.enabled}")
@@ -133,18 +152,31 @@ class AdsManager @Inject constructor(
     /** Called from MainActivity.onStop: the clock only runs while the app is on screen. */
     fun onAppStop() {
         if (foregroundSince != 0L) {
-            usageBeforeThisStretch += SystemClock.elapsedRealtime() - foregroundSince
+            val stretch = SystemClock.elapsedRealtime() - foregroundSince
+            usageBeforeThisStretch += stretch
+            fgTotalBefore += stretch
             foregroundSince = 0L
         }
+        _earnPromptVisible.value = false
         tickerJob?.cancel()
         tickerJob = null
     }
 
     /** AdBreakWatcher tells us on every screen change whether an ad may cover the new screen. */
-    fun onScreenChanged(suitable: Boolean) {
+    fun onScreenChanged(suitable: Boolean, countsForIdle: Boolean = true) {
         // Every screen change restarts the "settle" clock, so a due ad never lands mid-transition.
         suitableSince = if (suitable) SystemClock.elapsedRealtime() else 0L
         screenSuitable = suitable
+        if (!suitable) _earnPromptVisible.value = false // the card never sits on chat, calls, the map or a movie
+
+        // How long was the page we are leaving open? 5 minutes or more earns one ad on the next calm page.
+        val nowFg = fgTotalMillis()
+        if (eligible && screenEnteredFg >= 0 && screenCountsForIdle && nowFg - screenEnteredFg >= AdRules.IDLE_PAGE_MILLIS) {
+            idleDwell = nowFg - screenEnteredFg
+            idlePendingSince = SystemClock.elapsedRealtime()
+        }
+        screenEnteredFg = nowFg
+        screenCountsForIdle = countsForIdle
     }
 
     /**
@@ -183,6 +215,9 @@ class AdsManager @Inject constructor(
 
     // ── the timer ────────────────────────────────────────────────────────────
 
+    private fun fgTotalMillis(): Long =
+        fgTotalBefore + if (foregroundSince != 0L) SystemClock.elapsedRealtime() - foregroundSince else 0L
+
     private fun usageMillis(): Long =
         usageBeforeThisStretch + if (foregroundSince != 0L) SystemClock.elapsedRealtime() - foregroundSince else 0L
 
@@ -211,6 +246,24 @@ class AdsManager @Inject constructor(
         loadRewarded()
 
         val nowMillis = System.currentTimeMillis()
+        val calmScreen = screenSuitable && suitableSince != 0L &&
+            SystemClock.elapsedRealtime() - suitableSince >= AdRules.SETTLE_ON_SCREEN_MILLIS
+
+        // 1) A page that was open for 5+ minutes was just left: one ad now (waits for a calm page, expires after 2 min).
+        if (idlePendingSince != 0L) {
+            if (SystemClock.elapsedRealtime() - idlePendingSince > IDLE_PENDING_EXPIRES_MILLIS) {
+                idlePendingSince = 0L
+            } else if (AdPolicy.idleExitSkipReason(prefs.read(nowMillis), nowMillis, LocalDate.now().toEpochDay(), idleDwell, calmScreen) == null) {
+                val readyIdle = readyInterstitial()
+                if (readyIdle != null) {
+                    idlePendingSince = 0L
+                    _earnPromptVisible.value = false
+                    show(activity, readyIdle)
+                    return
+                }
+            }
+        }
+
         val reason = AdPolicy.interstitialSkipReason(
             history = prefs.read(nowMillis),
             nowMillis = nowMillis,
@@ -225,11 +278,53 @@ class AdsManager @Inject constructor(
             lastLoggedReason = reason
             Log.d(TAG, "full-screen ad: " + (reason ?: "due, showing as soon as one is ready"))
         }
-        if (reason != null) return
+        if (reason == null) {
+            val ready = readyInterstitial()
+            if (ready != null) { // never make the person wait for an ad; the next tick asks Google for a fresh one
+                _earnPromptVisible.value = false
+                show(activity, ready)
+                return
+            }
+        }
 
-        val ready = readyInterstitial()
-        if (ready == null) return // never make the person wait for an ad; the next tick asks Google for a fresh one
-        show(activity, ready)
+        // 2) The small earn-coins card, only when an ad is loaded so a tap always works.
+        if (!_earnPromptVisible.value && _rewardedAllowed.value && _rewardedReady.value) {
+            val due = AdPolicy.earnPromptSkipReason(prefs.read(nowMillis), nowMillis, fgTotalMillis() - earnClockStartFg, calmScreen)
+            if (due == null) {
+                Log.d(TAG, "earn card: showing")
+                _earnPromptVisible.value = true
+            }
+        }
+    }
+
+    /** The card was closed, timed out or used: its next appearance is one full interval from now. */
+    fun onEarnPromptClosed() {
+        _earnPromptVisible.value = false
+        earnClockStartFg = fgTotalMillis()
+    }
+
+    /** True when this phone may show a movie ad break (ads on, couple not Pro, consent done). */
+    fun movieBreakAllowed(): Boolean = eligible
+
+    /**
+     * The ad break in the middle of a movie. Plays one full-screen ad now if one is ready, then calls [onClosed]
+     * (also when no ad could be shown, so the movie never waits on an ad). Google's ads close with their own
+     * close button / end card; an app cannot close them for the person.
+     */
+    fun showMovieBreak(activity: Activity, onClosed: () -> Unit) {
+        if (!eligible || showing || activity.isFinishing || activity.isDestroyed) { onClosed(); return }
+        scope.launch {
+            val nowMillis = System.currentTimeMillis()
+            if (AdPolicy.movieBreakSkipReason(prefs.read(nowMillis), nowMillis) != null) { onClosed(); return@launch }
+            val ready = readyInterstitial()
+            if (ready == null) {
+                loadInterstitial()
+                Log.d(TAG, "movie break: no ad loaded, skipping")
+                onClosed()
+                return@launch
+            }
+            show(activity, ready, onClosed)
+        }
     }
 
     /** The loaded ad if it is still fresh, otherwise null (and the stale one is dropped). */
@@ -398,6 +493,7 @@ class AdsManager @Inject constructor(
             override fun onAdDismissedFullScreenContent() {
                 showing = false
                 resetUsage() // no timed ad right after the person just watched one
+                earnClockStartFg = fgTotalMillis()
                 loadRewarded()
                 if (!earned) onFail()
             }
@@ -446,7 +542,7 @@ class AdsManager @Inject constructor(
         )
     }
 
-    private fun show(activity: Activity, ad: InterstitialAd) {
+    private fun show(activity: Activity, ad: InterstitialAd, onClosed: (() -> Unit)? = null) {
         showing = true
         interstitial = null
         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
@@ -457,12 +553,15 @@ class AdsManager @Inject constructor(
             override fun onAdDismissedFullScreenContent() {
                 showing = false
                 resetUsage() // the next ad is one full interval from now
+                earnClockStartFg = fgTotalMillis() // and the earn card does not follow straight after
                 loadInterstitial() // get the next one ready in the background
+                onClosed?.invoke()
             }
 
             override fun onAdFailedToShowFullScreenContent(error: AdError) {
                 showing = false
                 loadInterstitial()
+                onClosed?.invoke()
             }
         }
         ad.show(activity)
@@ -477,6 +576,7 @@ class AdsManager @Inject constructor(
         const val CONSENT_TIMEOUT_MILLIS = 90_000L
         const val TICK_MILLIS = 5_000L
         const val START_AD_DELAY_MILLIS = 500L
+        const val IDLE_PENDING_EXPIRES_MILLIS = 2L * 60 * 1000
         const val LOAD_BACKOFF_MILLIS = 30_000L
         const val LOAD_BACKOFF_MAX_MILLIS = 5L * 60 * 1000
     }

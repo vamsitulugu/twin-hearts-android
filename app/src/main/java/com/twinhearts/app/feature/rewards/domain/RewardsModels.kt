@@ -35,6 +35,7 @@ data class RewardsSummary(
     /** Phase 3: rewarded ads. */
     val adCoinsReward: Int = 10,
     val adCoinsLeft: Int = 0,
+    val adCoinsUnlimited: Boolean = false,
     val adSpinsLeft: Int = 0,
     val wheelSlices: List<SpinWheelSlice> = emptyList(),
     /** Step 4: Twin Store unlocks & active equipped items */

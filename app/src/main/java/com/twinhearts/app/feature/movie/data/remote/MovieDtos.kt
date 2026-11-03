@@ -134,3 +134,15 @@ data class SharedMovieDto(
 @Serializable data class ReactionBody(val role: String, val emoji: String, val relay: Boolean)
 @Serializable
 data class ReactionDto(val at: Long = 0, val role: String = "", val emoji: String = "")
+
+/** The shared ad break in the middle of a movie (routes-movie.js: /:coupleId/ad-break). */
+@Serializable
+data class AdBreakDto(val id: Long = 0, val startAt: Long = 0, val startedBy: String = "", val allDone: Boolean = false)
+
+@Serializable
+data class AdBreakAnswerDto(
+    val serverNow: Long = 0,
+    @SerialName("break") val adBreak: AdBreakDto? = null,
+)
+
+@Serializable data class AdBreakDoneBody(val role: String, val id: Long)
