@@ -5,6 +5,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import com.twinhearts.app.core.navigation.Routes
 import com.twinhearts.app.feature.chat.ui.ChatScreen
+import com.twinhearts.app.feature.storefx.StoreFxThemed
 
 /*
  * Why this file exists: plugs Chat into the app navigation (R-43).
@@ -16,11 +17,14 @@ import com.twinhearts.app.feature.chat.ui.ChatScreen
  */
 fun NavGraphBuilder.chatGraph(navController: NavHostController) {
     composable<Routes.Chat> {
-        ChatScreen(
-            onBack = { navController.navigate(Routes.Home) { launchSingleTop = true } },
-            onCall = { navController.navigate(Routes.Call(video = false)) },
-            onVideoCall = { navController.navigate(Routes.Call(video = true)) },
-            onOpenRewards = { navController.navigate(Routes.Rewards) },
-        )
+        // Twin Store: an equipped theme recolours the text and glass tokens for the whole chat page.
+        StoreFxThemed {
+            ChatScreen(
+                onBack = { navController.navigate(Routes.Home) { launchSingleTop = true } },
+                onCall = { navController.navigate(Routes.Call(video = false)) },
+                onVideoCall = { navController.navigate(Routes.Call(video = true)) },
+                onOpenRewards = { navController.navigate(Routes.Rewards) },
+            )
+        }
     }
 }

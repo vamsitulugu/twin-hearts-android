@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.profile.ui.screens
 
+import com.twinhearts.app.feature.storefx.StoreFxState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -97,7 +98,7 @@ fun MainPage(
         GlassCard(Modifier.fillMaxWidth()) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.SpaceBetween) {
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    ProfileAvatar(data.myAvatarUrl, stringResource(R.string.profile_change_my_photo), onPickAvatar, showCamera = true, uploading = uploadingAvatar)
+                    ProfileAvatar(data.myAvatarUrl, stringResource(R.string.profile_change_my_photo), onPickAvatar, showCamera = true, uploading = uploadingAvatar, frame = StoreFxState.myFrame)
                     Text(data.myName.ifBlank { stringResource(R.string.profile_you) }, style = MaterialTheme.typography.titleMedium, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = TwinTheme.spacing.s))
                 }
                 Column(Modifier.weight(1f).padding(top = TwinTheme.spacing.s), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -117,7 +118,7 @@ fun MainPage(
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     // The animated ring says "there is more here"; tapping opens my partner's profile with their highlights.
                     PartnerRing {
-                        ProfileAvatar(data.partnerAvatarUrl, stringResource(R.string.profile_hl_open_partner_cd), onOpenPartnerProfile)
+                        ProfileAvatar(data.partnerAvatarUrl, stringResource(R.string.profile_hl_open_partner_cd), onOpenPartnerProfile, frame = StoreFxState.partnerFrame)
                     }
                     Text(data.partnerName, style = MaterialTheme.typography.titleMedium, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = TwinTheme.spacing.s))
                     val seen = data.partnerSeenAtMs

@@ -166,6 +166,7 @@ class RewardsRepositoryImpl @Inject constructor(
                     items = r.items.map { it.toDomain() },
                     unlockedItemIds = r.unlockedItemIds,
                     equipped = r.equipped,
+                    partnerFrame = r.partnerFrame,
                 )
             }
     }
@@ -213,6 +214,7 @@ private fun RewardsSummaryDto.toDomain() = RewardsSummary(
     wheelSlices = wheelSlices.map { it.toDomain() },
     unlockedItemIds = unlockedItemIds,
     equipped = equipped,
+    partnerFrame = partnerFrame,
     claimed = claimed,
     earned = earned,
 )

@@ -1,5 +1,9 @@
 package com.twinhearts.app.feature.profile.ui.components
 
+import com.twinhearts.app.feature.storefx.StoreFrameBadge
+import com.twinhearts.app.feature.storefx.StoreFxCatalog
+import com.twinhearts.app.feature.storefx.ringBorder
+import com.twinhearts.app.feature.storefx.storeFrameGlow
 import android.content.Context
 import android.text.format.DateUtils
 import androidx.compose.foundation.BorderStroke
@@ -110,16 +114,18 @@ fun ProfileAvatar(
     size: Dp = 96.dp,
     showCamera: Boolean = false,
     uploading: Boolean = false,
+    /** Twin Store profile frame (ring + glow + badge). Null = plain avatar, exactly as before. */
+    frame: StoreFxCatalog.Frame? = null,
 ) {
     val colors = TwinTheme.colors
-    Box(modifier = modifier.size(size)) {
+    Box(modifier = modifier.size(size).storeFrameGlow(frame)) {
         val tap = if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier
         Box(
             modifier = Modifier
                 .size(size)
                 .clip(CircleShape)
                 .background(colors.primaryBrush)
-                .border(BorderStroke(3.dp, colors.inkMuted), CircleShape)
+                .border(frame.ringBorder(3.dp, colors.inkMuted), CircleShape)
                 .then(tap)
                 .semantics { contentDescription = description },
             contentAlignment = Alignment.Center,
@@ -139,6 +145,7 @@ fun ProfileAvatar(
                 }
             }
         }
+        StoreFrameBadge(frame, size, Modifier.align(Alignment.BottomCenter))
         if (showCamera) {
             Box(
                 modifier = Modifier

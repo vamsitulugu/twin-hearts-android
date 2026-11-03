@@ -1,5 +1,7 @@
 package com.twinhearts.app.feature.games.ui.play
 
+import com.twinhearts.app.feature.storefx.StoreFxCatalog
+import com.twinhearts.app.feature.storefx.StoreFxState
 import android.widget.Toast
 import androidx.annotation.ArrayRes
 import androidx.annotation.StringRes
@@ -108,10 +110,11 @@ private fun CategoryRow(selected: String, onSelect: (String) -> Unit) {
         modifier = Modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
     ) {
-        TruthOrDareEngine.categories.forEach { id ->
+        (TruthOrDareEngine.categories + listOfNotNull(StoreFxState.pack?.id)).forEach { id ->
             val on = id == selected
+            val pack = StoreFxCatalog.pack(id)
             Text(
-                text = stringResource(categoryLabel(id)),
+                text = if (pack != null) "${pack.emoji} ${pack.name}" else stringResource(categoryLabel(id)),
                 style = MaterialTheme.typography.titleSmall,
                 color = colors.ink,
                 modifier = Modifier
@@ -263,7 +266,11 @@ private fun ComposeArea(state: TodState, myTurn: Boolean, partner: String, onSen
     val writeFirst = stringResource(R.string.games_tod_write_first)
     val noVoice = stringResource(R.string.games_tod_no_voice)
     val voice = rememberVoiceInput(onUnavailable = { Toast.makeText(context, noVoice, Toast.LENGTH_SHORT).show() }) { text = it }
-    val suggestions = stringArrayResource(suggestionsRes(state.category, truth))
+    val pack = StoreFxCatalog.pack(state.category)
+    val packPicks = remember(pack?.id, truth, state.turn) {
+        pack?.let { (if (truth) it.truths else it.dares).shuffled().take(4) }
+    }
+    val suggestions = packPicks ?: stringArrayResource(suggestionsRes(state.category, truth)).toList()
 
     GlassCard(modifier = Modifier.fillMaxWidth()) {
         TwinTextField(

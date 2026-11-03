@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.chat.ui
 
+import com.twinhearts.app.feature.storefx.StoreFxState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -352,7 +353,7 @@ private fun MessageBubble(
                         .clip(shape)
                         .then(
                             if (mine) Modifier.background(ChatStyle.SentBubble)
-                            else Modifier.background(colors.neutralGlass.copy(alpha = BUBBLE_FILL_ALPHA)),
+                            else Modifier.background(StoreFxState.theme?.partner ?: colors.neutralGlass.copy(alpha = BUBBLE_FILL_ALPHA)),
                         )
                         .border(1.dp, if (failed) colors.error else colors.lineSoft, shape)
                         .combinedClickable(

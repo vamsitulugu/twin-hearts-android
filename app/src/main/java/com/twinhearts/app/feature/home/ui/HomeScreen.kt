@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.home.ui
 
+import com.twinhearts.app.feature.storefx.CozyCornerCard
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
@@ -189,6 +190,8 @@ internal fun HomeContent(
             )
             if (session != null && !paired) ConnectPartnerCard(onClick = onConnectPartner)
             RewardsHomeCard(onOpen = { onShortcut(HomeShortcut.Rewards) })
+            // Twin Store decor: draws nothing until the couple equips one.
+            CozyCornerCard()
             HomeBanner(state.message)
             if (showIncomingHug) {
                 IncomingHugCard(

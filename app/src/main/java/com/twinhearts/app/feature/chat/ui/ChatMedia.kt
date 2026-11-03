@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.chat.ui
 
+import com.twinhearts.app.feature.storefx.StoreFxState
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -297,7 +298,10 @@ internal fun WallpaperLayer(wallpaper: Wallpaper, modifier: Modifier = Modifier)
     val dimAlpha = wallpaper.dim.coerceIn(0, MAX_DIM) / PERCENT
     Box(modifier) {
         when (wallpaper.mode) {
-            WallpaperMode.Default -> Unit
+            // Twin Store: with a theme equipped, the default wallpaper is its two background colours.
+            WallpaperMode.Default -> StoreFxState.theme?.let { t ->
+                Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(t.bg1, t.bg2))))
+            } ?: Unit
             WallpaperMode.Swatch -> Box(Modifier.fillMaxSize().background(swatchBrush(wallpaper.swatch)))
             WallpaperMode.Custom -> wallpaper.image?.let { path ->
                 AsyncImage(

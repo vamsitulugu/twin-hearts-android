@@ -41,6 +41,7 @@ data class RewardsSummary(
     /** Step 4: Twin Store unlocks & active equipped items */
     val unlockedItemIds: List<String> = emptyList(),
     val equipped: Map<String, String> = emptyMap(),
+    val partnerFrame: String = "",
     /** Set only right after a claim: true if that tap paid, and how much. */
     val claimed: Boolean = false,
     val earned: Int = 0,
@@ -100,6 +101,7 @@ data class StoreCatalog(
     val items: List<StoreItem>,
     val unlockedItemIds: List<String>,
     val equipped: Map<String, String>,
+    val partnerFrame: String = "",
 )
 
 data class StorePurchaseResult(

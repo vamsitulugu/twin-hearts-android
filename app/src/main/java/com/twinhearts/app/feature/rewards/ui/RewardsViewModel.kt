@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.feature.rewards.data.RewardsRepository
+import com.twinhearts.app.feature.storefx.StoreFxState
 import com.twinhearts.app.feature.rewards.domain.CoinTx
 import com.twinhearts.app.feature.rewards.domain.EarnItem
 import com.twinhearts.app.feature.rewards.domain.RewardsSummary
@@ -64,14 +65,18 @@ class RewardsViewModel @Inject constructor(
     fun refresh(withHistory: Boolean = false) {
         viewModelScope.launch {
             when (val r = repository.summary()) {
-                is AppResult.Success -> _state.update {
+                is AppResult.Success -> {
+                    // Twin Store: chat, music, avatars, Home and games follow what the server says is equipped.
+                    StoreFxState.apply(r.data.equipped, r.data.partnerFrame)
+                    _state.update {
                     it.copy(
                         summary = r.data,
                         unlockedItemIds = if (r.data.unlockedItemIds.isNotEmpty()) r.data.unlockedItemIds else it.unlockedItemIds,
-                        equipped = if (r.data.equipped.isNotEmpty()) r.data.equipped else it.equipped,
+                        equipped = r.data.equipped,
                         loading = false,
                         error = null,
                     )
+                    }
                 }
                 // Keep an older result on screen if a refresh fails; only show the error when there is nothing to show.
                 is AppResult.Failure -> _state.update { it.copy(loading = false, error = if (it.summary == null) r.error else null) }
@@ -235,6 +240,7 @@ class RewardsViewModel @Inject constructor(
         viewModelScope.launch {
             when (val r = repository.store()) {
                 is AppResult.Success -> {
+                    StoreFxState.apply(r.data.equipped, r.data.partnerFrame)
                     _state.update {
                         it.copy(
                             storeItems = r.data.items,
@@ -285,10 +291,12 @@ class RewardsViewModel @Inject constructor(
         viewModelScope.launch {
             when (val r = repository.equipItem(category, itemId)) {
                 is AppResult.Success -> {
+                    // The server answers only {category, itemId}; merge it (blank = unequipped).
+                    StoreFxState.applyOne(r.data.category, r.data.itemId)
                     _state.update {
                         it.copy(
                             equippingItemId = null,
-                            equipped = r.data.equipped,
+                            equipped = if (r.data.itemId.isBlank()) it.equipped - r.data.category else it.equipped + (r.data.category to r.data.itemId),
                         )
                     }
                 }

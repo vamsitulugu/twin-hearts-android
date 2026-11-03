@@ -11,6 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import com.twinhearts.app.core.design.LocalTwinColors
 import com.twinhearts.app.core.design.TwinTheme
+import com.twinhearts.app.feature.storefx.StoreFxState
+import com.twinhearts.app.feature.storefx.withStoreTheme
 
 /**
  * Why this file exists: the Music page now matches Home, Chat, Twin AI, Settings and Live Map:
@@ -21,21 +23,22 @@ import com.twinhearts.app.core.design.TwinTheme
  */
 internal object MusicStyle {
     /** Page background: the same near-black as the other restyled pages. */
-    val Base = Color(0xFF0A0A0C)
+    val Base: Color get() = StoreFxState.theme?.bg1 ?: Color(0xFF0A0A0C)
 
     /** Burgundy used for the active tab, current song, slider and hearts. */
-    val Accent = Color(0xFFC2185B)
+    val Accent: Color get() = StoreFxState.theme?.me1 ?: Color(0xFFC2185B)
 
     /** Very dark wine that tints the top of the page so the glass has something to sit on. */
-    val Glow = Color(0xFF2A0617)
+    val Glow: Color get() = StoreFxState.theme?.bg2 ?: Color(0xFF2A0617)
 }
 
 /** Neutral colour set for everything inside [content]. */
 @Composable
 private fun NeutralMusicColors(content: @Composable () -> Unit) {
     val base = TwinTheme.colors
-    val neutral = remember(base) {
-        base.copy(
+    val storeTheme = StoreFxState.theme
+    val neutral = remember(base, storeTheme) {
+        val plain = base.copy(
             background = MusicStyle.Base,
             backgroundGlow = MusicStyle.Base,
             // TwinBackground paints a soft wine glow from this colour at the top of the page.
@@ -53,6 +56,9 @@ private fun NeutralMusicColors(content: @Composable () -> Unit) {
             accent = Color(0xFFE6E6EA),
             pinkSoft = Color(0xFFE6E6EA),
         )
+        // Twin Store: an equipped theme replaces the neutral greys with its own palette
+        // (page, player card = partner colour, play button and progress = accent).
+        if (storeTheme != null) plain.withStoreTheme(storeTheme) else plain
     }
     val scheme = MaterialTheme.colorScheme.copy(
         primary = neutral.primaryStart,

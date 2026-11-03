@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.games.domain.engine
 
+import com.twinhearts.app.feature.storefx.StoreFxCatalog
 import com.twinhearts.app.feature.games.domain.model.Side
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -54,7 +55,8 @@ object TruthOrDareEngine {
     val categories = listOf("romantic", "cute", "funny", "deep", "hot", "adventure")
 
     fun setCategory(state: TodState, category: String): TodState =
-        if (category in categories) state.copy(category = category) else state
+        // A Twin Store pack id (e.g. pack_deep_love) is also a valid category.
+        if (category in categories || StoreFxCatalog.pack(category) != null) state.copy(category = category) else state
 
     /** The asker starts the spin. */
     fun startSpin(state: TodState, side: Side): TodState? =

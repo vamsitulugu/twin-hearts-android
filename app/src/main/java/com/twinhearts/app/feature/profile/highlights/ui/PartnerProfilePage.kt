@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.profile.highlights.ui
 
+import com.twinhearts.app.feature.storefx.StoreFxState
 import android.provider.Settings
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -96,7 +97,7 @@ fun PartnerProfilePage(imageUrl: String?, name: String, onViewAvatar: () -> Unit
         verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m),
     ) {
         PartnerRing(Modifier.padding(top = TwinTheme.spacing.l)) {
-            ProfileAvatar(imageUrl, stringResource(R.string.profile_view_partner_photo), onViewAvatar.takeIf { !imageUrl.isNullOrBlank() }, size = PARTNER_PHOTO)
+            ProfileAvatar(imageUrl, stringResource(R.string.profile_view_partner_photo), onViewAvatar.takeIf { !imageUrl.isNullOrBlank() }, size = PARTNER_PHOTO, frame = StoreFxState.partnerFrame)
         }
         Text(name, style = MaterialTheme.typography.headlineSmall, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(

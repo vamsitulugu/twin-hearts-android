@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.profile.ui.screens
 
+import com.twinhearts.app.feature.storefx.StoreFxState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -114,7 +115,7 @@ fun PartnerPage(
     Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = TwinTheme.spacing.screenEdge), verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m)) {
         GlassCard(Modifier.fillMaxWidth()) {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
-                ProfileAvatar(data.partnerAvatarUrl, stringResource(R.string.profile_view_partner_photo), onViewAvatar.takeIf { data.partnerAvatarUrl != null })
+                ProfileAvatar(data.partnerAvatarUrl, stringResource(R.string.profile_view_partner_photo), onViewAvatar.takeIf { data.partnerAvatarUrl != null }, frame = StoreFxState.partnerFrame)
                 Text(data.partnerName, style = MaterialTheme.typography.headlineSmall, color = colors.ink)
                 val pill = when (data.connection) {
                     ConnectionState.Connected -> R.string.profile_connected

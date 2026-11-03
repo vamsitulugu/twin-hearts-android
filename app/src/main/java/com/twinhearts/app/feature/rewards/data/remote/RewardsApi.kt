@@ -137,6 +137,8 @@ data class RewardsSummaryDto(
     val wheelSlices: List<SpinSliceDto> = emptyList(),
     val unlockedItemIds: List<String> = emptyList(),
     val equipped: Map<String, String> = emptyMap(),
+    /** Partner's equipped profile frame id ("" = none). Lets my screens draw it on their avatar. */
+    val partnerFrame: String = "",
     /** Only on the check-in answer: true when THIS call paid the coins. */
     val claimed: Boolean = false,
     val earned: Int = 0,
@@ -226,6 +228,7 @@ data class StoreCatalogDto(
     val items: List<StoreItemDto> = emptyList(),
     val unlockedItemIds: List<String> = emptyList(),
     val equipped: Map<String, String> = emptyMap(),
+    val partnerFrame: String = "",
 )
 
 @Serializable
