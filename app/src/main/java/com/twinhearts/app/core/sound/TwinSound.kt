@@ -43,6 +43,7 @@ object TwinSound {
 
     private val pool = Executors.newScheduledThreadPool(1) { r -> Thread(r, "twin-sound").apply { isDaemon = true } }
     private val cache = ConcurrentHashMap<String, ShortArray>()
+    private val lastCue = ConcurrentHashMap<String, Long>()
     private val rnd = Random()
     @Volatile private var lastTick = 0L
     @Volatile private var lastScratch = 0L
@@ -188,6 +189,82 @@ object TwinSound {
         m.tone(SINE, 4186f, 4186f, 0.4f, 0.06f, 0.15f, 0.003f)
     }
 
+
+    // ── chat + call sounds (same cues as the web app's twin-sounds.js v2) ──────
+
+    /** Message sent: soft rising pop. */
+    fun msgSent() = cue("msgSent") { m -> m.tone(SINE, 520f, 760f, 0.09f, 0.20f, 0f, 0.004f) }
+
+    /** Message received: two-note bloop. */
+    fun msgReceived() = cue("msgReceived") { m ->
+        m.tone(SINE, 880f, 880f, 0.12f, 0.18f, 0f, 0.004f)
+        m.tone(SINE, 1175f, 1175f, 0.20f, 0.16f, 0.09f, 0.004f)
+    }
+
+    /** Photo / video / file sent: a swish, then the pop. */
+    fun mediaSent() = cue("mediaSent") { m ->
+        m.burst(0.12f, 0.13f, BAND, 900f, 3200f, 0.9f, 0f)
+        m.tone(SINE, 520f, 760f, 0.09f, 0.18f, 0.07f, 0.004f)
+    }
+
+    /** Sticker / GIF sent: playful two-note boing. */
+    fun funSent() = cue("funSent") { m ->
+        m.tone(SINE, 600f, 900f, 0.09f, 0.20f, 0f, 0.004f)
+        m.tone(SINE, 900f, 1300f, 0.11f, 0.18f, 0.08f, 0.004f)
+    }
+
+    /** Voice recording starts: rising blip. */
+    fun voiceStart() = cue("voiceStart") { m -> m.tone(SINE, 440f, 660f, 0.10f, 0.20f, 0f, 0.004f) }
+
+    /** Voice recording stops / is sent: falling blip. */
+    fun voiceStop() = cue("voiceStop") { m -> m.tone(SINE, 660f, 440f, 0.10f, 0.20f, 0f, 0.004f) }
+
+    /** Voice recording thrown away. */
+    fun voiceCancel() = cue("voiceCancel") { m -> m.tone(SINE, 400f, 180f, 0.16f, 0.20f, 0f, 0.004f) }
+
+    /** A reaction was added: bright sparkle. */
+    fun react() = cue("react") { m ->
+        m.tone(TRI, 1568f, 2093f, 0.12f, 0.18f, 0f, 0.004f)
+        m.tone(SINE, 3136f, 3136f, 0.12f, 0.05f, 0.03f, 0.004f)
+    }
+
+    /** Gift / hug / kiss: warm, rounded heart chime. */
+    fun heart() = cue("heart") { m ->
+        floatArrayOf(523f, 659f, 784f).forEachIndexed { i, f -> m.tone(SINE, f, f, 0.5f, 0.20f, i * 0.11f, 0.01f) }
+        m.tone(SINE, 1047f, 1047f, 0.55f, 0.07f, 0.24f, 0.01f)
+    }
+
+    /** Message starred: two-note ding. */
+    fun star() = cue("star") { m ->
+        m.tone(TRI, 1175f, 1175f, 0.14f, 0.20f, 0f, 0.004f)
+        m.tone(TRI, 1568f, 1568f, 0.24f, 0.20f, 0.07f, 0.004f)
+    }
+
+    /** Message pinned: soft tock. */
+    fun pin() = cue("pin") { m ->
+        m.tone(SINE, 700f, 500f, 0.06f, 0.22f, 0f, 0.002f)
+        m.tone(SINE, 500f, 350f, 0.09f, 0.18f, 0.05f, 0.002f)
+    }
+
+    /** Message deleted: downward whoosh. */
+    fun deleted() = cue("deleted") { m -> m.burst(0.14f, 0.14f, BAND, 2400f, 500f, 0.9f, 0f) }
+
+    /** Call connected: three rising notes. */
+    fun callConnected() = cue("callConnected") { m ->
+        floatArrayOf(659f, 880f, 1109f).forEachIndexed { i, f -> m.tone(SINE, f, f, 0.16f, 0.18f, i * 0.09f, 0.006f) }
+    }
+
+    /** Call ended: three falling notes. */
+    fun callEnded() = cue("callEnded") { m ->
+        floatArrayOf(880f, 659f, 440f).forEachIndexed { i, f -> m.tone(SINE, f, f, 0.18f, 0.18f, i * 0.10f, 0.006f) }
+    }
+
+    /** Mic / camera / speaker switched on. */
+    fun switchOn() = cue("switchOn") { m -> m.tone(SINE, 600f, 850f, 0.07f, 0.18f, 0f, 0.004f) }
+
+    /** Mic / camera / speaker switched off. */
+    fun switchOff() = cue("switchOff") { m -> m.tone(SINE, 850f, 600f, 0.07f, 0.18f, 0f, 0.004f) }
+
     // ── engine ───────────────────────────────────────────────────
 
     private fun ready() = on && app != null
@@ -196,6 +273,15 @@ object TwinSound {
         m.tone(TRI, 1318f * k, 1318f * k, 0.16f, 0.34f, d, 0.004f)          // E6 "ting"
         m.tone(TRI, 1976f * k, 1976f * k, 0.34f, 0.30f, d + 0.075f, 0.004f) // B6 ring
         m.tone(SINE, 3951f * k, 3951f * k, 0.22f, 0.07f, d + 0.075f, 0.004f) // sparkle
+    }
+
+    /** Like [play], but the same cue never fires twice within 120 ms (bulk star / delete, double events). */
+    private fun cue(key: String, build: (Mix) -> Unit) {
+        val now = System.nanoTime() / 1_000_000
+        val prev = lastCue[key]
+        if (prev != null && now - prev < 120) return
+        lastCue[key] = now
+        play(key, build)
     }
 
     /** Builds (once, then cached) and plays a fixed sound on the sound thread. */

@@ -10,6 +10,7 @@ import com.twinhearts.app.R
 import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.core.common.asText
+import com.twinhearts.app.core.sound.TwinSound
 import com.twinhearts.app.feature.chat.data.ChatFiles
 import com.twinhearts.app.feature.chat.data.ChatLocalStore
 import com.twinhearts.app.feature.chat.data.ChatRepository
@@ -42,6 +43,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
 import java.time.Instant
+import java.time.LocalTime
 import java.util.UUID
 import javax.inject.Inject
 
@@ -231,7 +233,57 @@ class ChatViewModel @Inject constructor(
             fresh.firstOrNull { !it.mine && it.clientId !in known && SendEffect.fromApi(it.effect) != null }
                 ?.let { m -> _state.update { it.copy(effect = SendEffect.fromApi(m.effect)) } }
         }
+        if (announce && !quietNow()) playIncomingSound(current, fresh, known)
         return mergeMessages(current, fresh).filter { it.clientId !in hidden }
+    }
+
+    // ───────────── sounds (core/sound/TwinSound) ─────────────
+
+    /** Muted chat, or inside my do-not-disturb window: no chat sounds. */
+    private fun quietNow(): Boolean {
+        val s = _state.value.settings
+        if (s.muted) return true
+        val from = s.dndStart ?: return false
+        val to = s.dndEnd ?: return false
+        return runCatching {
+            val now = LocalTime.now()
+            val start = LocalTime.parse(from)
+            val end = LocalTime.parse(to)
+            if (start <= end) now in start..end else now >= start || now <= end
+        }.getOrDefault(false)
+    }
+
+    /** One cue for the newest brand-new message from my partner, or a sparkle when they just reacted. */
+    private fun playIncomingSound(current: List<ChatMessage>, fresh: List<ChatMessage>, known: Set<String>) {
+        val recent = Instant.now().minusSeconds(RECENT_SOUND_SECONDS)
+        val newest = fresh.filter { !it.mine && it.clientId !in known && it.createdAt.isAfter(recent) }.maxByOrNull { it.createdAt }
+        if (newest != null) {
+            when {
+                newest.kind == MessageKind.Gift -> TwinSound.heart()
+                newest.kind == MessageKind.Sticker && newest.emoji in HEART_EMOJI -> TwinSound.heart()
+                else -> TwinSound.msgReceived()
+            }
+            return
+        }
+        val reacted = fresh.any { f ->
+            val old = current.firstOrNull { it.clientId == f.clientId }
+            old != null && partnerReactions(f) > partnerReactions(old)
+        }
+        if (reacted) TwinSound.react()
+    }
+
+    private fun partnerReactions(m: ChatMessage) = m.reactions.sumOf { it.count - if (it.mine) 1 else 0 }
+
+    /** The cue for a message I just sent. */
+    private fun playSentSound(m: ChatMessage) {
+        when (m.kind) {
+            MessageKind.Image, MessageKind.ImageGroup, MessageKind.Video, MessageKind.File, MessageKind.Audio -> TwinSound.mediaSent()
+            MessageKind.Voice -> Unit // ChatScreen already played the recording-stopped blip
+            MessageKind.Gif -> TwinSound.funSent()
+            MessageKind.Gift -> TwinSound.heart()
+            MessageKind.Sticker -> if (m.emoji in HEART_EMOJI) TwinSound.heart() else TwinSound.funSent()
+            else -> TwinSound.msgSent()
+        }
     }
 
     /** Heartbeat + my partner's "Online / Last seen". */
@@ -399,6 +451,7 @@ class ChatViewModel @Inject constructor(
     }
 
     private fun send(local: ChatMessage, action: suspend () -> AppResult<ChatMessage>) {
+        playSentSound(local)
         _state.update { it.copy(messages = mergeMessages(it.messages, listOf(local)), banner = null) }
         val run: () -> Unit = {
             setDelivery(local.clientId, DeliveryState.Sending)
@@ -411,6 +464,7 @@ class ChatViewModel @Inject constructor(
                         poll(full = true)
                     }
                     is AppResult.Failure -> {
+                        TwinSound.error()
                         setDelivery(local.clientId, DeliveryState.Failed)
                         _state.update { it.copy(banner = ChatBanner.Failure(result.error)) }
                     }
@@ -500,12 +554,14 @@ class ChatViewModel @Inject constructor(
     // ───────────── star, pin, react ─────────────
 
     /** The star flips at once; the server's answer is the final word. */
-    fun toggleStar(message: ChatMessage) = optimistic(message, message.copy(starred = !message.starred)) { who ->
-        repository.toggleStar(who, message.id)
+    fun toggleStar(message: ChatMessage) {
+        if (!message.starred) TwinSound.star()
+        optimistic(message, message.copy(starred = !message.starred)) { who -> repository.toggleStar(who, message.id) }
     }
 
-    fun togglePin(message: ChatMessage) = optimistic(message, message.copy(pinned = !message.pinned)) { who ->
-        repository.pin(who, message.id, !message.pinned)
+    fun togglePin(message: ChatMessage) {
+        if (!message.pinned) TwinSound.pin()
+        optimistic(message, message.copy(pinned = !message.pinned)) { who -> repository.pin(who, message.id, !message.pinned) }
     }
 
     fun react(message: ChatMessage, emoji: String) {
@@ -513,7 +569,10 @@ class ChatViewModel @Inject constructor(
         if (message.id == ChatMessage.LOCAL_ID) return
         viewModelScope.launch {
             when (val result = repository.react(who, message.id, emoji)) {
-                is AppResult.Success -> replaceMessage(result.data)
+                is AppResult.Success -> {
+                    replaceMessage(result.data)
+                    if (result.data.reactions.any { it.emoji == emoji && it.mine }) TwinSound.react() // only when added, not removed
+                }
                 is AppResult.Failure -> _state.update { it.copy(banner = ChatBanner.Failure(result.error)) }
             }
         }
@@ -556,6 +615,7 @@ class ChatViewModel @Inject constructor(
         val real = targets.filter { it.id != ChatMessage.LOCAL_ID }
         clearSelection()
         if (real.isEmpty()) return
+        TwinSound.deleted()
         if (forEveryone) {
             _state.update { s ->
                 s.copy(
@@ -780,3 +840,9 @@ class ChatViewModel @Inject constructor(
         const val MIN_POLL_OPTIONS = 2
     }
 }
+
+/** Hugs, kisses and love: these stickers get the warm heart chime instead of the playful boing. */
+private val HEART_EMOJI = setOf("🤗", "🫂", "😘", "😙", "😚", "💋", "😍", "🥰", "❤️", "💕", "💖", "💗", "💝", "💞")
+
+/** Only messages this fresh make a sound, so opening an old chat never plays a burst of bloops. */
+private const val RECENT_SOUND_SECONDS = 60L

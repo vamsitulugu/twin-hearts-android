@@ -81,6 +81,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.twinhearts.app.R
 import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.asText
+import com.twinhearts.app.core.sound.TwinSound
 import com.twinhearts.app.core.design.EmptyState
 import com.twinhearts.app.core.design.ErrorState
 import com.twinhearts.app.core.design.GlassButton
@@ -242,6 +243,7 @@ fun ChatScreen(
         }
     }
     fun beginRecording() {
+        TwinSound.voiceStart() // played just before the recorder opens, so the blip is not in the voice note
         if (recorder.start()) recordingSeconds = 0 else viewModel.showBanner(ChatBanner.Info(R.string.chat_record_failed))
     }
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -251,9 +253,11 @@ fun ChatScreen(
         recordingSeconds = null
         if (!send) {
             recorder.cancel()
+            TwinSound.voiceCancel()
             return
         }
         val result = recorder.finish()
+        if (result != null) TwinSound.voiceStop() // this blip is the voice note's "sent" sound
         when {
             result == null -> viewModel.showBanner(ChatBanner.Info(R.string.chat_record_failed))
             result.seconds < MIN_VOICE_SECONDS -> {

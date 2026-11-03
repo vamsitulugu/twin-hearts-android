@@ -9,6 +9,7 @@ import android.os.Vibrator
 import android.media.RingtoneManager
 import android.os.Build
 import com.twinhearts.app.core.common.AppResult
+import com.twinhearts.app.core.sound.TwinSound
 import com.twinhearts.app.feature.calls.data.webrtc.RtcSession
 import com.twinhearts.app.feature.calls.domain.CallIdentity
 import com.twinhearts.app.feature.calls.domain.CallPhase
@@ -392,18 +393,21 @@ class CallEngine @Inject constructor(
 
     fun toggleMute() {
         val muted = !_state.value.muted
+        if (muted) TwinSound.switchOff() else TwinSound.switchOn()
         session?.setMicEnabled(!muted)
         _state.update { it.copy(muted = muted) }
     }
 
     fun toggleSpeaker() {
         val on = !_state.value.speaker
+        if (on) TwinSound.switchOn() else TwinSound.switchOff()
         setSpeaker(on)
         _state.update { it.copy(speaker = on) }
     }
 
     fun toggleCamera() {
         val off = !_state.value.cameraOff
+        if (off) TwinSound.switchOff() else TwinSound.switchOn()
         session?.setCameraEnabled(!off)
         _state.update { it.copy(cameraOff = off) }
     }
@@ -569,6 +573,7 @@ class CallEngine @Inject constructor(
         if (_state.value.phase == CallPhase.Connected || !_state.value.inCall) return
         ringJob?.cancel()
         stopRingback()
+        TwinSound.callConnected()
         _state.update { it.copy(phase = CallPhase.Connected, seconds = 0) }
         timerJob?.cancel()
         timerJob = scope.launch {
@@ -632,6 +637,7 @@ class CallEngine @Inject constructor(
         stopRingtone()
         stopRingback()
         leaveCallAudio()
+        if (before.phase == CallPhase.Connected) TwinSound.callEnded() else if (reason == EndReason.Failed) TwinSound.error()
         val me = who
         val wasCaller = iAmCaller
         val shouldLog = wasCaller && !logged && me != null
