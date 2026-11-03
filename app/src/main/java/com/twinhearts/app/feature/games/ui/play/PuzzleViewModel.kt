@@ -121,7 +121,7 @@ class PuzzleViewModel @Inject constructor(
         if (correct) {
             placedByMe.add(pieceId)
             _held.value = null
-            cue(GameCue.Success)
+            cue(GameCue.Snap)
             payIfFinished()
         } else {
             cue(GameCue.Fail)

@@ -265,6 +265,37 @@ object TwinSound {
     /** Mic / camera / speaker switched off. */
     fun switchOff() = cue("switchOff") { m -> m.tone(SINE, 850f, 600f, 0.07f, 0.18f, 0f, 0.004f) }
 
+    // ── game sounds (same five cues as the web app's twin-sounds.js v3; the bomb countdown reuses tick) ──
+
+    /** Memory card turned over: tiny rising tick. */
+    fun flip() = cue("flip") { m -> m.tone(TRI, 620f, 900f, 0.05f, 0.15f, 0f, 0.003f) }
+
+    /** Pair found / mind match: two-note chime. */
+    fun match() = cue("match") { m ->
+        m.tone(TRI, 988f, 988f, 0.12f, 0.18f, 0f, 0.004f)
+        m.tone(TRI, 1319f, 1319f, 0.20f, 0.18f, 0.09f, 0.004f)
+    }
+
+    /** Puzzle piece locks in: short tock plus a click. */
+    fun snap() = cue("snap") { m ->
+        m.tone(SINE, 880f, 560f, 0.05f, 0.20f, 0f, 0.002f)
+        m.burst(0.03f, 0.08f, HIGH, 3000f, 3000f, 0.7f, 0f)
+    }
+
+    /** Bomb goes off: low thump and a short rumble. */
+    fun boom() = cue("boom") { m ->
+        m.tone(SINE, 150f, 45f, 0.45f, 0.30f, 0f, 0.004f)
+        m.burst(0.30f, 0.20f, BAND, 900f, 150f, 0.8f, 0f)
+    }
+
+    /** Dice roll: quick rattle, then a soft thud. */
+    fun dice() = cue("dice") { m ->
+        floatArrayOf(0f, 0.06f, 0.12f, 0.19f).forEachIndexed { i, d ->
+            m.tone(SQUARE, 1400f + i * 160f, 1400f + i * 160f, 0.03f, 0.07f, d, 0.001f)
+        }
+        m.tone(SINE, 220f, 150f, 0.09f, 0.18f, 0.26f, 0.004f)
+    }
+
     // ── engine ───────────────────────────────────────────────────
 
     private fun ready() = on && app != null

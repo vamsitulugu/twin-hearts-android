@@ -67,7 +67,7 @@ class DrawViewModel @Inject constructor(
         val me = side
         if (mutate { DrawEngine.addStroke(it, me, stroke) }) {
             redoStack.clear()
-            if (stroke.tool == DrawTool.Fill) cue(GameCue.Tap)
+            cue(if (stroke.tool == DrawTool.Fill) GameCue.Tap else GameCue.Brush)
         }
     }
 

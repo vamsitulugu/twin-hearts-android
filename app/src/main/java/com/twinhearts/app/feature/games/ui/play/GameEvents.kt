@@ -2,8 +2,14 @@ package com.twinhearts.app.feature.games.ui.play
 
 import androidx.annotation.StringRes
 
-/** Short sound/haptic cues, like the web app's little beeps. */
-enum class GameCue { Tap, Success, Fail, Dice, Place, Coin, LevelUp }
+/**
+ * Short sound/haptic cues, like the web app's little beeps.
+ * Flip ... Brush are the game-specific ones; they play the soft [com.twinhearts.app.core.sound.TwinSound] sounds.
+ */
+enum class GameCue {
+    Tap, Success, Fail, Dice, Place, Coin, LevelUp,
+    Flip, Match, Snap, Boom, Tick, SpinStart, SpinEnd, Brush,
+}
 
 /** One line inside a prize pop-up. The screen turns it into text. */
 sealed interface PrizeLine {

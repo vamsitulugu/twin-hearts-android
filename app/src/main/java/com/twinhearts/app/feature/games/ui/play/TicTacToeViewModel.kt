@@ -24,7 +24,7 @@ class TicTacToeViewModel @Inject constructor(
         val accepted = mutate { TicTacToeEngine.play(it, me, index) }
         if (!accepted) return
         when (state?.outcome) {
-            Outcome.None, null -> cue(GameCue.Tap)
+            Outcome.None, null -> cue(GameCue.Place)
             Outcome.Draw -> cue(GameCue.Tap)
             else -> {
                 cue(GameCue.Success)

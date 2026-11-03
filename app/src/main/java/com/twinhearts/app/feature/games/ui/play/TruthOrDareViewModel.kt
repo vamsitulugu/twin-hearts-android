@@ -34,12 +34,13 @@ class TruthOrDareViewModel @Inject constructor(
 
     fun spin() {
         val me = side
-        if (mutate { TruthOrDareEngine.startSpin(it, me) }) cue(GameCue.Tap)
+        if (mutate { TruthOrDareEngine.startSpin(it, me) }) cue(GameCue.SpinStart)
     }
 
     /** The bottle stopped turning (called by the person who spun it). */
     fun spinFinished() {
         if (state?.turn != side) return
+        cue(GameCue.SpinEnd)
         mutate { TruthOrDareEngine.finishSpin(it) }
     }
 
