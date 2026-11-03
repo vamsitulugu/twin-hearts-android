@@ -407,4 +407,10 @@
     <string name="games_pz_piece">Piece, row %1$d, column %2$d</string>
     <string name="games_pz_photo_desc">Selected puzzle photo</string>
     <string name="games_card_won">🎫 You both won a scratch card! Open it in Rewards → My Scratch Cards</string>
+    <string name="games_challenge">Challenge</string>
+    <string name="games_challenged">Waiting…</string>
+    <string name="games_request_title">Game invitation</string>
+    <string name="games_request_from">%1$s wants to play %2$s</string>
+    <string name="games_request_accept">Accept</string>
+    <string name="games_request_decline">Decline</string>
 </resources>

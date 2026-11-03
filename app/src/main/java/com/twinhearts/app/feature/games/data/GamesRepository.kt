@@ -11,10 +11,12 @@ import com.twinhearts.app.feature.games.data.mapper.GamesKeys
 import com.twinhearts.app.feature.games.data.mapper.asStateObject
 import com.twinhearts.app.feature.games.data.mapper.gameDoc
 import com.twinhearts.app.feature.games.data.mapper.presenceOf
+import com.twinhearts.app.feature.games.data.mapper.pendingRequestOf
 import com.twinhearts.app.feature.games.data.mapper.profileOf
 import com.twinhearts.app.feature.games.data.remote.GamesApi
 import com.twinhearts.app.feature.games.data.remote.SaveStateBody
 import com.twinhearts.app.feature.games.domain.model.GameId
+import com.twinhearts.app.feature.games.domain.model.GameRequest
 import com.twinhearts.app.feature.games.domain.model.PlayerProfile
 import com.twinhearts.app.feature.games.domain.model.Players
 import com.twinhearts.app.feature.games.domain.model.Presence
@@ -64,6 +66,12 @@ interface GamesRepository {
 
     /** Tells the partner what I am playing (null = just on the hub). */
     suspend fun setPresence(game: GameId?): AppResult<Unit>
+
+    /** Sends a game invitation to my partner, stored under my side's request key. */
+    suspend fun sendRequest(game: GameId): AppResult<Unit>
+
+    /** Clears my pending invitation (after it is accepted, declined, or cancelled). */
+    suspend fun clearRequest(): AppResult<Unit>
 
     /** Uploads the Picture Puzzle photo at [uri] and returns where it now lives. */
     suspend fun uploadPhoto(uri: String): AppResult<String>
@@ -159,6 +167,7 @@ class GamesRepositoryImpl @Inject constructor(
             partner = state.profileOf(side.other, json) ?: PlayerProfile(),
             partnerPresence = presence,
             partnerOnline = presence.isOnline(System.currentTimeMillis()),
+            pendingRequest = state.pendingRequestOf(side, json),
         )
     }
 
@@ -201,6 +210,28 @@ class GamesRepositoryImpl @Inject constructor(
                 GamesKeys.presence(Side.fromRole(session.role)),
                 json.encodeToJsonElement(Presence.serializer(), presence),
             )
+        }
+        return save(patch)
+    }
+
+    override suspend fun sendRequest(game: GameId): AppResult<Unit> {
+        val session = session() ?: return AppResult.Failure(AppError.Unauthorized())
+        val side = Side.fromRole(session.role)
+        val request = GameRequest(from = side, game = game.key, ts = System.currentTimeMillis())
+        val patch = buildJsonObject {
+            put(
+                GamesKeys.request(side),
+                json.encodeToJsonElement(GameRequest.serializer(), request),
+            )
+        }
+        return save(patch)
+    }
+
+    override suspend fun clearRequest(): AppResult<Unit> {
+        val session = session() ?: return AppResult.Failure(AppError.Unauthorized())
+        val side = Side.fromRole(session.role)
+        val patch = buildJsonObject {
+            put(GamesKeys.request(side), kotlinx.serialization.json.JsonNull)
         }
         return save(patch)
     }

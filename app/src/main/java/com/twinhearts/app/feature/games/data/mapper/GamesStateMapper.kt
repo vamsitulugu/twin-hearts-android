@@ -1,6 +1,7 @@
 package com.twinhearts.app.feature.games.data.mapper
 
 import com.twinhearts.app.feature.games.domain.model.GameId
+import com.twinhearts.app.feature.games.domain.model.GameRequest
 import com.twinhearts.app.feature.games.domain.model.PlayerProfile
 import com.twinhearts.app.feature.games.domain.model.Presence
 import com.twinhearts.app.feature.games.domain.model.Side
@@ -17,6 +18,8 @@ internal object GamesKeys {
     fun doc(game: GameId) = "gm_${game.key}"
     fun profile(side: Side) = "gm_profile_${suffix(side)}"
     fun presence(side: Side) = "gm_presence_${suffix(side)}"
+    /** One pending game invitation, written by the inviter under their own side key. */
+    fun request(side: Side) = "gm_request_${suffix(side)}"
     private fun suffix(side: Side) = if (side == Side.One) "u1" else "u2"
 }
 
@@ -35,4 +38,11 @@ internal fun JsonObject.profileOf(side: Side, json: Json): PlayerProfile? {
 internal fun JsonObject.presenceOf(side: Side, json: Json): Presence {
     val element = this[GamesKeys.presence(side)]?.takeUnless { it is JsonNull } ?: return Presence()
     return runCatching { json.decodeFromJsonElement(Presence.serializer(), element) }.getOrDefault(Presence())
+}
+
+/** The pending invitation I received from my partner (written under their side's request key). */
+internal fun JsonObject.pendingRequestOf(mySide: Side, json: Json): GameRequest? {
+    val from = mySide.other
+    val element = this[GamesKeys.request(from)]?.takeUnless { it is JsonNull } ?: return null
+    return runCatching { json.decodeFromJsonElement(GameRequest.serializer(), element) }.getOrNull()
 }

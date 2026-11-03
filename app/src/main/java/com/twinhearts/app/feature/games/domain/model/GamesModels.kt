@@ -117,6 +117,14 @@ data class Presence(
     }
 }
 
+/** An incoming game invitation one partner can send the other from the Games hub. */
+@Serializable
+data class GameRequest(
+    val from: Side,
+    val game: String,
+    val ts: Long,
+)
+
 /** Names, photos and progress for both people: the top of the hub and every game screen. */
 data class Players(
     val side: Side,
@@ -128,6 +136,8 @@ data class Players(
     val partner: PlayerProfile,
     val partnerPresence: Presence,
     val partnerOnline: Boolean,
+    /** A game invitation the partner sent that I have not answered yet. */
+    val pendingRequest: GameRequest? = null,
 )
 
 /** Wrapper saved around every game so an old write from one phone can never undo a newer one. */

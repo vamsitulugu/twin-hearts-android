@@ -81,6 +81,35 @@ class GamesViewModel @Inject constructor(
     /** Remembers the game was opened, so its button says "Continue" next time. */
     fun markOpened(game: GameId) = updateMine { it.withLastGame(game, System.currentTimeMillis()) }
 
+    /** Sends my partner an invitation to play [game]. */
+    fun sendRequest(game: GameId) {
+        viewModelScope.launch {
+            val result = repository.sendRequest(game)
+            if (result is AppResult.Success) refreshNow()
+        }
+    }
+
+    /** Accepts the pending invitation and opens that game. */
+    fun acceptRequest() {
+        val current = (_ui.value as? UiState.Content)?.data
+        val request = current?.pendingRequest ?: return
+        viewModelScope.launch {
+            val cleared = repository.clearRequest()
+            if (cleared is AppResult.Success) {
+                refreshNow()
+                GameId.fromKey(request.game)?.let { markOpened(it) }
+            }
+        }
+    }
+
+    /** Declines (cancels) the pending invitation. */
+    fun declineRequest() {
+        viewModelScope.launch {
+            val cleared = repository.clearRequest()
+            if (cleared is AppResult.Success) refreshNow()
+        }
+    }
+
     private fun updateMine(change: (com.twinhearts.app.feature.games.domain.model.PlayerProfile) -> com.twinhearts.app.feature.games.domain.model.PlayerProfile) {
         viewModelScope.launch {
             val result = repository.updateMyProfile(change)

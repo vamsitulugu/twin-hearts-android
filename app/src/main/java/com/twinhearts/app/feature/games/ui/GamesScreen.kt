@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,11 +26,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -42,6 +46,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -118,14 +124,21 @@ private fun HubScreen(viewModel: GamesViewModel, onBack: () -> Unit, onOpen: (Ga
                 players = current.data,
                 onFavorite = viewModel::toggleFavorite,
                 onOpen = { info -> onOpen(info.id) },
+                viewModel = viewModel,
             )
         }
     }
 }
 
 @Composable
-private fun HubContent(players: Players, onFavorite: (GameId) -> Unit, onOpen: (GameInfo) -> Unit) {
+private fun HubContent(
+    players: Players,
+    onFavorite: (GameId) -> Unit,
+    onOpen: (GameInfo) -> Unit,
+    viewModel: GamesViewModel,
+) {
     val colors = TwinTheme.colors
+    var challenged by remember { mutableStateOf(emptySet<String>()) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
@@ -166,6 +179,19 @@ private fun HubContent(players: Players, onFavorite: (GameId) -> Unit, onOpen: (
                 )
             }
         }
+        // A pending invitation the partner sent: accept or decline before opening a game.
+        players.pendingRequest?.let { request ->
+                item {
+                val requestGameTitle = GameId.fromKey(request.game)?.let { GameCatalog.of(it).title }?.let { stringResource(it) } ?: stringResource(R.string.games_card_won)
+                RequestCard(
+                    from = players.partnerName,
+                    game = requestGameTitle,
+                    onAccept = { viewModel.acceptRequest() },
+                    onDecline = { viewModel.declineRequest() },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
         item {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.m)) {
                 Text(stringResource(R.string.games_section_games), style = MaterialTheme.typography.titleMedium, color = colors.ink)
@@ -178,9 +204,15 @@ private fun HubContent(players: Players, onFavorite: (GameId) -> Unit, onOpen: (
                 favorite = info.id.key in players.me.favorites,
                 continuing = info.id.key in players.me.history,
                 partnerHere = players.partnerOnline && players.partnerPresence.game == info.id.key,
+                partnerOnline = players.partnerOnline,
+                challenged = info.id.key in challenged,
                 partnerName = players.partnerName,
                 onFavorite = { onFavorite(info.id) },
                 onOpen = { onOpen(info) },
+                onChallenge = {
+                    challenged += info.id.key
+                    viewModel.sendRequest(info.id)
+                },
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -249,9 +281,12 @@ private fun GameCard(
     favorite: Boolean,
     continuing: Boolean,
     partnerHere: Boolean,
+    partnerOnline: Boolean,
+    challenged: Boolean,
     partnerName: String,
     onFavorite: () -> Unit,
     onOpen: () -> Unit,
+    onChallenge: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = TwinTheme.colors
@@ -312,6 +347,37 @@ private fun GameCard(
                         .padding(horizontal = TwinTheme.spacing.s, vertical = 2.dp),
                 )
             }
+            if (partnerOnline && !challenged) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(TwinTheme.spacing.m),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .height(TwinTheme.shapes.minTouch)
+                            .clip(TwinTheme.shapes.pill)
+                            .background(Brush.verticalGradient(listOf(colors.primaryStart, colors.primaryEnd)))
+                            .clickable(enabled = true, role = Role.Button, onClick = onChallenge),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.games_challenge),
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.games_challenged),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = colors.inkMuted,
+                        modifier = Modifier.padding(top = TwinTheme.spacing.xs),
+                    )
+                }
+            }
         }
         Column(modifier = Modifier.padding(TwinTheme.spacing.l), verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
             Text(stringResource(info.title), style = MaterialTheme.typography.titleLarge, color = colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -364,4 +430,86 @@ private fun CardBadge(text: String, background: Color, textColor: Color, modifie
             .background(background)
             .padding(horizontal = TwinTheme.spacing.s, vertical = 3.dp),
     )
+}
+
+/** A pending game invitation the partner sent: accept it to open the game, or decline it. */
+@Composable
+private fun RequestCard(
+    from: String,
+    game: String,
+    onAccept: () -> Unit,
+    onDecline: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = TwinTheme.colors
+    val shape = RoundedCornerShape(20.dp)
+    Column(
+        modifier = modifier
+            .clip(shape)
+            .background(colors.glass)
+            .border(1.dp, colors.line2, shape)
+            .padding(TwinTheme.spacing.m),
+        verticalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
+        ) {
+            Text(
+                text = stringResource(R.string.games_request_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = colors.ink,
+            )
+            Spacer(Modifier.weight(1f))
+            Text(
+                text = "🎰",
+                style = MaterialTheme.typography.titleLarge,
+                color = colors.primaryStart,
+            )
+        }
+        Text(
+            text = stringResource(R.string.games_request_from, from, game),
+            style = MaterialTheme.typography.bodyMedium,
+            color = colors.inkMuted,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s),
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(TwinTheme.shapes.minTouch)
+                    .clip(TwinTheme.shapes.pill)
+                    .background(Brush.verticalGradient(listOf(colors.primaryStart, colors.primaryEnd)))
+                    .clickable(enabled = true, role = Role.Button, onClick = onAccept),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = stringResource(R.string.games_request_accept),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(TwinTheme.shapes.minTouch)
+                    .clip(TwinTheme.shapes.pill)
+                    .background(Color.Transparent)
+                    .border(1.dp, colors.lineSoft, TwinTheme.shapes.pill)
+                    .clickable(enabled = true, role = Role.Button, onClick = onDecline),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = stringResource(R.string.games_request_decline),
+                    color = colors.ink,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                )
+            }
+        }
+    }
 }

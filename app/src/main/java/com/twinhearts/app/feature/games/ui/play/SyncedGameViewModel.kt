@@ -144,7 +144,10 @@ abstract class SyncedGameViewModel<S : Any>(
             remote == null -> Unit
             local == null -> takeRemote(remote)
             dirty -> Unit // my own newer move is still on its way to the server
-            remote.rev > local.rev || (remote.rev == local.rev && remote.by != local.by) -> takeRemote(remote)
+            // The server doc is the single source of truth. Once my own move has been flushed
+            // (not dirty), always converge to the server so both phones show the same turn.
+            // Protect an in-flight move (dirty) so a stale server read never overwrites it.
+            remote.rev >= local.rev -> takeRemote(remote)
         }
     }
 
