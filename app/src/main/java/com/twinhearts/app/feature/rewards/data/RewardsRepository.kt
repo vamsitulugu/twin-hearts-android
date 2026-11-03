@@ -136,7 +136,7 @@ class RewardsRepositoryImpl @Inject constructor(
     override suspend fun adStart(purpose: String): AppResult<AdTicket> {
         val s = sessionStore.session.first() ?: return AppResult.Failure(AppError.Unauthorized())
         return safeApiCall { api.adStart(AdStartBody(s.coupleId, s.userId, purpose), s.userId) }
-            .map { AdTicket(it.token, it.minSeconds) }
+            .map { AdTicket(it.token, it.minSeconds, it.coins.takeIf { c -> c > 0 } ?: 10) }
     }
 
     override suspend fun adClaim(token: String): AppResult<AdClaim> {

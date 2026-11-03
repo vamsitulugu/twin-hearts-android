@@ -6,8 +6,10 @@ import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.feature.rewards.data.RewardsRepository
 import com.twinhearts.app.feature.storefx.StoreFxState
+import com.twinhearts.app.feature.rewards.domain.AdClaim
 import com.twinhearts.app.feature.rewards.domain.CoinTx
 import com.twinhearts.app.feature.rewards.domain.EarnItem
+import com.twinhearts.app.feature.rewards.domain.PendingAdReward
 import com.twinhearts.app.feature.rewards.domain.RewardsSummary
 import com.twinhearts.app.feature.rewards.domain.ScratchResult
 import com.twinhearts.app.feature.rewards.domain.SpinResult
@@ -39,6 +41,8 @@ data class RewardsUiState(
     val earnItems: List<EarnItem> = emptyList(),
     /** Phase 3: true while a rewarded ad is being requested / played / cashed in. */
     val adBusy: Boolean = false,
+    /** An ad was watched and its scratch card is on screen; the coins are paid when it is scratched. */
+    val adReward: PendingAdReward? = null,
     /** Step 4: Twin Store */
     val storeItems: List<StoreItem> = emptyList(),
     val unlockedItemIds: List<String> = emptyList(),
@@ -101,25 +105,44 @@ class RewardsViewModel @Inject constructor(
                 is AppResult.Failure -> _state.update { it.copy(adBusy = false, error = t.error) }
                 is AppResult.Success -> show(
                     {
-                        viewModelScope.launch {
-                            when (val c = repository.adClaim(t.data.token)) {
-                                is AppResult.Success -> _state.update {
-                                    it.copy(
-                                        adBusy = false,
-                                        summary = it.summary?.copy(
-                                            balance = c.data.balance,
-                                            adCoinsLeft = c.data.remaining,
-                                        ),
-                                        justEarned = c.data.earned,
-                                    )
-                                }
-                                is AppResult.Failure -> _state.update { it.copy(adBusy = false, error = c.error) }
-                            }
-                        }
+                        // The ad is done. The coins are NOT added yet: a scratch card opens first, and the
+                        // server is asked to pay only when the person has scratched it (claimAdReward).
+                        _state.update { it.copy(adReward = PendingAdReward(t.data.token, t.data.coins)) }
                     },
                     { _state.update { it.copy(adBusy = false) } },
                 )
             }
+        }
+    }
+
+    private var heldAdClaim: AdClaim? = null
+
+    /** Called by the scratch card once it is scratched. Returns the coins the server paid, or null if it could not. */
+    suspend fun claimAdReward(): Int? {
+        val reward = _state.value.adReward ?: return null
+        return when (val c = repository.adClaim(reward.token)) {
+            is AppResult.Success -> {
+                // Keep the answer; the balance on the page changes only when the card is closed, so the person sees it count up.
+                heldAdClaim = c.data
+                c.data.earned
+            }
+            is AppResult.Failure -> {
+                _state.update { it.copy(error = c.error) }
+                null
+            }
+        }
+    }
+
+    /** The scratch card was closed: now the balance on the page counts up to what the server said. */
+    fun finishAdReward() {
+        val claim = heldAdClaim
+        heldAdClaim = null
+        _state.update {
+            it.copy(
+                adBusy = false,
+                adReward = null,
+                summary = if (claim != null) it.summary?.copy(balance = claim.balance, adCoinsLeft = claim.remaining) else it.summary,
+            )
         }
     }
 

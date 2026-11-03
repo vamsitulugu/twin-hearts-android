@@ -85,6 +85,15 @@ fun RewardsScreen(
         }
     }
 
+    // After a rewarded ad the coins are paid by scratching a card (the balance counts up once it is closed).
+    state.adReward?.let { reward ->
+        AdScratchDialog(
+            coins = reward.coins,
+            onClaim = viewModel::claimAdReward,
+            onClose = viewModel::finishAdReward,
+        )
+    }
+
     TwinBackground {
         Column(Modifier.fillMaxSize()) {
             TwinTopBar(

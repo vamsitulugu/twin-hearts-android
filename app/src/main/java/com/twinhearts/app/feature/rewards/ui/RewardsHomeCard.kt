@@ -14,6 +14,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -57,10 +58,11 @@ fun RewardsHomeCard(
     val s = state.summary ?: return
     val colors = TwinTheme.colors
     val shown = rememberCountedBalance(s.balance)
+    val bump = rememberCoinBump(s.balance)
 
     GlassCard(modifier.fillMaxWidth(), onClick = onOpen, contentPadding = 12.dp) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            CoinIcon()
+            CoinIcon(modifier = Modifier.graphicsLayer { scaleX = bump; scaleY = bump })
             Spacer(Modifier.width(7.dp))
             Column {
                 Text("$shown", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = colors.ink)

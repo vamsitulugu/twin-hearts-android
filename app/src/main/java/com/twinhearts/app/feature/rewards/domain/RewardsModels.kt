@@ -127,6 +127,9 @@ data class EarnItem(val action: String, val label: String, val emoji: String, va
 data class EarnResult(val earned: Int, val capped: Boolean, val remaining: Int, val balance: Int)
 
 /** Phase 3: a one-time ticket from the server; it is cashed in after the ad was watched. */
-data class AdTicket(val token: String, val minSeconds: Int)
+data class AdTicket(val token: String, val minSeconds: Int, val coins: Int = 10)
+
+/** An ad was watched and a scratch card is waiting: the coins are paid only when the card is scratched. */
+data class PendingAdReward(val token: String, val coins: Int)
 
 data class AdClaim(val earned: Int, val balance: Int, val remaining: Int)

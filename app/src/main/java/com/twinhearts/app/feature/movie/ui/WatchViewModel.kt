@@ -346,13 +346,13 @@ class WatchViewModel @Inject constructor(
         if (!ads.movieBreakAllowed()) return // Pro couples (or ads off) never get a break
         viewModelScope.launch {
             // The server allows one break per 15 minutes for the couple, so two phones asking at once get one break.
-            (repo.adBreakRequest(who) as? AppResult.Success)?.let { handleAdBreak(it.data) }
+            (repo.requestAdBreak(who) as? AppResult.Success<AdBreakAnswer>)?.let { handleAdBreak(it.data) }
         }
     }
 
     private suspend fun pollAdBreak() {
         val who = _state.value.who ?: return
-        (repo.adBreak(who) as? AppResult.Success)?.let { handleAdBreak(it.data) }
+        (repo.adBreak(who) as? AppResult.Success<AdBreakAnswer>)?.let { handleAdBreak(it.data) }
     }
 
     /** A new break was announced: the starter pauses the movie for both phones, then this phone shows its ad. */
@@ -377,12 +377,12 @@ class WatchViewModel @Inject constructor(
     fun adBreakFinished(id: Long) {
         val who = _state.value.who ?: return
         viewModelScope.launch {
-            var all = (repo.adBreakDone(who, id) as? AppResult.Success)?.data?.adBreak?.allDone == true
+            var all = (repo.adBreakDone(who, id) as? AppResult.Success<AdBreakAnswer>)?.data?.adBreak?.allDone == true
             var waited = 0L
             while (!all && waited < AD_BREAK_WAIT_MS) {
                 delay(1000)
                 waited += 1000
-                all = (repo.adBreak(who) as? AppResult.Success)?.data?.adBreak?.let { it.id != id || it.allDone } == true
+                all = (repo.adBreak(who) as? AppResult.Success<AdBreakAnswer>)?.data?.adBreak?.let { it.id != id || it.allDone } == true
             }
             _state.update { it.copy(adBreak = null) }
             refreshRoom(first = false)

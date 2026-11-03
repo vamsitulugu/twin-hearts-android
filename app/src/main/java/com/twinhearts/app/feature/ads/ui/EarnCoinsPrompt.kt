@@ -44,6 +44,8 @@ import com.twinhearts.app.feature.ads.data.AdsManager
 import com.twinhearts.app.feature.ads.di.rememberAdsManager
 import com.twinhearts.app.feature.ads.domain.AdRules
 import com.twinhearts.app.feature.rewards.data.RewardsRepository
+import com.twinhearts.app.feature.rewards.domain.PendingAdReward
+import com.twinhearts.app.feature.rewards.ui.AdScratchDialog
 import com.twinhearts.app.feature.rewards.ui.RewardsStyle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -79,6 +81,25 @@ class EarnPromptViewModel @Inject constructor(
     private val _messages = MutableSharedFlow<EarnPromptMessage>(extraBufferCapacity = 2)
     val messages: SharedFlow<EarnPromptMessage> = _messages.asSharedFlow()
 
+    /** The ad was watched; a scratch card is on screen and the coins are paid only when it is scratched. */
+    private val _pending = MutableStateFlow<PendingAdReward?>(null)
+    val pending: StateFlow<PendingAdReward?> = _pending.asStateFlow()
+
+    /** Called by the scratch card once it is scratched. Returns the coins the server paid, or null if it could not. */
+    suspend fun claim(): Int? {
+        val reward = _pending.value ?: return null
+        return when (val claim = rewards.adClaim(reward.token)) {
+            is AppResult.Success -> claim.data.earned
+            is AppResult.Failure -> null
+        }
+    }
+
+    /** The scratch card was closed. */
+    fun finish() {
+        _pending.value = null
+        _working.value = false
+    }
+
     fun watch(activity: Activity) {
         if (_working.value) return
         _working.value = true
@@ -91,15 +112,8 @@ class EarnPromptViewModel @Inject constructor(
                 }
                 is AppResult.Success -> ads.showRewarded(
                     activity,
-                    onEarned = {
-                        viewModelScope.launch {
-                            when (val claim = rewards.adClaim(ticket.data.token)) {
-                                is AppResult.Success -> _messages.tryEmit(EarnPromptMessage.Earned(claim.data.earned))
-                                is AppResult.Failure -> _messages.tryEmit(EarnPromptMessage.TryLater)
-                            }
-                            _working.value = false
-                        }
-                    },
+                    // Not paid yet: the scratch card opens first (see claim()).
+                    onEarned = { _pending.value = PendingAdReward(ticket.data.token, ticket.data.coins) },
                     onFail = {
                         _working.value = false
                         _messages.tryEmit(EarnPromptMessage.NotEarned)
@@ -121,6 +135,11 @@ fun EarnCoinsPrompt(modifier: Modifier = Modifier, viewModel: EarnPromptViewMode
     val context = LocalContext.current
     val visible by ads.earnPromptVisible.collectAsStateWithLifecycle()
     val working by viewModel.working.collectAsStateWithLifecycle()
+    val pending by viewModel.pending.collectAsStateWithLifecycle()
+
+    pending?.let { reward ->
+        AdScratchDialog(coins = reward.coins, onClaim = viewModel::claim, onClose = viewModel::finish)
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.messages.collect { message ->

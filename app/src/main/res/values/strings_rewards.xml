@@ -116,5 +116,16 @@
     <string name="rewards_store_need_coins">Need %1$d more</string>
     <string name="rewards_kind_store">Twin Store</string>
     <string name="rewards_kind_store_named">Store: %1$s</string>
+    <!-- After a rewarded ad: the scratch card that pays the coins -->
+    <string name="ad_scratch_title">🎁 You earned a scratch card!</string>
+    <string name="ad_scratch_sub">Scratch the card to reveal your coins</string>
+    <string name="ad_scratch_hint">Scratch here ✨</string>
+    <string name="ad_scratch_cd">Scratch card</string>
+    <string name="ad_scratch_reveal">Reveal</string>
+    <string name="ad_scratch_claiming">Adding your coins…</string>
+    <string name="ad_scratch_won">+%1$d Gold Coins added! 🎉</string>
+    <string name="ad_scratch_collect">Collect</string>
+    <string name="ad_scratch_close">Close</string>
+    <string name="ad_scratch_failed">Could not add the coins. Please try again in a moment.</string>
 </resources>
 

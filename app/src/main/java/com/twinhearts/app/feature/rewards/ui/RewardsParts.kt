@@ -33,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -134,18 +135,15 @@ internal fun ClaimButton(
 internal fun HeroCard(summary: RewardsSummary) {
     val colors = TwinTheme.colors
     val shown = rememberCountedBalance(summary.balance)
+    val bump = rememberCoinBump(summary.balance)
+    // Only the coins you have now; the "earned in total" number was removed.
     GlassCard(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            CoinIcon(46.dp)
+            CoinIcon(46.dp, Modifier.graphicsLayer { scaleX = bump; scaleY = bump })
             Spacer(Modifier.size(14.dp))
             Column {
                 Text("$shown", fontSize = 38.sp, fontWeight = FontWeight.ExtraBold, color = colors.ink, lineHeight = 38.sp)
                 Text(stringResource(R.string.rewards_gold_coins), style = MaterialTheme.typography.labelMedium, color = colors.inkMuted)
-            }
-            Spacer(Modifier.weight(1f))
-            Column(horizontalAlignment = Alignment.End) {
-                Text("${summary.lifetimeEarned}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.ink)
-                Text(stringResource(R.string.rewards_earned_total), style = MaterialTheme.typography.labelSmall, color = colors.inkMuted)
             }
         }
     }
@@ -366,6 +364,12 @@ internal fun ScratchCard(
     LaunchedEffect(summary.scratchedToday) {
         if (summary.scratchedToday) revealed = true
     }
+    // Coins burst out when today's prize has just been revealed (not when the page opens on an old result).
+    val startedFresh = remember { !summary.scratchedToday }
+    var shower by remember { mutableIntStateOf(0) }
+    LaunchedEffect(lastResult) {
+        if (startedFresh && lastResult != null && lastResult.coins > 0) shower++
+    }
 
     GlassCard(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -395,11 +399,7 @@ internal fun ScratchCard(
                 .height(140.dp)
                 .clip(RoundedCornerShape(18.dp))
                 .border(1.5.dp, RewardsStyle.Gold.copy(alpha = 0.45f), RoundedCornerShape(18.dp))
-                .background(RewardsStyle.Gold.copy(alpha = 0.12f))
-                .clickable(enabled = !revealed && !scratching) {
-                    revealed = true
-                    onScratch()
-                },
+                .background(RewardsStyle.Gold.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center,
         ) {
             Column(
@@ -438,25 +438,20 @@ internal fun ScratchCard(
                 )
             }
 
-            if (!revealed) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Brush.linearGradient(listOf(RewardsStyle.GoldDeep, RewardsStyle.Gold, Color(0xFFFCD34D)))),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("🎫", fontSize = 26.sp)
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            stringResource(R.string.rewards_scratch_tap_hint),
-                            color = RewardsStyle.GoldInk,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 13.sp,
-                        )
+            // Real foil: scratch it with a finger (about half) or tap "Reveal Prize". The server is asked only then.
+            ScratchFoil(
+                hint = stringResource(R.string.rewards_scratch_tap_hint),
+                modifier = Modifier.fillMaxSize(),
+                enabled = !revealed && !scratching,
+                revealNow = revealed,
+                onThreshold = {
+                    if (!revealed) {
+                        revealed = true
+                        onScratch()
                     }
-                }
-            }
+                },
+            )
+            CoinShower(trigger = shower, modifier = Modifier.fillMaxSize())
         }
 
         Spacer(Modifier.height(12.dp))

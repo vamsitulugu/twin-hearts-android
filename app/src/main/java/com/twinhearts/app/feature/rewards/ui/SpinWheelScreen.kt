@@ -3,6 +3,8 @@ package com.twinhearts.app.feature.rewards.ui
 import android.graphics.Paint
 import android.graphics.Typeface
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -103,9 +105,13 @@ fun SpinWheelScreen(
     var phase by remember { mutableStateOf(WheelPhase.Idle) }
     var balanceBefore by remember { mutableIntStateOf(summary.balance) }
     var wonCoins by remember { mutableIntStateOf(-1) }
+    // Each time the wheel stops on a prize this goes up by one and a burst of coins flies out.
+    var shower by remember { mutableIntStateOf(0) }
 
     // The balance on screen only changes once the wheel has stopped.
-    val shown = rememberCountedBalance(if (phase == WheelPhase.Idle) summary.balance else balanceBefore)
+    val balanceTarget = if (phase == WheelPhase.Idle) summary.balance else balanceBefore
+    val shown = rememberCountedBalance(balanceTarget)
+    val bump = rememberCoinBump(balanceTarget)
 
     // The server's answer is here -> stop waiting and land on its slice.
     LaunchedEffect(state.lastSpinResult) {
@@ -160,6 +166,7 @@ fun SpinWheelScreen(
                         }
                     }
                     wonCoins = result.coins
+                    if (result.coins > 0) shower++
                     viewModel.consumeEarned()
                 }
                 phase = WheelPhase.Idle
@@ -175,6 +182,7 @@ fun SpinWheelScreen(
     val showDone = paidMode && !busy && !paidReady
     val canTap = !busy && (!paidMode || (paidReady && canAfford))
 
+    Box(Modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize()) {
         TwinTopBar(
             title = stringResource(R.string.rewards_spin_title),
@@ -185,22 +193,22 @@ fun SpinWheelScreen(
         // Coin balance above the wheel.
         GlassCard(Modifier.fillMaxWidth()) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                CoinIcon(46.dp)
+                CoinIcon(46.dp, Modifier.graphicsLayer { scaleX = bump; scaleY = bump })
                 Spacer(Modifier.size(14.dp))
                 Column {
                     Text("$shown", fontSize = 38.sp, fontWeight = FontWeight.ExtraBold, color = colors.ink, lineHeight = 38.sp)
                     Text(stringResource(R.string.rewards_gold_coins), style = MaterialTheme.typography.labelMedium, color = colors.inkMuted)
-                }
-                Spacer(Modifier.weight(1f))
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("${summary.lifetimeEarned}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.ink)
-                    Text(stringResource(R.string.rewards_earned_total), style = MaterialTheme.typography.labelSmall, color = colors.inkMuted)
                 }
             }
         }
         Spacer(Modifier.height(10.dp))
 
         // Result line above the wheel (kept in the layout so the wheel does not jump).
+        val winScale by animateFloatAsState(
+            targetValue = if (wonCoins >= 0 && !busy) 1f else 0.5f,
+            animationSpec = spring(dampingRatio = 0.4f, stiffness = 300f),
+            label = "winScale",
+        )
         Box(Modifier.fillMaxWidth().height(28.dp), contentAlignment = Alignment.Center) {
             if (wonCoins >= 0 && !busy) {
                 Text(
@@ -208,6 +216,7 @@ fun SpinWheelScreen(
                     color = RewardsStyle.Gold,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold,
+                    modifier = Modifier.graphicsLayer { scaleX = winScale; scaleY = winScale },
                 )
             }
         }
@@ -302,6 +311,9 @@ fun SpinWheelScreen(
         )
         // Room for the floating bottom bar so the last text scrolls clear of it.
         Spacer(Modifier.height(112.dp))
+    }
+    // Coins fly out over the wheel when it stops on a prize.
+    CoinShower(trigger = shower, modifier = Modifier.fillMaxSize())
     }
 }
 
