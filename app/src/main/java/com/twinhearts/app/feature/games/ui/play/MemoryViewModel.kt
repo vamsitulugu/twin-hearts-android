@@ -28,7 +28,7 @@ class MemoryViewModel @Inject constructor(
     fun flip(index: Int) {
         val me = side
         if (!mutate { MemoryEngine.flip(it, me, index) }) return
-        cue(GameCue.Tap)
+        cue(GameCue.Flip)
         if (state?.let { MemoryEngine.hasPendingPair(it) } == true) {
             val atRevision = revision
             viewModelScope.launch {
@@ -43,7 +43,7 @@ class MemoryViewModel @Inject constructor(
         var matched = false
         if (!mutate { current -> MemoryEngine.resolve(current, me)?.also { matched = it.matched }?.state }) return
         if (matched) {
-            cue(GameCue.Success)
+            cue(GameCue.Match)
             award(xp = PAIR_XP, coins = PAIR_COINS)
         } else {
             cue(GameCue.Fail)

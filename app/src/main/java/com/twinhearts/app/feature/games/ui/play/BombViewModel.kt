@@ -14,6 +14,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
+import kotlin.math.ceil
 
 /**
  * Don't Touch The Bomb. The mover's phone starts and stops the clock (the guide's phone backs it
@@ -30,6 +31,7 @@ class BombViewModel @Inject constructor(
 
     private var paidRound = -1
     private var lastRelocateAt = 0L
+    private var lastTickSec = -1
     private val sentChat = ArrayDeque<ChatLine>()
 
     fun start(difficulty: BombDifficulty, hint: Boolean, fog: Boolean) {
@@ -80,10 +82,12 @@ class BombViewModel @Inject constructor(
             val isMover = side == current.mover
             when (current.phase) {
                 BombPhase.Countdown -> {
+                    tickSecond(current.countdownAt - now, COUNTDOWN_TICKS) // 3 · 2 · 1
                     val grace = if (isMover) 0L else GRACE_MS
                     if (now >= current.countdownAt + grace) mutate { BombEngine.beginPlaying(it, now) }
                 }
                 BombPhase.Playing -> {
+                    tickSecond(current.timeLimit * 1_000L - (now - current.startedAt), LAST_SECONDS_TICKS)
                     val grace = if (isMover) 0L else GRACE_MS
                     if (now - current.startedAt >= current.timeLimit * 1_000L + grace) {
                         mutate { BombEngine.timeout(it) }
@@ -96,8 +100,17 @@ class BombViewModel @Inject constructor(
                         }
                     }
                 }
-                else -> Unit
+                else -> lastTickSec = -1
             }
+        }
+    }
+
+    /** One soft tick per second while [remainingMs] is inside the last [window] seconds. */
+    private fun tickSecond(remainingMs: Long, window: Int) {
+        val sec = ceil(remainingMs / 1000.0).toInt()
+        if (sec in 1..window && sec != lastTickSec) {
+            lastTickSec = sec
+            cue(GameCue.Tick)
         }
     }
 
@@ -125,7 +138,7 @@ class BombViewModel @Inject constructor(
         if (current.phase != BombPhase.Result || paidRound == current.round) return
         paidRound = current.round
         if (current.result != BombResult.Won) {
-            cue(GameCue.Fail)
+            cue(if (current.result == BombResult.Exploded) GameCue.Boom else GameCue.Fail)
             return
         }
         val cfg = current.difficulty
@@ -144,6 +157,8 @@ class BombViewModel @Inject constructor(
 
     private companion object {
         const val CLOCK_MS = 250L
+        const val COUNTDOWN_TICKS = 3
+        const val LAST_SECONDS_TICKS = 5
         const val GRACE_MS = 4_000L
         const val GUIDE_SHARE = 0.65f
         const val KEEP_SENT = 5

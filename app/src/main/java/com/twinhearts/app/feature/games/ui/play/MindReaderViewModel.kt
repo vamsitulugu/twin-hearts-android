@@ -115,7 +115,8 @@ class MindReaderViewModel @Inject constructor(
         award(xp = MindReaderEngine.xp(match), coins = MindReaderEngine.coins(match), finished = true)
         cue(
             when (match) {
-                MrMatch.Exact, MrMatch.Near -> GameCue.Success
+                MrMatch.Exact -> GameCue.Match
+                MrMatch.Near -> GameCue.Success
                 MrMatch.Funny -> GameCue.Tap
                 MrMatch.Different -> GameCue.Fail
             },
