@@ -12,6 +12,7 @@ import com.twinhearts.app.feature.rewards.domain.EarnItem
 import com.twinhearts.app.feature.rewards.domain.PendingAdReward
 import com.twinhearts.app.feature.rewards.domain.RewardsSummary
 import com.twinhearts.app.feature.rewards.domain.ScratchResult
+import com.twinhearts.app.core.sound.TwinSound
 import com.twinhearts.app.feature.rewards.domain.SpinResult
 import com.twinhearts.app.feature.rewards.domain.StoreItem
 import com.twinhearts.app.feature.rewards.domain.StorePurchaseResult
@@ -187,6 +188,7 @@ class RewardsViewModel @Inject constructor(
             when (val r = repository.checkIn()) {
                 is AppResult.Success -> {
                     _state.update { it.copy(summary = r.data, claiming = false, error = null, justEarned = if (r.data.claimed) r.data.earned else 0) }
+                    if (r.data.claimed) TwinSound.coins(5)
                     loadHistory()
                 }
                 is AppResult.Failure -> _state.update { it.copy(claiming = false, error = if (it.summary == null) r.error else it.error) }
@@ -300,9 +302,10 @@ class RewardsViewModel @Inject constructor(
                         )
                     }
                     loadHistory()
+                    TwinSound.purchase() // ka-ching
                     onSuccess(r.data)
                 }
-                is AppResult.Failure -> _state.update { it.copy(purchasingItemId = null, error = r.error) }
+                is AppResult.Failure -> { TwinSound.error(); _state.update { it.copy(purchasingItemId = null, error = r.error) } }
             }
         }
     }

@@ -4,6 +4,7 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateFloatAsState
+import com.twinhearts.app.core.sound.TwinSound
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -133,12 +134,17 @@ fun SpinWheelScreen(
         when (phase) {
             WheelPhase.Idle -> Unit
             WheelPhase.Waiting -> {
+                TwinSound.spinStart()
                 if (!appReduceMotion) {
+                    val pegGap = 360f / sliceCount
+                    var lastPeg = (rotation / pegGap).toInt()
                     var last = withFrameNanos { it }
                     while (true) {
                         val now = withFrameNanos { it }
                         rotation += (now - last) / 1_000_000_000f * WAIT_DEGREES_PER_SECOND
                         last = now
+                        val peg = (rotation / pegGap).toInt()
+                        if (peg != lastPeg) { lastPeg = peg; TwinSound.tick(0.8f) } // a soft click each time a peg passes
                     }
                 }
             }
@@ -158,14 +164,19 @@ fun SpinWheelScreen(
                         rotation = target
                     } else {
                         val t0 = withFrameNanos { it }
+                        var lastPeg = (rotation / sweep).toInt()
                         while (true) {
                             val now = withFrameNanos { it }
                             val t = ((now - t0) / 1_000_000f / LAND_MILLIS).coerceIn(0f, 1f)
                             rotation = start + (target - start) * LandEasing.transform(t)
+                            val peg = (rotation / sweep).toInt()
+                            if (peg != lastPeg) { lastPeg = peg; TwinSound.tick((1f - t) * (1f - t)) } // slower wheel = softer click
                             if (t >= 1f) break
                         }
                     }
                     wonCoins = result.coins
+                    TwinSound.spinEnd()
+                    if (result.coins > 0) TwinSound.win(big = result.coins >= 50)
                     if (result.coins > 0) shower++
                     viewModel.consumeEarned()
                 }

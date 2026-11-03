@@ -158,6 +158,11 @@ private fun TwinNavigation(
         }
     }
 
+    // Free daily uses ran out (movie / songs / pins / games): ONE clear coin-pass sheet; "Get coins free" opens Rewards.
+    com.twinhearts.app.feature.access.ui.AccessGateHost(
+        onGetCoins = { navController.navigate(Routes.Rewards) { launchSingleTop = true } },
+    )
+
     // A call from my partner opens the call page on any screen (the app must be open).
     IncomingCallWatcher(
         onIncoming = { video ->

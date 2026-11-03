@@ -1,6 +1,7 @@
 package com.twinhearts.app.feature.rewards.ui
 
 import androidx.compose.animation.core.Animatable
+import com.twinhearts.app.core.sound.TwinSound
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -368,7 +369,7 @@ internal fun ScratchCard(
     val startedFresh = remember { !summary.scratchedToday }
     var shower by remember { mutableIntStateOf(0) }
     LaunchedEffect(lastResult) {
-        if (startedFresh && lastResult != null && lastResult.coins > 0) shower++
+        if (startedFresh && lastResult != null && lastResult.coins > 0) { shower++; TwinSound.reveal() }
     }
 
     GlassCard(Modifier.fillMaxWidth()) {

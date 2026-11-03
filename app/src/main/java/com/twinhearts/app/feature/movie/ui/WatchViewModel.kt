@@ -80,6 +80,7 @@ class WatchViewModel @Inject constructor(
     private val uploader: CloudUploader,
     private val store: MovieLocalStore,
     private val ads: AdsManager,
+    private val accessGate: com.twinhearts.app.feature.access.domain.AccessGate,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(WatchUiState())
@@ -263,7 +264,21 @@ class WatchViewModel @Inject constructor(
 
     fun setReady(ready: Boolean) = runAction(R.string.movie_toast_ready_failed) { who -> repo.setReady(who, ready) }
 
-    fun requestStart() = runAction(R.string.movie_toast_start_failed) { who ->
+    private var gateOkAt = 0L
+
+    /** Free movie each day, then ONE small coin pass. A start within 10 minutes (e.g. after a cancel) is the same movie. */
+    fun requestStart() {
+        viewModelScope.launch {
+            val recent = System.currentTimeMillis() - gateOkAt < 600_000L
+            if (!recent) {
+                if (!accessGate.check(com.twinhearts.app.feature.access.domain.AccessFeature.Movie)) return@launch
+                gateOkAt = System.currentTimeMillis()
+            }
+            startNow()
+        }
+    }
+
+    private fun startNow() = runAction(R.string.movie_toast_start_failed) { who ->
         sentFirstState = false
         repo.requestStart(who)
     }

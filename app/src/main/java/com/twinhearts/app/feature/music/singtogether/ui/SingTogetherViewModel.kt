@@ -1,6 +1,8 @@
 package com.twinhearts.app.feature.music.singtogether.ui
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import com.twinhearts.app.feature.music.domain.model.Song
 import com.twinhearts.app.feature.music.player.MusicPlayerController
 import com.twinhearts.app.feature.music.player.PlayerState
@@ -18,6 +20,7 @@ import javax.inject.Inject
 class SingTogetherViewModel @Inject constructor(
     private val engine: SingTogetherEngine,
     controller: MusicPlayerController,
+    private val accessGate: com.twinhearts.app.feature.access.domain.AccessGate,
 ) : ViewModel() {
 
     val state: StateFlow<SingState> = engine.state
@@ -33,7 +36,19 @@ class SingTogetherViewModel @Inject constructor(
         engine.unwatch()
     }
 
-    fun invite(song: Song, songs: List<Song>) = engine.invite(song, songs)
+    private var gateOkAt = 0L
+
+    /** Free songs each day, then ONE small coin pass. Inviting again within 10 minutes is not counted again. */
+    fun invite(song: Song, songs: List<Song>) {
+        viewModelScope.launch {
+            val recent = System.currentTimeMillis() - gateOkAt < 600_000L
+            if (!recent) {
+                if (!accessGate.check(com.twinhearts.app.feature.access.domain.AccessFeature.Songs)) return@launch
+                gateOkAt = System.currentTimeMillis()
+            }
+            engine.invite(song, songs)
+        }
+    }
 
     fun cancelInvite() = engine.cancelInvite()
 

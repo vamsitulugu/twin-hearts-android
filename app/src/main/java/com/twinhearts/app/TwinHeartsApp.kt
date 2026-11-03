@@ -43,6 +43,7 @@ class TwinHeartsApp : Application() {
             previousHandler?.uncaughtException(thread, error)
         }
         NotificationChannels.ensure(this)
+        com.twinhearts.app.core.sound.TwinSound.init(this) // soft coin / spin / scratch sounds (one mute switch)
         // Start waking the sleeping server before the first screen asks for anything.
         serverWarmer.warm()
         // Tell the server I am online on every screen (the web shows it as my partner's Online / Away).

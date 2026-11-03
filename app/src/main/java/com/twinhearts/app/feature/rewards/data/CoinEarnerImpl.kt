@@ -6,6 +6,7 @@ import android.os.Looper
 import android.widget.Toast
 import com.twinhearts.app.R
 import com.twinhearts.app.core.common.AppResult
+import com.twinhearts.app.core.sound.TwinSound
 import com.twinhearts.app.feature.rewards.domain.CoinEarner
 import com.twinhearts.app.feature.rewards.domain.EarnAction
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -28,6 +29,7 @@ class CoinEarnerImpl @Inject constructor(
         scope.launch {
             val r = repository.earn(action)
             if (r is AppResult.Success && r.data.earned > 0) {
+                TwinSound.coins(minOf(4, (r.data.earned + 1) / 2))
                 main.postDelayed(
                     { Toast.makeText(context, context.getString(R.string.rewards_earn_toast, r.data.earned), Toast.LENGTH_SHORT).show() },
                     700,

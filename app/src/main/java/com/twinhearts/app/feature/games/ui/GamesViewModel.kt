@@ -23,7 +23,22 @@ import javax.inject.Inject
 @HiltViewModel
 class GamesViewModel @Inject constructor(
     private val repository: GamesRepository,
+    private val accessGate: com.twinhearts.app.feature.access.domain.AccessGate,
 ) : ViewModel() {
+
+    private var gateOkAt = 0L
+
+    /** Free games each day, then ONE small coin pass. Opening another game within 10 minutes is not counted again. */
+    fun tryOpen(onAllowed: () -> Unit) {
+        viewModelScope.launch {
+            val recent = System.currentTimeMillis() - gateOkAt < 600_000L
+            if (!recent) {
+                if (!accessGate.check(com.twinhearts.app.feature.access.domain.AccessFeature.Games)) return@launch
+                gateOkAt = System.currentTimeMillis()
+            }
+            onAllowed()
+        }
+    }
 
     private val _ui = MutableStateFlow<UiState<Players>>(UiState.Loading)
     val ui: StateFlow<UiState<Players>> = _ui.asStateFlow()

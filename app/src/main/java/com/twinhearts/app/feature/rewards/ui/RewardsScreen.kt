@@ -101,6 +101,7 @@ fun RewardsScreen(
                 showSidebarButton = true,
                 onSyncClick = { viewModel.refresh(); viewModel.loadStore(); viewModel.loadEarn() },
             )
+            com.twinhearts.app.core.sound.SoundToggle()
             val summary = state.summary
             val error = state.error
             if (summary == null) {

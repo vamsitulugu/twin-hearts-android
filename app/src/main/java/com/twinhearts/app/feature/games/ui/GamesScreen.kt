@@ -91,8 +91,10 @@ fun GamesScreen(onBack: () -> Unit, viewModel: GamesViewModel = hiltViewModel())
             viewModel = viewModel,
             onBack = onBack,
             onOpen = { game ->
-                viewModel.markOpened(game)
-                openKey = game.key
+                viewModel.tryOpen {
+                    viewModel.markOpened(game)
+                    openKey = game.key
+                }
             },
         )
     }

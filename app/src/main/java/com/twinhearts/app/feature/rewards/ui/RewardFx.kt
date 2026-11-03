@@ -1,6 +1,7 @@
 package com.twinhearts.app.feature.rewards.ui
 
 import androidx.compose.animation.core.Animatable
+import com.twinhearts.app.core.sound.TwinSound
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
@@ -192,6 +193,7 @@ internal fun ScratchFoil(
 
     fun mark(p: Offset) {
         if (size.width == 0 || size.height == 0) return
+        TwinSound.scratch() // a soft scratch grain (it throttles itself)
         val cellW = size.width.toFloat() / cols
         val cellH = size.height.toFloat() / rows
         val reach = brushPx / 2f
@@ -317,7 +319,7 @@ internal fun AdScratchDialog(
             } else {
                 earned = paid
                 phase = AdScratchPhase.Won
-                if (paid > 0) shower++
+                if (paid > 0) { shower++; TwinSound.ad() } // rising chime, then coins
             }
         }
     }
