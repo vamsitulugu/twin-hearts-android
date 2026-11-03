@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -812,3 +813,78 @@ private fun StoreItemRow(
     }
 }
 
+
+
+/** Phase 1: "Earn more coins" list (same rows as the web Wallet tab). */
+@Composable
+internal fun EarnCard(items: List<com.twinhearts.app.feature.rewards.domain.EarnItem>) {
+    if (items.isEmpty()) return
+    val colors = TwinTheme.colors
+    GlassCard(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            SectionTitle(stringResource(R.string.rewards_earn_title))
+            Spacer(Modifier.weight(1f))
+            Text(stringResource(R.string.rewards_earn_reset), style = MaterialTheme.typography.labelSmall, color = colors.inkMuted)
+        }
+        Spacer(Modifier.height(8.dp))
+        items.forEach { item ->
+            val done = item.remaining <= 0
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(item.emoji, fontSize = 20.sp, modifier = Modifier.size(38.dp).wrapContentSize(Alignment.Center))
+                Spacer(Modifier.size(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(item.label, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (done) colors.inkMuted else colors.ink)
+                    Text(
+                        if (done) stringResource(R.string.rewards_earn_done) else stringResource(R.string.rewards_earn_left, item.remaining, item.daily),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.inkMuted,
+                    )
+                }
+                Text("+${item.coins} 🪙", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = if (done) colors.success else RewardsStyle.Gold)
+            }
+        }
+    }
+}
+
+
+/** Phase 3: "Watch an ad" for coins. Hidden when ads are off for this couple (for example Pro). */
+@Composable
+internal fun WatchAdCard(summary: RewardsSummary, player: AdPlayer, busy: Boolean, onWatch: () -> Unit) {
+    if (!player.allowed) return
+    val colors = TwinTheme.colors
+    val left = summary.adCoinsLeft
+    val canTap = player.ready && !busy && left > 0
+    GlassCard(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("📺", fontSize = 22.sp, modifier = Modifier.size(38.dp).wrapContentSize(Alignment.Center))
+            Spacer(Modifier.size(10.dp))
+            Column(Modifier.weight(1f)) {
+                SectionTitle(stringResource(R.string.rewards_ad_title))
+                Text(
+                    when {
+                        left <= 0 -> stringResource(R.string.rewards_ad_done)
+                        !player.ready -> stringResource(R.string.rewards_ad_loading)
+                        else -> stringResource(R.string.rewards_ad_sub, summary.adCoinsReward, left)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.inkMuted,
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .height(TwinTheme.shapes.minTouch)
+                    .clip(TwinTheme.shapes.pill)
+                    .background(Brush.verticalGradient(listOf(RewardsStyle.Gold, RewardsStyle.GoldDeep)))
+                    .graphicsLayer { alpha = if (canTap) 1f else 0.45f }
+                    .clickable(enabled = canTap, role = Role.Button, onClick = onWatch)
+                    .padding(horizontal = 18.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("▶ +${summary.adCoinsReward} 🪙", color = RewardsStyle.GoldInk, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+            }
+        }
+    }
+}

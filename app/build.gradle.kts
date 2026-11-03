@@ -28,9 +28,13 @@ val googleWebClientId: String = localProps.getProperty("GOOGLE_WEB_CLIENT_ID") ?
 val admobTestAppId = "ca-app-pub-3940256099942544~3347511713"
 val admobTestBannerId = "ca-app-pub-3940256099942544/9214589741"
 val admobTestInterstitialId = "ca-app-pub-3940256099942544/1033173712"
+val admobTestRewardedId = "ca-app-pub-3940256099942544/5224354917"
 val admobAppId: String? = localProps.getProperty("ADMOB_APP_ID")
 val admobBannerId: String? = localProps.getProperty("ADMOB_BANNER_ID")
 val admobInterstitialId: String? = localProps.getProperty("ADMOB_INTERSTITIAL_ID")
+// Rewarded ads ("watch an ad for coins / a free spin") need their own ad unit: ADMOB_REWARDED_ID in local.properties.
+// Without it a release build simply hides the watch-ad buttons; the other ads are not affected.
+val admobRewardedId: String? = localProps.getProperty("ADMOB_REWARDED_ID")
 val adsReleaseReady = admobAppId != null && admobBannerId != null && admobInterstitialId != null
 
 android {
@@ -42,7 +46,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "0.2.0"
+        versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
@@ -54,6 +58,8 @@ android {
             buildConfigField("boolean", "ADS_ENABLED", "true")
             buildConfigField("String", "ADMOB_BANNER_ID", "\"$admobTestBannerId\"")
             buildConfigField("String", "ADMOB_INTERSTITIAL_ID", "\"$admobTestInterstitialId\"")
+            buildConfigField("boolean", "REWARDED_ENABLED", "true")
+            buildConfigField("String", "ADMOB_REWARDED_ID", "\"$admobTestRewardedId\"")
             manifestPlaceholders["admobAppId"] = admobTestAppId
         }
         release {
@@ -63,6 +69,8 @@ android {
             buildConfigField("boolean", "ADS_ENABLED", adsReleaseReady.toString())
             buildConfigField("String", "ADMOB_BANNER_ID", "\"${admobBannerId ?: admobTestBannerId}\"")
             buildConfigField("String", "ADMOB_INTERSTITIAL_ID", "\"${admobInterstitialId ?: admobTestInterstitialId}\"")
+            buildConfigField("boolean", "REWARDED_ENABLED", (adsReleaseReady && admobRewardedId != null).toString())
+            buildConfigField("String", "ADMOB_REWARDED_ID", "\"${admobRewardedId ?: admobTestRewardedId}\"")
             manifestPlaceholders["admobAppId"] = admobAppId ?: admobTestAppId
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }

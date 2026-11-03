@@ -6,6 +6,7 @@ import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.feature.rewards.data.RewardsRepository
 import com.twinhearts.app.feature.rewards.domain.CoinTx
+import com.twinhearts.app.feature.rewards.domain.EarnItem
 import com.twinhearts.app.feature.rewards.domain.RewardsSummary
 import com.twinhearts.app.feature.rewards.domain.ScratchResult
 import com.twinhearts.app.feature.rewards.domain.SpinResult
@@ -33,6 +34,10 @@ data class RewardsUiState(
     val partnerName: String = "",
     val lastSpinResult: SpinResult? = null,
     val lastScratchResult: ScratchResult? = null,
+    /** Phase 1: Earn more coins list */
+    val earnItems: List<EarnItem> = emptyList(),
+    /** Phase 3: true while a rewarded ad is being requested / played / cashed in. */
+    val adBusy: Boolean = false,
     /** Step 4: Twin Store */
     val storeItems: List<StoreItem> = emptyList(),
     val unlockedItemIds: List<String> = emptyList(),
@@ -78,6 +83,67 @@ class RewardsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Phase 3: watch a rewarded ad for coins. [show] plays the ad (the screen supplies it, so this class needs no
+     * Android types) and calls exactly one of its two callbacks. The server pays; nothing is added here by guess.
+     */
+    fun watchAdForCoins(show: (onEarned: () -> Unit, onFail: () -> Unit) -> Unit) {
+        val summary = _state.value.summary ?: return
+        if (_state.value.adBusy || summary.adCoinsLeft <= 0) return
+        _state.update { it.copy(adBusy = true) }
+        viewModelScope.launch {
+            when (val t = repository.adStart("coins")) {
+                is AppResult.Failure -> _state.update { it.copy(adBusy = false, error = t.error) }
+                is AppResult.Success -> show(
+                    {
+                        viewModelScope.launch {
+                            when (val c = repository.adClaim(t.data.token)) {
+                                is AppResult.Success -> _state.update {
+                                    it.copy(
+                                        adBusy = false,
+                                        summary = it.summary?.copy(
+                                            balance = c.data.balance,
+                                            adCoinsLeft = c.data.remaining,
+                                        ),
+                                        justEarned = c.data.earned,
+                                    )
+                                }
+                                is AppResult.Failure -> _state.update { it.copy(adBusy = false, error = c.error) }
+                            }
+                        }
+                    },
+                    { _state.update { it.copy(adBusy = false) } },
+                )
+            }
+        }
+    }
+
+    /** Phase 3: watch a rewarded ad for one free extra spin. The wheel screen sees `spinning` turn on and starts turning. */
+    fun watchAdForSpin(show: (onEarned: () -> Unit, onFail: () -> Unit) -> Unit) {
+        val summary = _state.value.summary ?: return
+        if (_state.value.adBusy || _state.value.spinning || !summary.spunToday || summary.adSpinsLeft <= 0) return
+        _state.update { it.copy(adBusy = true) }
+        viewModelScope.launch {
+            when (val t = repository.adStart("spin")) {
+                is AppResult.Failure -> _state.update { it.copy(adBusy = false, error = t.error) }
+                is AppResult.Success -> show(
+                    {
+                        _state.update { it.copy(adBusy = false) }
+                        spin(adToken = t.data.token)
+                    },
+                    { _state.update { it.copy(adBusy = false) } },
+                )
+            }
+        }
+    }
+
+    fun loadEarn() {
+        viewModelScope.launch {
+            val r = repository.earnStatus()
+            if (r is AppResult.Success) _state.update { it.copy(earnItems = r.data) }
+        }
+    }
+
     fun loadHistory() {
         viewModelScope.launch {
             val r = repository.history()
@@ -100,13 +166,18 @@ class RewardsViewModel @Inject constructor(
         }
     }
 
-    fun spin(onSuccess: (SpinResult) -> Unit = {}) {
+    fun spin(adToken: String? = null, onSuccess: (SpinResult) -> Unit = {}) {
         val current = _state.value
-        if (current.spinning || current.summary?.spunToday != false) return
-        _state.update { it.copy(spinning = true) }
+        val summary = current.summary ?: return
+        if (current.spinning) return
+        // Phase 2: after the free daily spin an extra spin costs coins (price and daily cap come from the server).
+        val viaAd = adToken != null
+        val paid = summary.spunToday && !viaAd
+        if (paid && (summary.paidSpinsLeft <= 0 || summary.balance < summary.paidSpinPrice)) return
+        _state.update { it.copy(spinning = true, lastSpinResult = null) }
         viewModelScope.launch {
             val tapId = "spin_" + UUID.randomUUID().toString()
-            when (val r = repository.spin(tapId)) {
+            when (val r = repository.spin(tapId, paid, adToken)) {
                 is AppResult.Success -> {
                     _state.update {
                         it.copy(
@@ -116,6 +187,8 @@ class RewardsViewModel @Inject constructor(
                                 balance = r.data.balance,
                                 spunToday = true,
                                 spinsAvailable = 0,
+                                paidSpinsLeft = if (paid) (summary.paidSpinsLeft - 1).coerceAtLeast(0) else summary.paidSpinsLeft,
+                                adSpinsLeft = if (viaAd) (summary.adSpinsLeft - 1).coerceAtLeast(0) else summary.adSpinsLeft,
                             ),
                             justEarned = r.data.coins,
                         )

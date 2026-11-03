@@ -1,0 +1,6 @@
+PHASE 3 - REWARDED ADS (Android; includes Phases 1-2 + earlier fixes). Deploy the server zip first.
+Wallet tab: "Watch an ad" card (+10 coins each, 5 a day). Spin page: after the free spin, "Watch ad - free spin" (3 a day).
+Debug builds use Google's TEST rewarded ad (safe to tap). Hidden for Pro couples and when ads are off.
+Go live: create a REWARDED ad unit in AdMob, then add to local.properties:  ADMOB_REWARDED_ID=ca-app-pub-XXXX/YYYY
+(release builds hide the watch-ad buttons until it exists; banner and full-screen ads are not affected).
+Never tap your own live ads. Not compiled here (no Android SDK) - run one Gradle build.

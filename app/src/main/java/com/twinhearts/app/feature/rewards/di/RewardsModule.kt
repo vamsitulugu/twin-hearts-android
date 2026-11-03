@@ -18,6 +18,9 @@ abstract class RewardsModule {
     @Binds
     abstract fun bindRewardsRepository(impl: RewardsRepositoryImpl): RewardsRepository
 
+    @Binds
+    abstract fun bindCoinEarner(impl: com.twinhearts.app.feature.rewards.data.CoinEarnerImpl): com.twinhearts.app.feature.rewards.domain.CoinEarner
+
     companion object {
         @Provides
         @Singleton

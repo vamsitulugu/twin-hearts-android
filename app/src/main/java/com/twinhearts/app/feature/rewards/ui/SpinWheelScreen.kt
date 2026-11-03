@@ -5,6 +5,7 @@ import android.graphics.Typeface
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -93,6 +94,7 @@ fun SpinWheelScreen(
     val colors = TwinTheme.colors
     val summary = state.summary ?: return
     val appReduceMotion = LocalReduceMotionSetting.current
+    val adPlayer = rememberAdPlayer()
 
     val slices = remember(summary.wheelSlices) { summary.wheelSlices.sortedBy { it.index }.ifEmpty { FallbackSlices } }
     val sliceCount = slices.size
@@ -109,9 +111,16 @@ fun SpinWheelScreen(
     LaunchedEffect(state.lastSpinResult) {
         if (state.lastSpinResult != null && phase == WheelPhase.Waiting) phase = WheelPhase.Landing
     }
-    // The request ended without a result (offline, server asleep): give the wheel back.
     LaunchedEffect(state.spinning) {
-        if (!state.spinning && phase == WheelPhase.Waiting && state.lastSpinResult == null) phase = WheelPhase.Idle
+        if (state.spinning && phase == WheelPhase.Idle) {
+            // A spin that started without the button (watch-an-ad flow): start turning the wheel too.
+            balanceBefore = summary.balance
+            wonCoins = -1
+            phase = WheelPhase.Waiting
+        } else if (!state.spinning && phase == WheelPhase.Waiting && state.lastSpinResult == null) {
+            // The request ended without a result (offline, server asleep): give the wheel back.
+            phase = WheelPhase.Idle
+        }
     }
 
     LaunchedEffect(phase) {
@@ -159,6 +168,12 @@ fun SpinWheelScreen(
     }
 
     val busy = phase != WheelPhase.Idle
+    // Phase 2: after the free daily spin, extra spins cost coins (price and daily cap come from the server).
+    val paidMode = summary.spunToday
+    val paidReady = paidMode && summary.paidSpinsLeft > 0
+    val canAfford = summary.balance >= summary.paidSpinPrice
+    val showDone = paidMode && !busy && !paidReady
+    val canTap = !busy && (!paidMode || (paidReady && canAfford))
 
     Column(modifier = Modifier.fillMaxSize()) {
         TwinTopBar(
@@ -214,7 +229,7 @@ fun SpinWheelScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            if (summary.spunToday && !busy) {
+            if (showDone) {
                 GlassButton(
                     text = stringResource(R.string.rewards_spun_today),
                     onClick = {},
@@ -229,7 +244,8 @@ fun SpinWheelScreen(
                         .height(TwinTheme.shapes.minTouch)
                         .clip(TwinTheme.shapes.pill)
                         .background(Brush.verticalGradient(listOf(RewardsStyle.Gold, RewardsStyle.GoldDeep)))
-                        .clickable(enabled = !busy, role = Role.Button) {
+                        .graphicsLayer { alpha = if (canTap || busy) 1f else 0.45f }
+                        .clickable(enabled = canTap, role = Role.Button) {
                             balanceBefore = summary.balance
                             wonCoins = -1
                             phase = WheelPhase.Waiting
@@ -238,7 +254,11 @@ fun SpinWheelScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        stringResource(if (busy) R.string.rewards_spinning_btn else R.string.rewards_spin_btn),
+                        when {
+                            busy -> stringResource(R.string.rewards_spinning_btn)
+                            paidMode -> stringResource(R.string.rewards_spin_again, summary.paidSpinPrice)
+                            else -> stringResource(R.string.rewards_spin_btn)
+                        },
                         color = RewardsStyle.GoldInk,
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 14.5.sp,
@@ -246,9 +266,37 @@ fun SpinWheelScreen(
                 }
             }
         }
+        // Phase 3: after the free spin, a rewarded ad gives one more spin without paying coins.
+        if (adPlayer.allowed && summary.spunToday && summary.adSpinsLeft > 0 && !busy) {
+            Spacer(Modifier.height(10.dp))
+            val adTap = adPlayer.ready && !state.adBusy
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(TwinTheme.shapes.minTouch)
+                    .clip(TwinTheme.shapes.pill)
+                    .border(1.5.dp, RewardsStyle.Gold, TwinTheme.shapes.pill)
+                    .graphicsLayer { alpha = if (adTap) 1f else 0.45f }
+                    .clickable(enabled = adTap, role = Role.Button) { viewModel.watchAdForSpin(adPlayer.show) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    if (adPlayer.ready) stringResource(R.string.rewards_ad_spin_btn, summary.adSpinsLeft) else stringResource(R.string.rewards_ad_loading),
+                    color = RewardsStyle.Gold,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 14.sp,
+                )
+            }
+        }
         Spacer(Modifier.height(6.dp))
         Text(
-            stringResource(if (summary.spunToday && !busy) R.string.rewards_spin_note_done else R.string.rewards_spin_note_ready),
+            when {
+                busy -> ""
+                !summary.spunToday -> stringResource(R.string.rewards_spin_note_ready)
+                paidReady && canAfford -> stringResource(R.string.rewards_spin_note_paid, summary.paidSpinPrice)
+                paidReady -> stringResource(R.string.rewards_spin_note_poor, summary.paidSpinPrice)
+                else -> stringResource(R.string.rewards_spin_note_done)
+            },
             style = MaterialTheme.typography.bodySmall,
             color = colors.inkMuted,
         )

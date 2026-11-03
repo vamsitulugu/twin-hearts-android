@@ -52,6 +52,26 @@ interface RewardsApi {
     @POST("api/rewards/scratch")
     suspend fun scratch(@Body body: ScratchBody, @Header("x-user-id") header: String): ScratchDto
 
+    /** Phase 1: what can be earned today (server-owned amounts and daily caps). */
+    @GET("api/rewards/earn/status")
+    suspend fun earnStatus(
+        @Query("coupleId") coupleId: String,
+        @Query("userId") userId: String,
+        @Header("x-user-id") header: String,
+    ): EarnStatusDto
+
+    /** Phase 1: ask the server to pay for an everyday action. Only the action name is sent. */
+    @POST("api/rewards/earn")
+    suspend fun earn(@Body body: EarnBody, @Header("x-user-id") header: String): EarnDto
+
+    /** Phase 3: ask for a one-time ticket before showing a rewarded ad (purpose = "coins" or "spin"). */
+    @POST("api/rewards/ad/start")
+    suspend fun adStart(@Body body: AdStartBody, @Header("x-user-id") header: String): AdStartDto
+
+    /** Phase 3: cash in the ticket after the ad was watched (purpose "coins"). A spin ticket goes to /spin instead. */
+    @POST("api/rewards/ad/claim")
+    suspend fun adClaim(@Body body: AdClaimBody, @Header("x-user-id") header: String): AdClaimDto
+
     /** Step 4: Twin Store catalog */
     @GET("api/rewards/store")
     suspend fun store(
@@ -105,6 +125,13 @@ data class RewardsSummaryDto(
     val spunToday: Boolean = false,
     val scratchesAvailable: Int = 1,
     val scratchedToday: Boolean = false,
+    /** Phase 2: price and cap of extra (paid) spins, set by the server. */
+    val paidSpinPrice: Int = 20,
+    val paidSpinsLeft: Int = 0,
+    /** Phase 3: rewarded ads (coins per ad and how many are left today). */
+    val adCoinsReward: Int = 10,
+    val adCoinsLeft: Int = 0,
+    val adSpinsLeft: Int = 0,
     val wheelSlices: List<SpinSliceDto> = emptyList(),
     val unlockedItemIds: List<String> = emptyList(),
     val equipped: Map<String, String> = emptyMap(),
@@ -149,7 +176,7 @@ data class SendGiftDto(val balance: Int = 0, val duplicate: Boolean = false, val
 
 /** Step 3: Spin & Win */
 @Serializable
-data class SpinBody(val coupleId: String, val userId: String, val clientId: String)
+data class SpinBody(val coupleId: String, val userId: String, val clientId: String, val paid: Boolean = false, val adToken: String? = null)
 
 @Serializable
 data class SpinDto(
@@ -222,3 +249,45 @@ data class EquipItemDto(
     val equipped: Map<String, String> = emptyMap(),
 )
 
+
+
+/** Phase 1: earn coins from everyday actions. */
+@Serializable
+data class EarnBody(val coupleId: String, val userId: String, val action: String)
+
+@Serializable
+data class EarnDto(
+    val ok: Boolean = false,
+    val earned: Int = 0,
+    val capped: Boolean = false,
+    val remaining: Int = 0,
+    val balance: Int = 0,
+    val action: String = "",
+)
+
+@Serializable
+data class EarnItemDto(
+    val action: String = "",
+    val label: String = "",
+    val emoji: String = "🪙",
+    val coins: Int = 0,
+    val daily: Int = 0,
+    val remaining: Int = 0,
+)
+
+@Serializable
+data class EarnStatusDto(val items: List<EarnItemDto> = emptyList())
+
+
+/** Phase 3: rewarded ads. */
+@Serializable
+data class AdStartBody(val coupleId: String, val userId: String, val purpose: String)
+
+@Serializable
+data class AdStartDto(val ok: Boolean = false, val token: String = "", val minSeconds: Int = 5, val coins: Int = 0)
+
+@Serializable
+data class AdClaimBody(val coupleId: String, val userId: String, val token: String)
+
+@Serializable
+data class AdClaimDto(val ok: Boolean = false, val earned: Int = 0, val duplicate: Boolean = false, val balance: Int = 0, val remaining: Int = 0)

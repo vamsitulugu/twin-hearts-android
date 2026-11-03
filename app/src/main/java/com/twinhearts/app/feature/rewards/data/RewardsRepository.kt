@@ -5,8 +5,16 @@ import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.core.common.map
 import com.twinhearts.app.core.data.SessionStore
 import com.twinhearts.app.core.network.safeApiCall
+import com.twinhearts.app.feature.rewards.data.remote.AdClaimBody
+import com.twinhearts.app.feature.rewards.data.remote.AdStartBody
 import com.twinhearts.app.feature.rewards.data.remote.BuyItemBody
 import com.twinhearts.app.feature.rewards.data.remote.CheckInBody
+import com.twinhearts.app.feature.rewards.data.remote.EarnBody
+import com.twinhearts.app.feature.rewards.domain.AdClaim
+import com.twinhearts.app.feature.rewards.domain.AdTicket
+import com.twinhearts.app.feature.rewards.domain.EarnAction
+import com.twinhearts.app.feature.rewards.domain.EarnItem
+import com.twinhearts.app.feature.rewards.domain.EarnResult
 import com.twinhearts.app.feature.rewards.data.remote.EquipItemBody
 import com.twinhearts.app.feature.rewards.data.remote.GiftDto
 import com.twinhearts.app.feature.rewards.data.remote.RewardsApi
@@ -47,10 +55,22 @@ interface RewardsRepository {
     suspend fun sendGift(giftId: String, tapId: String): AppResult<GiftSent>
 
     /** Step 3: Spin & Win wheel. */
-    suspend fun spin(tapId: String): AppResult<SpinResult>
+    suspend fun spin(tapId: String, paid: Boolean = false, adToken: String? = null): AppResult<SpinResult>
 
     /** Step 3: Lucky Scratch card. */
     suspend fun scratch(tapId: String): AppResult<ScratchResult>
+
+    /** Phase 3: get the one-time ticket before a rewarded ad. purpose = "coins" or "spin". */
+    suspend fun adStart(purpose: String): AppResult<AdTicket>
+
+    /** Phase 3: cash in a "coins" ticket after the ad was watched. */
+    suspend fun adClaim(token: String): AppResult<AdClaim>
+
+    /** Phase 1: today's earning options. */
+    suspend fun earnStatus(): AppResult<List<EarnItem>>
+
+    /** Phase 1: claim the coins for an everyday action (the server decides the amount and the daily cap). */
+    suspend fun earn(action: EarnAction): AppResult<EarnResult>
 
     /** Step 4: Twin Store catalog. */
     suspend fun store(): AppResult<StoreCatalog>
@@ -101,9 +121,9 @@ class RewardsRepositoryImpl @Inject constructor(
             .map { r -> GiftSent(r.balance, r.gift?.toDomain(), r.duplicate) }
     }
 
-    override suspend fun spin(tapId: String): AppResult<SpinResult> {
+    override suspend fun spin(tapId: String, paid: Boolean, adToken: String?): AppResult<SpinResult> {
         val s = sessionStore.session.first() ?: return AppResult.Failure(AppError.Unauthorized())
-        return safeApiCall { api.spin(SpinBody(s.coupleId, s.userId, tapId), s.userId) }
+        return safeApiCall { api.spin(SpinBody(s.coupleId, s.userId, tapId, paid, adToken), s.userId) }
             .map { SpinResult(it.sliceIndex, it.coins, it.label, it.balance, it.duplicate) }
     }
 
@@ -111,6 +131,30 @@ class RewardsRepositoryImpl @Inject constructor(
         val s = sessionStore.session.first() ?: return AppResult.Failure(AppError.Unauthorized())
         return safeApiCall { api.scratch(ScratchBody(s.coupleId, s.userId, tapId), s.userId) }
             .map { ScratchResult(it.prizeId, it.coins, it.title, it.message, it.emoji, it.balance, it.duplicate) }
+    }
+
+    override suspend fun adStart(purpose: String): AppResult<AdTicket> {
+        val s = sessionStore.session.first() ?: return AppResult.Failure(AppError.Unauthorized())
+        return safeApiCall { api.adStart(AdStartBody(s.coupleId, s.userId, purpose), s.userId) }
+            .map { AdTicket(it.token, it.minSeconds) }
+    }
+
+    override suspend fun adClaim(token: String): AppResult<AdClaim> {
+        val s = sessionStore.session.first() ?: return AppResult.Failure(AppError.Unauthorized())
+        return safeApiCall { api.adClaim(AdClaimBody(s.coupleId, s.userId, token), s.userId) }
+            .map { AdClaim(it.earned, it.balance, it.remaining) }
+    }
+
+    override suspend fun earnStatus(): AppResult<List<EarnItem>> {
+        val s = sessionStore.session.first() ?: return AppResult.Failure(AppError.Unauthorized())
+        return safeApiCall { api.earnStatus(s.coupleId, s.userId, s.userId) }
+            .map { r -> r.items.map { EarnItem(it.action, it.label, it.emoji, it.coins, it.daily, it.remaining) } }
+    }
+
+    override suspend fun earn(action: EarnAction): AppResult<EarnResult> {
+        val s = sessionStore.session.first() ?: return AppResult.Failure(AppError.Unauthorized())
+        return safeApiCall { api.earn(EarnBody(s.coupleId, s.userId, action.key), s.userId) }
+            .map { EarnResult(it.earned, it.capped, it.remaining, it.balance) }
     }
 
     override suspend fun store(): AppResult<StoreCatalog> {
@@ -160,6 +204,11 @@ private fun RewardsSummaryDto.toDomain() = RewardsSummary(
     spunToday = spunToday,
     scratchesAvailable = scratchesAvailable,
     scratchedToday = scratchedToday,
+    paidSpinPrice = paidSpinPrice,
+    paidSpinsLeft = paidSpinsLeft,
+    adCoinsReward = adCoinsReward,
+    adCoinsLeft = adCoinsLeft,
+    adSpinsLeft = adSpinsLeft,
     wheelSlices = wheelSlices.map { it.toDomain() },
     unlockedItemIds = unlockedItemIds,
     equipped = equipped,

@@ -1,0 +1,4 @@
+PHASE 1 - EARN COINS (Android). Needs the server part deployed first (web/server zip).
+Wired now: Mood and Hug/Touch/Miss You on Home -> CoinEarner.earn(); Wallet shows "Earn more coins".
+Other screens (memories, routine, games) can call coinEarner.earn(EarnAction.Memory / Routine / Game) the same way.
+Not compiled here (no Android SDK) - run one Gradle build + the unit tests.

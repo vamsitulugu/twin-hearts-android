@@ -1,0 +1,3 @@
+PHASE 2 - SPEND COINS (Android) [includes Phase 1 + earlier fixes]. Deploy the server zip first.
+Spin & Win page: after the free spin the button becomes "Spin again - 20 coins" (price and daily cap come from the server); dimmed when you can't afford it; "Spun Today" when the extras are used up.
+Not compiled here (no Android SDK) - run one Gradle build + unit tests.

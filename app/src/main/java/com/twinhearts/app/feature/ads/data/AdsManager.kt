@@ -12,6 +12,8 @@ import com.google.android.gms.ads.MobileAds
 import com.google.android.gms.ads.RequestConfiguration
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
+import com.google.android.gms.ads.rewarded.RewardedAd
+import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform
 import com.twinhearts.app.core.common.AppResult
@@ -68,6 +70,22 @@ class AdsManager @Inject constructor(
 
     /** True only when every safety check above passed. The Home banner watches this. */
     val bannersAllowed: StateFlow<Boolean> = _bannersAllowed.asStateFlow()
+
+    private val _rewardedAllowed = MutableStateFlow(false)
+
+    /** True when watch-an-ad buttons may be shown (ads on, couple is not Pro, consent done). */
+    val rewardedAllowed: StateFlow<Boolean> = _rewardedAllowed.asStateFlow()
+
+    private val _rewardedReady = MutableStateFlow(false)
+
+    /** True when a rewarded ad is loaded and can play right now. */
+    val rewardedReady: StateFlow<Boolean> = _rewardedReady.asStateFlow()
+
+    private var rewarded: RewardedAd? = null
+    private var rewardedLoadedAt = 0L
+    private var loadingRewarded = false
+    private var rewardedFailures = 0
+    private var nextRewardedLoadAllowedAt = 0L
 
     private var launched = false
     private var launchedAtElapsed = 0L
@@ -190,6 +208,7 @@ class AdsManager @Inject constructor(
         refreshEligibility(activity) // cheap: skipped unless the last check is old
         if (!eligible || showing) return
         loadInterstitial() // no-op when one is loaded/loading or we are backing off after a failure
+        loadRewarded()
 
         val nowMillis = System.currentTimeMillis()
         val reason = AdPolicy.interstitialSkipReason(
@@ -307,13 +326,92 @@ class AdsManager @Inject constructor(
     private fun enable() {
         eligible = true
         _bannersAllowed.value = true
+        _rewardedAllowed.value = AdsConfig.rewardedEnabled
         loadInterstitial()
+        loadRewarded()
     }
 
     private fun disable() {
         eligible = false
         _bannersAllowed.value = false
+        _rewardedAllowed.value = false
         interstitial = null
+        rewarded = null
+        _rewardedReady.value = false
+    }
+
+    // ── rewarded ads (the person chooses to watch; coins / a free spin are paid by the server) ─────────
+
+    private fun loadRewarded() {
+        if (!AdsConfig.rewardedEnabled || !eligible || loadingRewarded || showing) return
+        val current = rewarded
+        if (current != null) {
+            if (SystemClock.elapsedRealtime() - rewardedLoadedAt < AD_MAX_AGE_MILLIS) return
+            rewarded = null
+            _rewardedReady.value = false
+        }
+        if (SystemClock.elapsedRealtime() < nextRewardedLoadAllowedAt) return
+        loadingRewarded = true
+        RewardedAd.load(
+            appContext,
+            AdsConfig.rewardedId,
+            AdRequest.Builder().build(),
+            object : RewardedAdLoadCallback() {
+                override fun onAdLoaded(ad: RewardedAd) {
+                    loadingRewarded = false
+                    rewardedFailures = 0
+                    Log.d(TAG, "rewarded loaded")
+                    rewarded = ad
+                    rewardedLoadedAt = SystemClock.elapsedRealtime()
+                    _rewardedReady.value = true
+                }
+
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    loadingRewarded = false
+                    rewarded = null
+                    _rewardedReady.value = false
+                    Log.d(TAG, "rewarded failed: ${error.code} ${error.message}")
+                    rewardedFailures += 1
+                    nextRewardedLoadAllowedAt = SystemClock.elapsedRealtime() +
+                        minOf(LOAD_BACKOFF_MILLIS * rewardedFailures, LOAD_BACKOFF_MAX_MILLIS)
+                }
+            },
+        )
+    }
+
+    /**
+     * Plays the loaded rewarded ad. [onEarned] runs when Google says the person earned the reward (they watched it
+     * to the end); [onFail] runs when no ad could be shown or it was closed early. Exactly one of the two runs.
+     */
+    fun showRewarded(activity: Activity, onEarned: () -> Unit, onFail: () -> Unit) {
+        val ad = rewarded
+        if (!eligible || showing || ad == null || activity.isFinishing || activity.isDestroyed) {
+            loadRewarded()
+            onFail()
+            return
+        }
+        showing = true
+        rewarded = null
+        _rewardedReady.value = false
+        var earned = false
+        ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+            override fun onAdDismissedFullScreenContent() {
+                showing = false
+                resetUsage() // no timed ad right after the person just watched one
+                loadRewarded()
+                if (!earned) onFail()
+            }
+
+            override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                showing = false
+                loadRewarded()
+                onFail()
+            }
+        }
+        ad.show(activity) {
+            earned = true
+            onEarned()
+        }
     }
 
     // ── full-screen ads ──────────────────────────────────────────────────────

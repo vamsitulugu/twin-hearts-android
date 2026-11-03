@@ -11,4 +11,6 @@ internal object AdsConfig {
     val enabled: Boolean get() = BuildConfig.ADS_ENABLED
     val bannerId: String get() = BuildConfig.ADMOB_BANNER_ID
     val interstitialId: String get() = BuildConfig.ADMOB_INTERSTITIAL_ID
+    val rewardedEnabled: Boolean get() = BuildConfig.ADS_ENABLED && BuildConfig.REWARDED_ENABLED
+    val rewardedId: String get() = BuildConfig.ADMOB_REWARDED_ID
 }

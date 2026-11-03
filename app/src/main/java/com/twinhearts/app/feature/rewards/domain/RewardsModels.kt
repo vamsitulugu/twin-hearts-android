@@ -29,6 +29,13 @@ data class RewardsSummary(
     val spunToday: Boolean = false,
     val scratchesAvailable: Int = 1,
     val scratchedToday: Boolean = false,
+    /** Phase 2: extra spins cost coins after the free daily spin. */
+    val paidSpinPrice: Int = 20,
+    val paidSpinsLeft: Int = 0,
+    /** Phase 3: rewarded ads. */
+    val adCoinsReward: Int = 10,
+    val adCoinsLeft: Int = 0,
+    val adSpinsLeft: Int = 0,
     val wheelSlices: List<SpinWheelSlice> = emptyList(),
     /** Step 4: Twin Store unlocks & active equipped items */
     val unlockedItemIds: List<String> = emptyList(),
@@ -107,3 +114,16 @@ data class StoreEquipResult(
     val equipped: Map<String, String>,
 )
 
+
+/** Phase 1: everyday actions that pay a few coins (the server owns the amounts and daily caps). */
+enum class EarnAction(val key: String) { Mood("mood"), Love("love"), Memory("memory"), Routine("routine"), Game("game") }
+
+/** One row of the "Earn more coins" list. */
+data class EarnItem(val action: String, val label: String, val emoji: String, val coins: Int, val daily: Int, val remaining: Int)
+
+data class EarnResult(val earned: Int, val capped: Boolean, val remaining: Int, val balance: Int)
+
+/** Phase 3: a one-time ticket from the server; it is cashed in after the ad was watched. */
+data class AdTicket(val token: String, val minSeconds: Int)
+
+data class AdClaim(val earned: Int, val balance: Int, val remaining: Int)

@@ -67,11 +67,13 @@ fun RewardsScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val adPlayer = rememberAdPlayer()
     val scrollState = rememberScrollState()
     // Refresh summary + store items whenever the rewards page opens.
     LaunchedEffect(Unit) {
         viewModel.refresh()
         viewModel.loadStore()
+        viewModel.loadEarn()
     }
 
     val earned = state.justEarned
@@ -88,7 +90,7 @@ fun RewardsScreen(
             TwinTopBar(
                 title = stringResource(R.string.rewards_title),
                 showSidebarButton = true,
-                onSyncClick = { viewModel.refresh(); viewModel.loadStore() },
+                onSyncClick = { viewModel.refresh(); viewModel.loadStore(); viewModel.loadEarn() },
             )
             val summary = state.summary
             val error = state.error
@@ -129,6 +131,10 @@ fun RewardsScreen(
                                 scratching = state.scratching,
                                 lastScratchResult = state.lastScratchResult,
                                 partnerName = state.partnerName,
+                                earnItems = state.earnItems,
+                                adPlayer = adPlayer,
+                                adBusy = state.adBusy,
+                                onWatchAd = { viewModel.watchAdForCoins(adPlayer.show) },
                                 onClaim = viewModel::claim,
                                 onScratch = viewModel::scratch,
                                 onOpenSpinWheel = { navController.navigate(Routes.SpinWheel) },
@@ -161,12 +167,18 @@ private fun WalletTab(
     scratching: Boolean,
     lastScratchResult: ScratchResult?,
     partnerName: String,
+    earnItems: List<com.twinhearts.app.feature.rewards.domain.EarnItem>,
+    adPlayer: AdPlayer,
+    adBusy: Boolean,
+    onWatchAd: () -> Unit,
     onClaim: () -> Unit,
     onScratch: () -> Unit,
     onOpenSpinWheel: () -> Unit,
 ) {
     HeroCard(summary)
     CheckInCard(summary, claiming, onClaim)
+    WatchAdCard(summary, adPlayer, adBusy, onWatchAd)
+    EarnCard(earnItems)
     ScratchCard(
         summary = summary,
         scratching = scratching,

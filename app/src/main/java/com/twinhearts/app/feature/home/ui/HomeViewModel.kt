@@ -27,6 +27,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import com.twinhearts.app.feature.rewards.domain.CoinEarner
+import com.twinhearts.app.feature.rewards.domain.EarnAction
 import javax.inject.Inject
 
 /** Short message under the Stay Connected card: green for news, red for problems. */
@@ -68,6 +70,7 @@ data class HomeUiState(
 class HomeViewModel @Inject constructor(
     private val repository: HomeRepository,
     private val sessionStore: SessionStore,
+    private val coinEarner: CoinEarner,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeUiState())
@@ -141,6 +144,7 @@ class HomeViewModel @Inject constructor(
                         LoveKind.Hug -> R.string.home_info_hug_sent
                     }
                     _state.update { it.copy(isSending = false, message = HomeMessage.Info(info, session.partnerName)) }
+                    coinEarner.earn(EarnAction.Love)
                     refresh()
                 }
                 is AppResult.Failure -> _state.update {
@@ -183,7 +187,10 @@ class HomeViewModel @Inject constructor(
         }
         viewModelScope.launch {
             when (val result = repository.setMood(date, mood)) {
-                is AppResult.Success -> refresh()
+                is AppResult.Success -> {
+                    if (mood != null) coinEarner.earn(EarnAction.Mood)
+                    refresh()
+                }
                 is AppResult.Failure -> {
                     _state.update { it.copy(message = HomeMessage.Failure(result.error)) }
                     refresh()
