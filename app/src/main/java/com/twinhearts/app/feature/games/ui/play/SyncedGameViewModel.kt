@@ -105,6 +105,16 @@ abstract class SyncedGameViewModel<S : Any>(
         }
     }
 
+    private val _inviteSent = MutableStateFlow(false)
+    val inviteSent: StateFlow<Boolean> = _inviteSent.asStateFlow()
+
+    /** "Invite" button inside a game: my partner gets an Accept / Decline card on the Games page. */
+    fun invitePartner() {
+        viewModelScope.launch {
+            if (repository.sendRequest(game) is AppResult.Success) _inviteSent.value = true
+        }
+    }
+
     /** Pull-to-retry / the Retry button. */
     fun retry() {
         viewModelScope.launch {

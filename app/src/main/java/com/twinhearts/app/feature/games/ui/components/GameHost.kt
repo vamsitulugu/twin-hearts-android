@@ -53,6 +53,7 @@ fun <S : Any> GameHost(
     content: @Composable ColumnScope.(state: S, players: Players) -> Unit,
 ) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
+    val inviteSent by viewModel.inviteSent.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
     val context = LocalContext.current
     val feedback = rememberGameFeedback()
@@ -94,6 +95,12 @@ fun <S : Any> GameHost(
                     verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(TwinTheme.spacing.m),
                 ) {
                     PlayersStrip(current.data.players)
+                    InviteBar(
+                        players = current.data.players,
+                        game = viewModel.game,
+                        sent = inviteSent,
+                        onInvite = viewModel::invitePartner,
+                    )
                     content(current.data.state, current.data.players)
                 }
             }

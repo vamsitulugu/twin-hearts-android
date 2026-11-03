@@ -186,7 +186,7 @@ private fun HubContent(
                 RequestCard(
                     from = players.partnerName,
                     game = requestGameTitle,
-                    onAccept = { viewModel.acceptRequest() },
+                    onAccept = { viewModel.acceptRequest { id -> onOpen(GameCatalog.of(id)) } },
                     onDecline = { viewModel.declineRequest() },
                     modifier = Modifier.fillMaxWidth(),
                 )

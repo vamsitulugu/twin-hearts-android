@@ -230,7 +230,10 @@ class GamesRepositoryImpl @Inject constructor(
     override suspend fun clearRequest(): AppResult<Unit> {
         val session = session() ?: return AppResult.Failure(AppError.Unauthorized())
         val side = Side.fromRole(session.role)
+        // The invitation I received is stored under my PARTNER's key, so that is the one to clear.
+        // (It used to clear only my own key, so accepting never removed the card and it kept coming back.)
         val patch = buildJsonObject {
+            put(GamesKeys.request(side.other), kotlinx.serialization.json.JsonNull)
             put(GamesKeys.request(side), kotlinx.serialization.json.JsonNull)
         }
         return save(patch)

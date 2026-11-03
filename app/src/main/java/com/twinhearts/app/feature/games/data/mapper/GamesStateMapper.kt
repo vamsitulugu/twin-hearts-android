@@ -24,6 +24,8 @@ internal object GamesKeys {
 }
 
 /** The server answers JSON `null` when the couple has no state yet. */
+private const val REQUEST_TTL_MS = 120_000L
+
 internal fun JsonElement.asStateObject(): JsonObject = this as? JsonObject ?: JsonObject(emptyMap())
 
 internal fun JsonObject.gameDoc(game: GameId): JsonElement? =
@@ -44,5 +46,7 @@ internal fun JsonObject.presenceOf(side: Side, json: Json): Presence {
 internal fun JsonObject.pendingRequestOf(mySide: Side, json: Json): GameRequest? {
     val from = mySide.other
     val element = this[GamesKeys.request(from)]?.takeUnless { it is JsonNull } ?: return null
-    return runCatching { json.decodeFromJsonElement(GameRequest.serializer(), element) }.getOrNull()
+    val request = runCatching { json.decodeFromJsonElement(GameRequest.serializer(), element) }.getOrNull() ?: return null
+    // An invitation nobody answered for two minutes is old news.
+    return request.takeIf { kotlin.math.abs(System.currentTimeMillis() - it.ts) < REQUEST_TTL_MS }
 }

@@ -413,4 +413,7 @@
     <string name="games_request_from">%1$s wants to play %2$s</string>
     <string name="games_request_accept">Accept</string>
     <string name="games_request_decline">Decline</string>
+    <string name="games_invite_partner">Invite %1$s to play</string>
+    <string name="games_invite_sent">Invite sent — waiting for %1$s…</string>
+    <string name="games_partner_here">%1$s is in this game</string>
 </resources>

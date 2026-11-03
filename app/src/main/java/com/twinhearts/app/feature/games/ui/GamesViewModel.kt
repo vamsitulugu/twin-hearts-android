@@ -90,14 +90,17 @@ class GamesViewModel @Inject constructor(
     }
 
     /** Accepts the pending invitation and opens that game. */
-    fun acceptRequest() {
+    fun acceptRequest(onOpen: (GameId) -> Unit) {
         val current = (_ui.value as? UiState.Content)?.data
         val request = current?.pendingRequest ?: return
+        val game = GameId.fromKey(request.game)
         viewModelScope.launch {
-            val cleared = repository.clearRequest()
-            if (cleared is AppResult.Success) {
-                refreshNow()
-                GameId.fromKey(request.game)?.let { markOpened(it) }
+            // Open the game right away even if clearing is slow: the card must never "do nothing".
+            repository.clearRequest()
+            refreshNow()
+            if (game != null) {
+                markOpened(game)
+                onOpen(game)
             }
         }
     }
