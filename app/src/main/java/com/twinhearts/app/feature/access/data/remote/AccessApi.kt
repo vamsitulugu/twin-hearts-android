@@ -6,7 +6,7 @@ import retrofit2.http.Header
 import retrofit2.http.POST
 
 /**
- * Free daily uses + coin passes (us-app: routes/rewards.js, /access/*).
+ * Free daily uses + coin passes (us-app: routes/rewards.js).
  * The server owns every number (free uses, price, hours). The app never sends an amount.
  */
 interface AccessApi {

@@ -1,0 +1,1143 @@
+diff --git a/app/src/main/java/com/twinhearts/app/TwinHeartsApp.kt b/app/src/main/java/com/twinhearts/app/TwinHeartsApp.kt
+index a6e0959..e87bf6a 100644
+--- a/app/src/main/java/com/twinhearts/app/TwinHeartsApp.kt
++++ b/app/src/main/java/com/twinhearts/app/TwinHeartsApp.kt
+@@ -43,6 +43,7 @@ class TwinHeartsApp : Application() {
+             previousHandler?.uncaughtException(thread, error)
+         }
+         NotificationChannels.ensure(this)
++        com.twinhearts.app.core.sound.TwinSound.init(this) // soft coin / spin / scratch sounds (one mute switch)
+         // Start waking the sleeping server before the first screen asks for anything.
+         serverWarmer.warm()
+         // Tell the server I am online on every screen (the web shows it as my partner's Online / Away).
+diff --git a/app/src/main/java/com/twinhearts/app/core/navigation/TwinApp.kt b/app/src/main/java/com/twinhearts/app/core/navigation/TwinApp.kt
+index 5579cf8..633d706 100644
+--- a/app/src/main/java/com/twinhearts/app/core/navigation/TwinApp.kt
++++ b/app/src/main/java/com/twinhearts/app/core/navigation/TwinApp.kt
+@@ -158,6 +158,11 @@ private fun TwinNavigation(
+         }
+     }
+ 
++    // Free daily uses ran out (movie / songs / pins / games): ONE clear coin-pass sheet; "Get coins free" opens Rewards.
++    com.twinhearts.app.feature.access.ui.AccessGateHost(
++        onGetCoins = { navController.navigate(Routes.Rewards) { launchSingleTop = true } },
++    )
++
+     // A call from my partner opens the call page on any screen (the app must be open).
+     IncomingCallWatcher(
+         onIncoming = { video ->
+diff --git a/app/src/main/java/com/twinhearts/app/core/sound/SoundToggle.kt b/app/src/main/java/com/twinhearts/app/core/sound/SoundToggle.kt
+new file mode 100644
+index 0000000..819c511
+--- /dev/null
++++ b/app/src/main/java/com/twinhearts/app/core/sound/SoundToggle.kt
+@@ -0,0 +1,31 @@
++package com.twinhearts.app.core.sound
++
++import androidx.compose.foundation.layout.Arrangement
++import androidx.compose.foundation.layout.Row
++import androidx.compose.foundation.layout.fillMaxWidth
++import androidx.compose.foundation.layout.heightIn
++import androidx.compose.foundation.layout.padding
++import androidx.compose.material3.MaterialTheme
++import androidx.compose.material3.Text
++import androidx.compose.material3.TextButton
++import androidx.compose.runtime.Composable
++import androidx.compose.runtime.collectAsState
++import androidx.compose.runtime.getValue
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.semantics.contentDescription
++import androidx.compose.ui.semantics.semantics
++import androidx.compose.ui.unit.dp
++
++/** One small switch for every app sound (coins, scratch, spin, ads, unlocks). Remembered on this phone. */
++@Composable
++fun SoundToggle(modifier: Modifier = Modifier) {
++    val on by TwinSound.enabledFlow.collectAsState()
++    Row(modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.End) {
++        TextButton(
++            onClick = { TwinSound.toggle() },
++            modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = if (on) "Sound effects on. Tap to turn off" else "Sound effects off. Tap to turn on" },
++        ) {
++            Text(if (on) "🔊 Sounds on" else "🔇 Sounds off", style = MaterialTheme.typography.labelLarge)
++        }
++    }
++}
+diff --git a/app/src/main/java/com/twinhearts/app/core/sound/TwinSound.kt b/app/src/main/java/com/twinhearts/app/core/sound/TwinSound.kt
+new file mode 100644
+index 0000000..3127b4b
+--- /dev/null
++++ b/app/src/main/java/com/twinhearts/app/core/sound/TwinSound.kt
+@@ -0,0 +1,312 @@
++package com.twinhearts.app.core.sound
++
++import android.content.Context
++import android.media.AudioAttributes
++import android.media.AudioFormat
++import android.media.AudioTrack
++import kotlinx.coroutines.flow.MutableStateFlow
++import kotlinx.coroutines.flow.StateFlow
++import kotlinx.coroutines.flow.asStateFlow
++import java.util.Random
++import java.util.concurrent.ConcurrentHashMap
++import java.util.concurrent.Executors
++import java.util.concurrent.TimeUnit
++import kotlin.math.PI
++import kotlin.math.asin
++import kotlin.math.max
++import kotlin.math.min
++import kotlin.math.pow
++import kotlin.math.sin
++
++/**
++ * Small, soft sound effects for coins, scratch cards, Spin & Win, rewarded ads, unlocks and purchases.
++ * The same sounds as the web app (twin-sounds.js). Made live from sine/triangle waves: no audio files,
++ * works offline. Quiet by design (master volume 0.35). One mute switch for everything:
++ * [setEnabled] (remembered on this phone). Every call is safe: it silently does nothing when muted,
++ * not started, or the phone has no audio. Never throws, never blocks the screen.
++ *
++ * Start once in Application.onCreate:  TwinSound.init(this)
++ */
++object TwinSound {
++    private const val RATE = 22050
++    private const val MASTER = 0.35f
++    private const val PREFS = "twin_sound"
++    private const val KEY = "enabled"
++
++    @Volatile private var app: Context? = null
++    @Volatile private var on = true
++    private val enabledState = MutableStateFlow(true)
++
++    /** For the mute button on screen. */
++    val enabledFlow: StateFlow<Boolean> = enabledState.asStateFlow()
++    val isEnabled: Boolean get() = on
++
++    private val pool = Executors.newScheduledThreadPool(1) { r -> Thread(r, "twin-sound").apply { isDaemon = true } }
++    private val cache = ConcurrentHashMap<String, ShortArray>()
++    private val rnd = Random()
++    @Volatile private var lastTick = 0L
++    @Volatile private var lastScratch = 0L
++
++    fun init(context: Context) {
++        val c = context.applicationContext
++        app = c
++        on = try { c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY, true) } catch (_: Exception) { true }
++        enabledState.value = on
++    }
++
++    fun setEnabled(value: Boolean) {
++        on = value
++        enabledState.value = value
++        try { app?.getSharedPreferences(PREFS, Context.MODE_PRIVATE)?.edit()?.putBoolean(KEY, value)?.apply() } catch (_: Exception) {}
++        if (value) tap()
++    }
++
++    fun toggle(): Boolean { setEnabled(!on); return on }
++
++    // ── the sounds ───────────────────────────────────────────────
++
++    /** One coin "ting". */
++    fun coin() = play("coin") { m -> coinInto(m, 1f, 0f) }
++
++    /** A handful of coins falling (n = how many, 1..10). */
++    fun coins(n: Int = 4) {
++        if (!ready()) return
++        val count = max(1, min(10, n))
++        pool.execute {
++            try {
++                val m = Mix(count * 0.065f + 0.6f)
++                for (i in 0 until count) coinInto(m, 0.9f + rnd.nextFloat() * 0.35f, i * 0.065f + rnd.nextFloat() * 0.02f)
++                emit(m.pcm())
++            } catch (_: Throwable) {}
++        }
++    }
++
++    /** Soft UI tap. */
++    fun tap() = play("tap") { m -> m.tone(SINE, 520f, 380f, 0.07f, 0.18f, 0f, 0.003f) }
++
++    /** Gentle "not now" thud. */
++    fun error() = play("error") { m ->
++        m.tone(SINE, 220f, 150f, 0.18f, 0.26f, 0f, 0.005f)
++        m.tone(SINE, 196f, 130f, 0.22f, 0.20f, 0.09f, 0.005f)
++    }
++
++    /** Wheel whoosh. */
++    fun spinStart() = play("spinStart") { m ->
++        m.burst(0.55f, 0.32f, BAND, 400f, 2600f, 0.9f, 0f)
++        m.tone(SINE, 180f, 420f, 0.3f, 0.12f, 0f, 0.02f)
++    }
++
++    /** One wheel-peg click. speed 0..1 = softer/slower ... sharper/faster. */
++    fun tick(speed: Float = 0.5f) {
++        val now = System.nanoTime() / 1_000_000
++        if (now - lastTick < 28) return // never a machine-gun
++        lastTick = now
++        val s = max(0f, min(1f, speed))
++        val bucket = (s * 3).toInt() // 0..3, cached
++        val sp = bucket / 3f
++        play("tick$bucket") { m ->
++            m.tone(SQUARE, 1500f + sp * 700f, 900f + sp * 300f, 0.032f, 0.09f + sp * 0.05f, 0f, 0.001f)
++            m.burst(0.02f, 0.1f, HIGH, 3000f, 3000f, 0.7f, 0f)
++        }
++    }
++
++    /** Wheel settles. */
++    fun spinEnd() = play("spinEnd") { m ->
++        m.tone(SINE, 330f, 330f, 0.25f, 0.16f, 0f, 0.01f)
++        m.tone(SINE, 247f, 247f, 0.4f, 0.14f, 0.04f, 0.01f)
++    }
++
++    /** One scratch grain (call from the finger-move; it throttles itself). power 0.2..1. */
++    fun scratch(power: Float = 0.6f) {
++        val now = System.nanoTime() / 1_000_000
++        if (now - lastScratch < 55) return
++        lastScratch = now
++        val variant = rnd.nextInt(4) // 4 cached grains so it does not sound like a loop
++        val p = max(0.2f, min(1f, power))
++        play("scratch$variant") { m ->
++            m.burst(0.07f + p * 0.04f, 0.16f + p * 0.16f, BAND, 2200f + variant * 450f, 1500f + variant * 220f, 1.6f, 0f)
++        }
++    }
++
++    /** Scratch card revealed. */
++    fun reveal() {
++        if (!ready()) return
++        pool.execute {
++            try {
++                val m = Mix(1.4f)
++                m.burst(0.28f, 0.2f, BAND, 1500f, 6000f, 1.2f, 0f)
++                floatArrayOf(784f, 988f, 1175f, 1568f).forEachIndexed { i, f -> m.tone(TRI, f, f, 0.5f, 0.2f, 0.05f + i * 0.07f, 0.006f) }
++                for (i in 0 until 5) coinInto(m, 0.9f + rnd.nextFloat() * 0.35f, 0.3f + i * 0.065f)
++                emit(m.pcm())
++            } catch (_: Throwable) {}
++        }
++    }
++
++    /** Happy arpeggio + coins. big = longer, for big prizes. */
++    fun win(big: Boolean = false) {
++        if (!ready()) return
++        pool.execute {
++            try {
++                val notes = if (big) floatArrayOf(523f, 659f, 784f, 1047f, 1319f, 1568f) else floatArrayOf(523f, 659f, 784f, 1047f)
++                val coinCount = if (big) 8 else 5
++                val m = Mix(notes.size * 0.085f + 0.8f + coinCount * 0.065f)
++                notes.forEachIndexed { i, f ->
++                    m.tone(TRI, f, f, 0.45f, 0.24f, i * 0.085f, 0.006f)
++                    m.tone(SINE, f * 2, f * 2, 0.35f, 0.06f, i * 0.085f, 0.006f)
++                }
++                for (i in 0 until coinCount) coinInto(m, 0.9f + rnd.nextFloat() * 0.35f, 0.15f + i * 0.065f)
++                emit(m.pcm())
++            } catch (_: Throwable) {}
++        }
++    }
++
++    /** Rewarded-ad payout: rising chime, then coins. */
++    fun ad() {
++        if (!ready()) return
++        pool.execute {
++            try {
++                val m = Mix(1.6f)
++                floatArrayOf(659f, 880f, 1109f).forEachIndexed { i, f -> m.tone(TRI, f, f, 0.32f, 0.22f, i * 0.1f, 0.006f) }
++                for (i in 0 until 6) coinInto(m, 0.9f + rnd.nextFloat() * 0.35f, 0.3f + i * 0.065f)
++                emit(m.pcm())
++            } catch (_: Throwable) {}
++        }
++    }
++
++    /** A pass / item unlocked: soft click, then a bright major chord. */
++    fun unlock() = play("unlock") { m ->
++        m.burst(0.05f, 0.22f, BAND, 1800f, 900f, 2f, 0f)
++        floatArrayOf(523f, 659f, 784f).forEach { f -> m.tone(TRI, f, f, 0.7f, 0.2f, 0.08f, 0.01f) }
++        m.tone(SINE, 1568f, 1568f, 0.6f, 0.08f, 0.16f, 0.01f)
++    }
++
++    /** "Ka-ching". */
++    fun purchase() = play("purchase") { m ->
++        m.burst(0.06f, 0.25f, HIGH, 2500f, 2500f, 0.8f, 0f)
++        m.tone(TRI, 1568f, 1568f, 0.45f, 0.28f, 0.06f, 0.003f)
++        m.tone(TRI, 2093f, 2093f, 0.6f, 0.26f, 0.15f, 0.003f)
++        m.tone(SINE, 4186f, 4186f, 0.4f, 0.06f, 0.15f, 0.003f)
++    }
++
++    // ── engine ───────────────────────────────────────────────────
++
++    private fun ready() = on && app != null
++
++    private fun coinInto(m: Mix, k: Float, d: Float) {
++        m.tone(TRI, 1318f * k, 1318f * k, 0.16f, 0.34f, d, 0.004f)          // E6 "ting"
++        m.tone(TRI, 1976f * k, 1976f * k, 0.34f, 0.30f, d + 0.075f, 0.004f) // B6 ring
++        m.tone(SINE, 3951f * k, 3951f * k, 0.22f, 0.07f, d + 0.075f, 0.004f) // sparkle
++    }
++
++    /** Builds (once, then cached) and plays a fixed sound on the sound thread. */
++    private fun play(key: String, build: (Mix) -> Unit) {
++        if (!ready()) return
++        pool.execute {
++            try {
++                val pcm = cache.getOrPut(key) { val m = Mix(1.4f); build(m); m.pcm() }
++                emit(pcm)
++            } catch (_: Throwable) {}
++        }
++    }
++
++    private fun emit(pcm: ShortArray) {
++        if (!on || pcm.isEmpty()) return
++        try {
++            val track = AudioTrack.Builder()
++                .setAudioAttributes(
++                    AudioAttributes.Builder()
++                        .setUsage(AudioAttributes.USAGE_GAME)
++                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
++                        .build(),
++                )
++                .setAudioFormat(
++                    AudioFormat.Builder()
++                        .setSampleRate(RATE)
++                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
++                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
++                        .build(),
++                )
++                .setBufferSizeInBytes(pcm.size * 2)
++                .setTransferMode(AudioTrack.MODE_STATIC)
++                .build()
++            track.write(pcm, 0, pcm.size)
++            track.play()
++            val ms = pcm.size * 1000L / RATE + 200
++            pool.schedule(Runnable { try { track.release() } catch (_: Throwable) {} }, ms, TimeUnit.MILLISECONDS)
++        } catch (_: Throwable) {
++            // no audio on this phone: stay silent
++        }
++    }
++
++    private const val SINE = 0
++    private const val TRI = 1
++    private const val SQUARE = 2
++    private const val BAND = 0
++    private const val HIGH = 1
++
++    /** A little mixing buffer: tones and filtered-noise bursts are added in, then turned into 16-bit sound. */
++    private class Mix(seconds: Float) {
++        private val n = (seconds * RATE).toInt() + 1
++        private val buf = FloatArray(n)
++        private val noise = Random()
++
++        fun tone(shape: Int, f0: Float, f1: Float, len: Float, vol: Float, delay: Float, attack: Float) {
++            val start = (delay * RATE).toInt()
++            val count = (len * RATE).toInt()
++            var phase = 0.0
++            for (i in 0 until count) {
++                val idx = start + i
++                if (idx >= n) break
++                val t = i / RATE.toFloat()
++                val p = i.toFloat() / count
++                val f = if (f1 != f0) f0 * (f1 / f0).pow(p) else f0
++                phase += 2.0 * PI * f / RATE
++                val s = when (shape) {
++                    TRI -> (2.0 / PI * asin(sin(phase))).toFloat()
++                    SQUARE -> if (sin(phase) >= 0) 1f else -1f
++                    else -> sin(phase).toFloat()
++                }
++                buf[idx] += s * envelope(t, len, vol, attack)
++            }
++        }
++
++        /** Noise through a band-pass or high-pass filter whose centre glides f0 -> f1. */
++        fun burst(len: Float, vol: Float, type: Int, f0: Float, f1: Float, q: Float, delay: Float) {
++            val start = (delay * RATE).toInt()
++            val count = (len * RATE).toInt()
++            var low = 0.0
++            var band = 0.0
++            val damp = 1.0 / max(0.3f, q)
++            val attack = min(0.012f, len / 3)
++            for (i in 0 until count) {
++                val idx = start + i
++                if (idx >= n) break
++                val p = i.toFloat() / count
++                val fc = if (f1 != f0) f0 * (f1 / f0).pow(p) else f0
++                val f = min(1.2, 2.0 * sin(PI * fc / RATE))
++                val input = noise.nextFloat() * 2.0 - 1.0
++                low += f * band
++                val high = input - low - damp * band
++                band += f * high
++                val out = if (type == HIGH) high else band
++                buf[idx] += (out * 0.6).toFloat() * envelope(i / RATE.toFloat(), len, vol, attack)
++            }
++        }
++
++        /** Quick rise, then a smooth fall to silence (like the web's exponential ramps). */
++        private fun envelope(t: Float, len: Float, vol: Float, attack: Float): Float {
++            if (t < attack) return vol * (t / attack)
++            val x = ((t - attack) / max(0.001f, len - attack)).coerceIn(0f, 1f)
++            return vol * (0.0001f / vol).pow(x)
++        }
++
++        fun pcm(): ShortArray {
++            val out = ShortArray(n)
++            for (i in 0 until n) {
++                val v = (buf[i] * MASTER).coerceIn(-1f, 1f) // master volume; hard limit so stacked coins never clip
++                out[i] = (v * 32000f).toInt().toShort()
++            }
++            return out
++        }
++    }
++}
+diff --git a/app/src/main/java/com/twinhearts/app/feature/access/data/remote/AccessApi.kt b/app/src/main/java/com/twinhearts/app/feature/access/data/remote/AccessApi.kt
+new file mode 100644
+index 0000000..5386acb
+--- /dev/null
++++ b/app/src/main/java/com/twinhearts/app/feature/access/data/remote/AccessApi.kt
+@@ -0,0 +1,52 @@
++package com.twinhearts.app.feature.access.data.remote
++
++import kotlinx.serialization.Serializable
++import retrofit2.http.Body
++import retrofit2.http.Header
++import retrofit2.http.POST
++
++/**
++ * Free daily uses + coin passes (us-app: routes/rewards.js, the access routes).
++ * The server owns every number (free uses, price, hours). The app never sends an amount.
++ */
++interface AccessApi {
++    /** Use one free try, ride a running pass (or Pro), or learn that a pass is needed. */
++    @POST("api/rewards/access/use")
++    suspend fun use(@Body body: AccessUseBody, @Header("x-user-id") header: String): AccessUseDto
++
++    /** Buy a pass. [AccessPassBody.clientId] is one id per tap, so a retry is never charged twice. */
++    @POST("api/rewards/access/pass")
++    suspend fun pass(@Body body: AccessPassBody, @Header("x-user-id") header: String): AccessPassDto
++}
++
++@Serializable
++data class AccessUseBody(val coupleId: String, val userId: String, val feature: String)
++
++@Serializable
++data class AccessUseDto(
++    val allowed: Boolean = false,
++    /** "free", "pass" or "pro" when allowed. */
++    val via: String = "",
++    val freeLeft: Int = 0,
++    val freeTotal: Int = 0,
++    val expiresAt: String = "",
++    val needsCoins: Boolean = false,
++    val feature: String = "",
++    val price: Int = 0,
++    val hours: Int = 0,
++    val balance: Int = 0,
++    val label: String = "",
++    val emoji: String = "",
++    val perk: String = "",
++)
++
++@Serializable
++data class AccessPassBody(val coupleId: String, val userId: String, val feature: String, val clientId: String)
++
++@Serializable
++data class AccessPassDto(
++    val ok: Boolean = false,
++    val duplicate: Boolean = false,
++    val expiresAt: String = "",
++    val balance: Int = 0,
++)
+diff --git a/app/src/main/java/com/twinhearts/app/feature/access/di/AccessModule.kt b/app/src/main/java/com/twinhearts/app/feature/access/di/AccessModule.kt
+new file mode 100644
+index 0000000..f64a306
+--- /dev/null
++++ b/app/src/main/java/com/twinhearts/app/feature/access/di/AccessModule.kt
+@@ -0,0 +1,17 @@
++package com.twinhearts.app.feature.access.di
++
++import com.twinhearts.app.feature.access.data.remote.AccessApi
++import dagger.Module
++import dagger.Provides
++import dagger.hilt.InstallIn
++import dagger.hilt.components.SingletonComponent
++import retrofit2.Retrofit
++import javax.inject.Singleton
++
++@Module
++@InstallIn(SingletonComponent::class)
++object AccessModule {
++    @Provides
++    @Singleton
++    fun provideAccessApi(retrofit: Retrofit): AccessApi = retrofit.create(AccessApi::class.java)
++}
+diff --git a/app/src/main/java/com/twinhearts/app/feature/access/domain/AccessGate.kt b/app/src/main/java/com/twinhearts/app/feature/access/domain/AccessGate.kt
+new file mode 100644
+index 0000000..245cbbc
+--- /dev/null
++++ b/app/src/main/java/com/twinhearts/app/feature/access/domain/AccessGate.kt
+@@ -0,0 +1,189 @@
++package com.twinhearts.app.feature.access.domain
++
++import android.content.Context
++import android.os.Handler
++import android.os.Looper
++import android.widget.Toast
++import com.twinhearts.app.core.common.AppError
++import com.twinhearts.app.core.common.AppResult
++import com.twinhearts.app.core.data.SessionStore
++import com.twinhearts.app.core.network.safeApiCall
++import com.twinhearts.app.core.sound.TwinSound
++import com.twinhearts.app.feature.access.data.remote.AccessApi
++import com.twinhearts.app.feature.access.data.remote.AccessPassBody
++import com.twinhearts.app.feature.access.data.remote.AccessUseBody
++import dagger.hilt.android.qualifiers.ApplicationContext
++import kotlinx.coroutines.CompletableDeferred
++import kotlinx.coroutines.flow.MutableSharedFlow
++import kotlinx.coroutines.flow.MutableStateFlow
++import kotlinx.coroutines.flow.SharedFlow
++import kotlinx.coroutines.flow.StateFlow
++import kotlinx.coroutines.flow.asSharedFlow
++import kotlinx.coroutines.flow.asStateFlow
++import kotlinx.coroutines.flow.first
++import java.time.Instant
++import java.time.ZoneId
++import java.time.format.DateTimeFormatter
++import java.util.UUID
++import javax.inject.Inject
++import javax.inject.Singleton
++
++/** The four things that get a few free uses a day, then one small coin pass. [key] is what the server expects. */
++enum class AccessFeature(
++    val key: String,
++    val title: String,
++    val freeNoun: String,
++    val unlimited: String,
++) {
++    Movie("movie", "Movie night pass", "movie", "movies"),
++    Songs("songs", "Sing Together pass", "song", "songs"),
++    Pins("pins", "Globe pins pass", "pin", "pins"),
++    Games("games", "Game night pass", "game", "games"),
++}
++
++/** What the "free ones are gone" sheet shows. Every number comes from the server. */
++data class AccessAsk(
++    val feature: AccessFeature,
++    val price: Int,
++    val hours: Int,
++    val freeTotal: Int,
++    val balance: Int,
++    val emoji: String,
++    val perk: String,
++) {
++    val coinsMissing: Int get() = (price - balance).coerceAtLeast(0)
++}
++
++/** One open question to the person; [answer] is true when they unlocked a pass. */
++class PendingAsk(val info: AccessAsk) {
++    val answer = CompletableDeferred<Boolean>()
++}
++
++sealed interface PassResult {
++    data class Unlocked(val expiresText: String) : PassResult
++    data object NotEnoughCoins : PassResult
++    data class Failed(val message: String) : PassResult
++}
++
++/**
++ * Free daily uses, then ONE small coin pass, for Movie night, Sing Together, Globe pins and Couple Games.
++ *
++ *     if (!accessGate.check(AccessFeature.Movie)) return   // the person chose "Maybe later"
++ *
++ * How it feels:
++ *  - The first few uses every day are FREE. A tiny toast says how many are left. No pop-up.
++ *  - Only when the free ones are gone, ONE clear sheet explains why and what a pass gives
++ *    (for example 20 coins = unlimited movies for 12 hours, for both partners).
++ *  - While a pass is running nobody is asked again: not for every song, pin or game.
++ * If the server cannot be reached this lets the person through (an outage must never lock the app).
++ * Pro couples are never asked (the server says "pro").
++ */
++@Singleton
++class AccessGate @Inject constructor(
++    private val api: AccessApi,
++    private val sessionStore: SessionStore,
++    @ApplicationContext private val context: Context,
++) {
++    private val main = Handler(Looper.getMainLooper())
++
++    private val _pending = MutableStateFlow<PendingAsk?>(null)
++
++    /** The sheet host shows this when it is not null. */
++    val pending: StateFlow<PendingAsk?> = _pending.asStateFlow()
++
++    private val _openRewards = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
++
++    /** "Get coins free": the host asks the navigation to open the Rewards page. */
++    val openRewards: SharedFlow<Unit> = _openRewards.asSharedFlow()
++
++    /** True when the person may go ahead (free, pass, Pro, or they just bought a pass). */
++    suspend fun check(feature: AccessFeature): Boolean {
++        val s = sessionStore.session.first() ?: return true
++        val r = when (val res = safeApiCall { api.use(AccessUseBody(s.coupleId, s.userId, feature.key), s.userId) }) {
++            is AppResult.Success -> res.data
++            is AppResult.Failure -> return true // server down / old server: never lock people out
++        }
++        if (r.allowed) {
++            if (r.via == "free") {
++                val noun = feature.freeNoun
++                toast(
++                    if (r.freeLeft > 0) "🎁 Free today · ${r.freeLeft} free $noun${if (r.freeLeft == 1) "" else "s"} left"
++                    else "🎁 That was your last free $noun today. Free again tomorrow",
++                )
++            }
++            return true
++        }
++        if (!r.needsCoins) return true
++        return ask(
++            AccessAsk(
++                feature = feature, price = r.price, hours = r.hours, freeTotal = r.freeTotal,
++                balance = r.balance, emoji = r.emoji.ifBlank { "🎟️" }, perk = r.perk,
++            ),
++        )
++    }
++
++    private suspend fun ask(info: AccessAsk): Boolean {
++        if (_pending.value != null) return false // already asking: do not stack sheets
++        val p = PendingAsk(info)
++        _pending.value = p
++        TwinSound.tap()
++        return try {
++            p.answer.await()
++        } finally {
++            if (_pending.value === p) _pending.value = null
++        }
++    }
++
++    /** "Maybe later". */
++    fun dismiss(p: PendingAsk) {
++        p.answer.complete(false)
++        if (_pending.value === p) _pending.value = null
++    }
++
++    /** "Get coins free": closes the sheet and takes the person to where coins are earned. */
++    fun goEarnCoins(p: PendingAsk) {
++        dismiss(p)
++        _openRewards.tryEmit(Unit)
++    }
++
++    /** Buys the pass (coins are taken once). On success the sheet closes and the original action goes ahead. */
++    suspend fun unlock(p: PendingAsk): PassResult {
++        val s = sessionStore.session.first() ?: return PassResult.Failed("Please sign in again.")
++        val body = AccessPassBody(s.coupleId, s.userId, p.info.feature.key, "ag_" + UUID.randomUUID().toString().replace("-", ""))
++        return when (val res = safeApiCall { api.pass(body, s.userId) }) {
++            is AppResult.Success -> {
++                val text = untilText(res.data.expiresAt)
++                TwinSound.unlock()
++                toast("🔓 Unlocked until $text. Enjoy!")
++                p.answer.complete(true)
++                if (_pending.value === p) _pending.value = null
++                PassResult.Unlocked(text)
++            }
++            is AppResult.Failure -> {
++                val e = res.error
++                if (e is AppError.Server && e.code == 402) {
++                    TwinSound.error()
++                    dismiss(p)
++                    _openRewards.tryEmit(Unit)
++                    PassResult.NotEnoughCoins
++                } else {
++                    TwinSound.error()
++                    PassResult.Failed("Could not unlock. You were not charged.")
++                }
++            }
++        }
++    }
++
++    private fun untilText(iso: String): String = try {
++        val zone = ZoneId.systemDefault()
++        val at = Instant.parse(iso).atZone(zone)
++        val time = at.format(DateTimeFormatter.ofPattern("h:mm a"))
++        if (at.toLocalDate() == java.time.LocalDate.now(zone)) time else "tomorrow $time"
++    } catch (_: Exception) {
++        "later today"
++    }
++
++    private fun toast(text: String) {
++        main.post { Toast.makeText(context, text, Toast.LENGTH_SHORT).show() }
++    }
++}
+diff --git a/app/src/main/java/com/twinhearts/app/feature/access/ui/AccessGateHost.kt b/app/src/main/java/com/twinhearts/app/feature/access/ui/AccessGateHost.kt
+new file mode 100644
+index 0000000..1912c97
+--- /dev/null
++++ b/app/src/main/java/com/twinhearts/app/feature/access/ui/AccessGateHost.kt
+@@ -0,0 +1,192 @@
++package com.twinhearts.app.feature.access.ui
++
++import androidx.compose.foundation.background
++import androidx.compose.foundation.layout.Arrangement
++import androidx.compose.foundation.layout.Column
++import androidx.compose.foundation.layout.Row
++import androidx.compose.foundation.layout.Spacer
++import androidx.compose.foundation.layout.fillMaxWidth
++import androidx.compose.foundation.layout.heightIn
++import androidx.compose.foundation.layout.navigationBarsPadding
++import androidx.compose.foundation.layout.padding
++import androidx.compose.foundation.layout.size
++import androidx.compose.foundation.layout.widthIn
++import androidx.compose.foundation.shape.RoundedCornerShape
++import androidx.compose.material3.ExperimentalMaterial3Api
++import androidx.compose.material3.MaterialTheme
++import androidx.compose.material3.ModalBottomSheet
++import androidx.compose.material3.Text
++import androidx.compose.material3.TextButton
++import androidx.compose.material3.rememberModalBottomSheetState
++import androidx.compose.runtime.Composable
++import androidx.compose.runtime.LaunchedEffect
++import androidx.compose.runtime.getValue
++import androidx.compose.ui.Alignment
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.graphics.Color
++import androidx.compose.ui.text.font.FontWeight
++import androidx.compose.ui.text.style.TextAlign
++import androidx.compose.ui.unit.dp
++import androidx.compose.ui.unit.sp
++import androidx.hilt.navigation.compose.hiltViewModel
++import androidx.lifecycle.ViewModel
++import androidx.lifecycle.compose.collectAsStateWithLifecycle
++import androidx.lifecycle.viewModelScope
++import com.twinhearts.app.core.design.GlassButton
++import com.twinhearts.app.core.design.GlassButtonStyle
++import com.twinhearts.app.core.design.TwinTheme
++import com.twinhearts.app.feature.access.domain.AccessAsk
++import com.twinhearts.app.feature.access.domain.AccessFeature
++import com.twinhearts.app.feature.access.domain.AccessGate
++import com.twinhearts.app.feature.access.domain.PassResult
++import com.twinhearts.app.feature.access.domain.PendingAsk
++import dagger.hilt.android.lifecycle.HiltViewModel
++import kotlinx.coroutines.flow.MutableStateFlow
++import kotlinx.coroutines.flow.StateFlow
++import kotlinx.coroutines.flow.asStateFlow
++import kotlinx.coroutines.launch
++import javax.inject.Inject
++
++@HiltViewModel
++class AccessGateViewModel @Inject constructor(private val gate: AccessGate) : ViewModel() {
++    val pending: StateFlow<PendingAsk?> = gate.pending
++    val openRewards = gate.openRewards
++
++    private val _busy = MutableStateFlow(false)
++    val busy: StateFlow<Boolean> = _busy.asStateFlow()
++    private val _error = MutableStateFlow<String?>(null)
++    val error: StateFlow<String?> = _error.asStateFlow()
++
++    fun later(p: PendingAsk) { _error.value = null; gate.dismiss(p) }
++    fun getCoins(p: PendingAsk) { _error.value = null; gate.goEarnCoins(p) }
++
++    fun unlock(p: PendingAsk) {
++        if (_busy.value) return
++        _busy.value = true
++        _error.value = null
++        viewModelScope.launch {
++            val r = gate.unlock(p)
++            _busy.value = false
++            if (r is PassResult.Failed) _error.value = r.message
++        }
++    }
++}
++
++/**
++ * Put this ONCE near the top of the app (next to the Pro gate). It shows the one clear "free ones are
++ * gone" sheet when [AccessGate.check] needs it, and opens the Rewards page for "Get coins free".
++ */
++@Composable
++fun AccessGateHost(onGetCoins: () -> Unit, viewModel: AccessGateViewModel = hiltViewModel()) {
++    val pending by viewModel.pending.collectAsStateWithLifecycle()
++    val busy by viewModel.busy.collectAsStateWithLifecycle()
++    val error by viewModel.error.collectAsStateWithLifecycle()
++    LaunchedEffect(viewModel) { viewModel.openRewards.collect { onGetCoins() } }
++    val p = pending ?: return
++    AccessSheet(
++        info = p.info,
++        busy = busy,
++        error = error,
++        onUnlock = { viewModel.unlock(p) },
++        onGetCoins = { viewModel.getCoins(p) },
++        onLater = { viewModel.later(p) },
++    )
++}
++
++private val CoinGold = Color(0xFFF5B83D)
++
++@OptIn(ExperimentalMaterial3Api::class)
++@Composable
++private fun AccessSheet(
++    info: AccessAsk,
++    busy: Boolean,
++    error: String?,
++    onUnlock: () -> Unit,
++    onGetCoins: () -> Unit,
++    onLater: () -> Unit,
++) {
++    val colors = TwinTheme.colors
++    val why = when (info.feature) {
++        AccessFeature.Movie -> "You've watched today's free movie."
++        AccessFeature.Songs -> "You've used today's ${info.freeTotal} free Sing Together songs."
++        AccessFeature.Pins -> "You've dropped today's ${info.freeTotal} free globe pins."
++        AccessFeature.Games -> "You've played today's ${info.freeTotal} free games."
++    }
++    ModalBottomSheet(
++        onDismissRequest = onLater,
++        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
++        containerColor = colors.card,
++    ) {
++        Column(
++            modifier = Modifier
++                .fillMaxWidth()
++                .navigationBarsPadding()
++                .padding(horizontal = 20.dp, vertical = 4.dp),
++            horizontalAlignment = Alignment.CenterHorizontally,
++        ) {
++            Text(info.emoji, fontSize = 38.sp)
++            Text(
++                info.feature.title,
++                color = colors.ink,
++                fontSize = 19.sp,
++                fontWeight = FontWeight.ExtraBold,
++                modifier = Modifier.padding(top = 6.dp, bottom = 4.dp),
++            )
++            Text(
++                "$why Free ones refill every day.",
++                color = colors.inkMuted,
++                style = MaterialTheme.typography.bodyMedium,
++                textAlign = TextAlign.Center,
++                modifier = Modifier.padding(bottom = 14.dp),
++            )
++            Row(
++                modifier = Modifier
++                    .fillMaxWidth()
++                    .background(colors.glass, RoundedCornerShape(16.dp))
++                    .padding(horizontal = 14.dp, vertical = 12.dp),
++                verticalAlignment = Alignment.CenterVertically,
++                horizontalArrangement = Arrangement.spacedBy(14.dp),
++            ) {
++                Row(Modifier.widthIn(min = 64.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
++                    Text("🪙", fontSize = 20.sp)
++                    Text("${info.price}", color = CoinGold, fontSize = 26.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(start = 4.dp))
++                }
++                Column {
++                    Text(info.perk, color = colors.ink, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
++                    Text(
++                        "One tap now. We won't ask again for every ${info.feature.freeNoun} during these ${info.hours} hours.",
++                        color = colors.inkMuted,
++                        style = MaterialTheme.typography.bodySmall,
++                    )
++                }
++            }
++            Text(
++                if (info.coinsMissing > 0) "You have ${info.balance} 🪙 · need ${info.coinsMissing} more" else "You have ${info.balance} 🪙",
++                color = colors.inkMuted,
++                style = MaterialTheme.typography.bodySmall,
++                modifier = Modifier.padding(top = 10.dp, bottom = 12.dp),
++            )
++            if (error != null) {
++                Text(error, color = colors.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 8.dp))
++            }
++            GlassButton(
++                text = if (info.coinsMissing > 0) "Get coins free" else "Unlock for ${info.price} 🪙",
++                onClick = if (info.coinsMissing > 0) onGetCoins else onUnlock,
++                modifier = Modifier.fillMaxWidth(),
++                style = GlassButtonStyle.Primary,
++                loading = busy,
++            )
++            TextButton(onClick = onLater, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
++                Text("Maybe later", color = colors.inkMuted)
++            }
++            Text(
++                "Why coins? They keep Twin Hearts free for everyone. You earn them daily: check-in, Spin & Win, scratch cards and games.",
++                color = colors.inkFaint,
++                style = MaterialTheme.typography.labelSmall,
++                textAlign = TextAlign.Center,
++                modifier = Modifier.padding(top = 2.dp, bottom = 16.dp),
++            )
++            Spacer(Modifier.size(4.dp))
++        }
++    }
++}
+diff --git a/app/src/main/java/com/twinhearts/app/feature/games/ui/GamesScreen.kt b/app/src/main/java/com/twinhearts/app/feature/games/ui/GamesScreen.kt
+index fe4ca1c..65abc3c 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/games/ui/GamesScreen.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/games/ui/GamesScreen.kt
+@@ -91,8 +91,10 @@ fun GamesScreen(onBack: () -> Unit, viewModel: GamesViewModel = hiltViewModel())
+             viewModel = viewModel,
+             onBack = onBack,
+             onOpen = { game ->
+-                viewModel.markOpened(game)
+-                openKey = game.key
++                viewModel.tryOpen {
++                    viewModel.markOpened(game)
++                    openKey = game.key
++                }
+             },
+         )
+     }
+diff --git a/app/src/main/java/com/twinhearts/app/feature/games/ui/GamesViewModel.kt b/app/src/main/java/com/twinhearts/app/feature/games/ui/GamesViewModel.kt
+index 1835d86..802d017 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/games/ui/GamesViewModel.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/games/ui/GamesViewModel.kt
+@@ -23,8 +23,23 @@ import javax.inject.Inject
+ @HiltViewModel
+ class GamesViewModel @Inject constructor(
+     private val repository: GamesRepository,
++    private val accessGate: com.twinhearts.app.feature.access.domain.AccessGate,
+ ) : ViewModel() {
+ 
++    private var gateOkAt = 0L
++
++    /** Free games each day, then ONE small coin pass. Opening another game within 10 minutes is not counted again. */
++    fun tryOpen(onAllowed: () -> Unit) {
++        viewModelScope.launch {
++            val recent = System.currentTimeMillis() - gateOkAt < 600_000L
++            if (!recent) {
++                if (!accessGate.check(com.twinhearts.app.feature.access.domain.AccessFeature.Games)) return@launch
++                gateOkAt = System.currentTimeMillis()
++            }
++            onAllowed()
++        }
++    }
++
+     private val _ui = MutableStateFlow<UiState<Players>>(UiState.Loading)
+     val ui: StateFlow<UiState<Players>> = _ui.asStateFlow()
+ 
+diff --git a/app/src/main/java/com/twinhearts/app/feature/movie/ui/WatchViewModel.kt b/app/src/main/java/com/twinhearts/app/feature/movie/ui/WatchViewModel.kt
+index 7c33083..8d2536b 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/movie/ui/WatchViewModel.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/movie/ui/WatchViewModel.kt
+@@ -80,6 +80,7 @@ class WatchViewModel @Inject constructor(
+     private val uploader: CloudUploader,
+     private val store: MovieLocalStore,
+     private val ads: AdsManager,
++    private val accessGate: com.twinhearts.app.feature.access.domain.AccessGate,
+ ) : ViewModel() {
+ 
+     private val _state = MutableStateFlow(WatchUiState())
+@@ -263,7 +264,21 @@ class WatchViewModel @Inject constructor(
+ 
+     fun setReady(ready: Boolean) = runAction(R.string.movie_toast_ready_failed) { who -> repo.setReady(who, ready) }
+ 
+-    fun requestStart() = runAction(R.string.movie_toast_start_failed) { who ->
++    private var gateOkAt = 0L
++
++    /** Free movie each day, then ONE small coin pass. A start within 10 minutes (e.g. after a cancel) is the same movie. */
++    fun requestStart() {
++        viewModelScope.launch {
++            val recent = System.currentTimeMillis() - gateOkAt < 600_000L
++            if (!recent) {
++                if (!accessGate.check(com.twinhearts.app.feature.access.domain.AccessFeature.Movie)) return@launch
++                gateOkAt = System.currentTimeMillis()
++            }
++            startNow()
++        }
++    }
++
++    private fun startNow() = runAction(R.string.movie_toast_start_failed) { who ->
+         sentFirstState = false
+         repo.requestStart(who)
+     }
+diff --git a/app/src/main/java/com/twinhearts/app/feature/music/singtogether/ui/SingTogetherViewModel.kt b/app/src/main/java/com/twinhearts/app/feature/music/singtogether/ui/SingTogetherViewModel.kt
+index 760ee74..4f28ea8 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/music/singtogether/ui/SingTogetherViewModel.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/music/singtogether/ui/SingTogetherViewModel.kt
+@@ -1,6 +1,8 @@
+ package com.twinhearts.app.feature.music.singtogether.ui
+ 
+ import androidx.lifecycle.ViewModel
++import androidx.lifecycle.viewModelScope
++import kotlinx.coroutines.launch
+ import com.twinhearts.app.feature.music.domain.model.Song
+ import com.twinhearts.app.feature.music.player.MusicPlayerController
+ import com.twinhearts.app.feature.music.player.PlayerState
+@@ -18,6 +20,7 @@ import javax.inject.Inject
+ class SingTogetherViewModel @Inject constructor(
+     private val engine: SingTogetherEngine,
+     controller: MusicPlayerController,
++    private val accessGate: com.twinhearts.app.feature.access.domain.AccessGate,
+ ) : ViewModel() {
+ 
+     val state: StateFlow<SingState> = engine.state
+@@ -33,7 +36,19 @@ class SingTogetherViewModel @Inject constructor(
+         engine.unwatch()
+     }
+ 
+-    fun invite(song: Song, songs: List<Song>) = engine.invite(song, songs)
++    private var gateOkAt = 0L
++
++    /** Free songs each day, then ONE small coin pass. Inviting again within 10 minutes is not counted again. */
++    fun invite(song: Song, songs: List<Song>) {
++        viewModelScope.launch {
++            val recent = System.currentTimeMillis() - gateOkAt < 600_000L
++            if (!recent) {
++                if (!accessGate.check(com.twinhearts.app.feature.access.domain.AccessFeature.Songs)) return@launch
++                gateOkAt = System.currentTimeMillis()
++            }
++            engine.invite(song, songs)
++        }
++    }
+ 
+     fun cancelInvite() = engine.cancelInvite()
+ 
+diff --git a/app/src/main/java/com/twinhearts/app/feature/rewards/data/CoinEarnerImpl.kt b/app/src/main/java/com/twinhearts/app/feature/rewards/data/CoinEarnerImpl.kt
+index d89b9bb..55619e1 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/rewards/data/CoinEarnerImpl.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/rewards/data/CoinEarnerImpl.kt
+@@ -6,6 +6,7 @@ import android.os.Looper
+ import android.widget.Toast
+ import com.twinhearts.app.R
+ import com.twinhearts.app.core.common.AppResult
++import com.twinhearts.app.core.sound.TwinSound
+ import com.twinhearts.app.feature.rewards.domain.CoinEarner
+ import com.twinhearts.app.feature.rewards.domain.EarnAction
+ import dagger.hilt.android.qualifiers.ApplicationContext
+@@ -28,6 +29,7 @@ class CoinEarnerImpl @Inject constructor(
+         scope.launch {
+             val r = repository.earn(action)
+             if (r is AppResult.Success && r.data.earned > 0) {
++                TwinSound.coins(minOf(4, (r.data.earned + 1) / 2))
+                 main.postDelayed(
+                     { Toast.makeText(context, context.getString(R.string.rewards_earn_toast, r.data.earned), Toast.LENGTH_SHORT).show() },
+                     700,
+diff --git a/app/src/main/java/com/twinhearts/app/feature/rewards/ui/RewardFx.kt b/app/src/main/java/com/twinhearts/app/feature/rewards/ui/RewardFx.kt
+index 186b5c1..8103591 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/rewards/ui/RewardFx.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/rewards/ui/RewardFx.kt
+@@ -1,6 +1,7 @@
+ package com.twinhearts.app.feature.rewards.ui
+ 
+ import androidx.compose.animation.core.Animatable
++import com.twinhearts.app.core.sound.TwinSound
+ import androidx.compose.animation.core.LinearEasing
+ import androidx.compose.animation.core.Spring
+ import androidx.compose.animation.core.animateFloat
+@@ -192,6 +193,7 @@ internal fun ScratchFoil(
+ 
+     fun mark(p: Offset) {
+         if (size.width == 0 || size.height == 0) return
++        TwinSound.scratch() // a soft scratch grain (it throttles itself)
+         val cellW = size.width.toFloat() / cols
+         val cellH = size.height.toFloat() / rows
+         val reach = brushPx / 2f
+@@ -317,7 +319,7 @@ internal fun AdScratchDialog(
+             } else {
+                 earned = paid
+                 phase = AdScratchPhase.Won
+-                if (paid > 0) shower++
++                if (paid > 0) { shower++; TwinSound.ad() } // rising chime, then coins
+             }
+         }
+     }
+diff --git a/app/src/main/java/com/twinhearts/app/feature/rewards/ui/RewardsParts.kt b/app/src/main/java/com/twinhearts/app/feature/rewards/ui/RewardsParts.kt
+index b778dd5..46198c3 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/rewards/ui/RewardsParts.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/rewards/ui/RewardsParts.kt
+@@ -1,6 +1,7 @@
+ package com.twinhearts.app.feature.rewards.ui
+ 
+ import androidx.compose.animation.core.Animatable
++import com.twinhearts.app.core.sound.TwinSound
+ import androidx.compose.animation.core.FastOutSlowInEasing
+ import androidx.compose.animation.core.tween
+ import androidx.compose.foundation.BorderStroke
+@@ -368,7 +369,7 @@ internal fun ScratchCard(
+     val startedFresh = remember { !summary.scratchedToday }
+     var shower by remember { mutableIntStateOf(0) }
+     LaunchedEffect(lastResult) {
+-        if (startedFresh && lastResult != null && lastResult.coins > 0) shower++
++        if (startedFresh && lastResult != null && lastResult.coins > 0) { shower++; TwinSound.reveal() }
+     }
+ 
+     GlassCard(Modifier.fillMaxWidth()) {
+diff --git a/app/src/main/java/com/twinhearts/app/feature/rewards/ui/RewardsScreen.kt b/app/src/main/java/com/twinhearts/app/feature/rewards/ui/RewardsScreen.kt
+index 47ac55f..7d7c78b 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/rewards/ui/RewardsScreen.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/rewards/ui/RewardsScreen.kt
+@@ -101,6 +101,7 @@ fun RewardsScreen(
+                 showSidebarButton = true,
+                 onSyncClick = { viewModel.refresh(); viewModel.loadStore(); viewModel.loadEarn() },
+             )
++            com.twinhearts.app.core.sound.SoundToggle()
+             val summary = state.summary
+             val error = state.error
+             if (summary == null) {
+diff --git a/app/src/main/java/com/twinhearts/app/feature/rewards/ui/RewardsViewModel.kt b/app/src/main/java/com/twinhearts/app/feature/rewards/ui/RewardsViewModel.kt
+index 1fd069b..9618693 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/rewards/ui/RewardsViewModel.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/rewards/ui/RewardsViewModel.kt
+@@ -12,6 +12,7 @@ import com.twinhearts.app.feature.rewards.domain.EarnItem
+ import com.twinhearts.app.feature.rewards.domain.PendingAdReward
+ import com.twinhearts.app.feature.rewards.domain.RewardsSummary
+ import com.twinhearts.app.feature.rewards.domain.ScratchResult
++import com.twinhearts.app.core.sound.TwinSound
+ import com.twinhearts.app.feature.rewards.domain.SpinResult
+ import com.twinhearts.app.feature.rewards.domain.StoreItem
+ import com.twinhearts.app.feature.rewards.domain.StorePurchaseResult
+@@ -187,6 +188,7 @@ class RewardsViewModel @Inject constructor(
+             when (val r = repository.checkIn()) {
+                 is AppResult.Success -> {
+                     _state.update { it.copy(summary = r.data, claiming = false, error = null, justEarned = if (r.data.claimed) r.data.earned else 0) }
++                    if (r.data.claimed) TwinSound.coins(5)
+                     loadHistory()
+                 }
+                 is AppResult.Failure -> _state.update { it.copy(claiming = false, error = if (it.summary == null) r.error else it.error) }
+@@ -300,9 +302,10 @@ class RewardsViewModel @Inject constructor(
+                         )
+                     }
+                     loadHistory()
++                    TwinSound.purchase() // ka-ching
+                     onSuccess(r.data)
+                 }
+-                is AppResult.Failure -> _state.update { it.copy(purchasingItemId = null, error = r.error) }
++                is AppResult.Failure -> { TwinSound.error(); _state.update { it.copy(purchasingItemId = null, error = r.error) } }
+             }
+         }
+     }
+diff --git a/app/src/main/java/com/twinhearts/app/feature/rewards/ui/SpinWheelScreen.kt b/app/src/main/java/com/twinhearts/app/feature/rewards/ui/SpinWheelScreen.kt
+index d4f73fb..a3ff69b 100644
+--- a/app/src/main/java/com/twinhearts/app/feature/rewards/ui/SpinWheelScreen.kt
++++ b/app/src/main/java/com/twinhearts/app/feature/rewards/ui/SpinWheelScreen.kt
+@@ -4,6 +4,7 @@ import android.graphics.Paint
+ import android.graphics.Typeface
+ import androidx.compose.animation.core.CubicBezierEasing
+ import androidx.compose.animation.core.animateFloatAsState
++import com.twinhearts.app.core.sound.TwinSound
+ import androidx.compose.animation.core.spring
+ import androidx.compose.foundation.Canvas
+ import androidx.compose.foundation.background
+@@ -133,12 +134,17 @@ fun SpinWheelScreen(
+         when (phase) {
+             WheelPhase.Idle -> Unit
+             WheelPhase.Waiting -> {
++                TwinSound.spinStart()
+                 if (!appReduceMotion) {
++                    val pegGap = 360f / sliceCount
++                    var lastPeg = (rotation / pegGap).toInt()
+                     var last = withFrameNanos { it }
+                     while (true) {
+                         val now = withFrameNanos { it }
+                         rotation += (now - last) / 1_000_000_000f * WAIT_DEGREES_PER_SECOND
+                         last = now
++                        val peg = (rotation / pegGap).toInt()
++                        if (peg != lastPeg) { lastPeg = peg; TwinSound.tick(0.8f) } // a soft click each time a peg passes
+                     }
+                 }
+             }
+@@ -158,14 +164,19 @@ fun SpinWheelScreen(
+                         rotation = target
+                     } else {
+                         val t0 = withFrameNanos { it }
++                        var lastPeg = (rotation / sweep).toInt()
+                         while (true) {
+                             val now = withFrameNanos { it }
+                             val t = ((now - t0) / 1_000_000f / LAND_MILLIS).coerceIn(0f, 1f)
+                             rotation = start + (target - start) * LandEasing.transform(t)
++                            val peg = (rotation / sweep).toInt()
++                            if (peg != lastPeg) { lastPeg = peg; TwinSound.tick((1f - t) * (1f - t)) } // slower wheel = softer click
+                             if (t >= 1f) break
+                         }
+                     }
+                     wonCoins = result.coins
++                    TwinSound.spinEnd()
++                    if (result.coins > 0) TwinSound.win(big = result.coins >= 50)
+                     if (result.coins > 0) shower++
+                     viewModel.consumeEarned()
+                 }
