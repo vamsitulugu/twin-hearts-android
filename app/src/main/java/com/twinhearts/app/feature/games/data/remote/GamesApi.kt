@@ -24,6 +24,10 @@ interface GamesApi {
     @POST("api/data/state")
     suspend fun saveState(@Body body: SaveStateBody): SaveStateResponse
 
+    /** `GET /api/partner/status/:userId`: the server's own answer to "which player am I, in which couple?". */
+    @GET("api/partner/status/{userId}")
+    suspend fun whoAmI(@Path("userId") userId: String): WhoAmIDto
+
     /** `GET /api/profile/:userId`: my own profile row (photo as `avatar_url`). */
     @GET("api/profile/{userId}")
     suspend fun getMyProfile(@Path("userId") userId: String): ProfileRowDto

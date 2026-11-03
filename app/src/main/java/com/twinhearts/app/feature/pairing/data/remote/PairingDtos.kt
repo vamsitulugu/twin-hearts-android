@@ -13,6 +13,8 @@ data class StatusDto(
     val receiverPhone: String? = null,
     val senderName: String? = null,
     val createdAt: String? = null,
+    val coupleId: String? = null,
+    val role: String? = null,
 )
 
 @Serializable

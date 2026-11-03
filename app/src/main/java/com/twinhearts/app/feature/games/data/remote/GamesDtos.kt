@@ -23,6 +23,14 @@ data class ProfileRowDto(
     @SerialName("display_name") val displayName: String? = null,
 )
 
+/** `GET /api/partner/status/:userId`: only what Games needs to know who is player 1 / player 2. */
+@Serializable
+data class WhoAmIDto(
+    val status: String = "",
+    val coupleId: String? = null,
+    val role: String? = null,
+)
+
 @Serializable
 data class PartnerProfileDto(val profile: ProfileRowDto? = null)
 

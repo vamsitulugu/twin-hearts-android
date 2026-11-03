@@ -102,7 +102,34 @@ class GamesRepositoryImpl @Inject constructor(
     private var partnerAvatar: String? = null
     private var avatarsLoadedFor: String? = null
 
-    private suspend fun session(): Session? = sessionStore.session.first()
+    private var verifiedFor: String? = null
+    private var lastCheckAt = 0L
+
+    /**
+     * The stored session, corrected against the server once per sign-in. The phone that SENT the partner
+     * request could keep an old role/couple, so both phones believed they were player 1 and both saw
+     * "your turn". The server's answer wins, and the fix is saved for every other screen too.
+     */
+    private suspend fun session(): Session? {
+        val stored = sessionStore.session.first() ?: return null
+        if (verifiedFor == stored.userId) return stored
+        val now = System.currentTimeMillis()
+        if (now - lastCheckAt < CHECK_GAP_MS) return stored
+        lastCheckAt = now
+        val who = safeApiCall { api.whoAmI(stored.userId) }
+        if (who is AppResult.Success && who.data.status == "connected") {
+            verifiedFor = stored.userId
+            val role = who.data.role?.takeIf { it == "user1" || it == "user2" }
+            val couple = who.data.coupleId?.takeIf { it.isNotBlank() }
+            if (role != null && couple != null && (role != stored.role || couple != stored.coupleId)) {
+                val fixed = stored.copy(role = role, coupleId = couple)
+                sessionStore.save(fixed)
+                profileLock.withLock { myProfile = null }
+                return fixed
+            }
+        }
+        return stored
+    }
 
     override suspend fun snapshot(game: GameId?): AppResult<GamesSnapshot> {
         val session = session() ?: return AppResult.Failure(AppError.Unauthorized())
@@ -253,6 +280,7 @@ class GamesRepositoryImpl @Inject constructor(
     }
 
     private companion object {
+        const val CHECK_GAP_MS = 20_000L
         const val DEFAULT_MIME = "image/jpeg"
         const val WORD_TIMEOUT_MS = 4_000
     }
