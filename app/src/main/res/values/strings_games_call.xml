@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="games_call_start">Face to face video</string>
+    <string name="games_call_end">End video call</string>
+</resources>
