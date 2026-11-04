@@ -115,6 +115,11 @@ abstract class SyncedGameViewModel<S : Any>(
         }
     }
 
+    /** My partner invited me to THIS game and I am already here: answering just clears the card. */
+    fun answerInvite() {
+        viewModelScope.launch { repository.clearRequest() }
+    }
+
     /** Pull-to-retry / the Retry button. */
     fun retry() {
         viewModelScope.launch {

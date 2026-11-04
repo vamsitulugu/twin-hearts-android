@@ -415,5 +415,6 @@
     <string name="games_request_decline">Decline</string>
     <string name="games_invite_partner">Invite %1$s to play</string>
     <string name="games_invite_sent">Invite sent — waiting for %1$s…</string>
+    <string name="games_invited_here">%1$s invited you to play this game</string>
     <string name="games_partner_here">%1$s is in this game</string>
 </resources>

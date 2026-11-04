@@ -100,6 +100,7 @@ fun <S : Any> GameHost(
                         game = viewModel.game,
                         sent = inviteSent,
                         onInvite = viewModel::invitePartner,
+                        onAnswer = viewModel::answerInvite,
                     )
                     content(current.data.state, current.data.players)
                 }

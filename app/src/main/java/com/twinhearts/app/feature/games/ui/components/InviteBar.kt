@@ -24,10 +24,25 @@ fun InviteBar(
     game: GameId,
     sent: Boolean,
     onInvite: () -> Unit,
+    onAnswer: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val partnerHere = players.partnerOnline && players.partnerPresence.game == game.key
-    Column(modifier = modifier.fillMaxWidth()) {
+    val incoming = players.pendingRequest?.takeIf { it.game == game.key }
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(TwinTheme.spacing.s)) {
+        if (incoming != null) {
+            Text(
+                text = stringResource(R.string.games_invited_here, players.partnerName),
+                style = MaterialTheme.typography.bodyMedium,
+                color = TwinTheme.colors.ink,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            androidx.compose.foundation.layout.Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(TwinTheme.spacing.s)) {
+                GlassButton(text = stringResource(R.string.games_request_accept), onClick = onAnswer, modifier = Modifier.weight(1f))
+                GlassButton(text = stringResource(R.string.games_request_decline), onClick = onAnswer, modifier = Modifier.weight(1f))
+            }
+        }
         when {
             partnerHere -> Text(
                 text = stringResource(R.string.games_partner_here, players.partnerName),

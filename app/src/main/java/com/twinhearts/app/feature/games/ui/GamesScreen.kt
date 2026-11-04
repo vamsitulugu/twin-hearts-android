@@ -347,7 +347,7 @@ private fun GameCard(
                         .padding(horizontal = TwinTheme.spacing.s, vertical = 2.dp),
                 )
             }
-            if (partnerOnline && !challenged) {
+            if (!challenged) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
