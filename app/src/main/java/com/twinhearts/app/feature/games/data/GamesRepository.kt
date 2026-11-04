@@ -145,7 +145,15 @@ class GamesRepositoryImpl @Inject constructor(
 
     override suspend fun snapshot(game: GameId?): AppResult<GamesSnapshot> {
         val session = session() ?: return AppResult.Failure(AppError.Unauthorized())
-        return when (val result = safeApiCall { api.getState(session.coupleId) }) {
+        // Small read first (only this game's keys). An older server without that route answers 404: use the whole state then.
+        val keys = buildList {
+            game?.let { add(GamesKeys.doc(it)) }
+            Side.entries.forEach { add(GamesKeys.profile(it)); add(GamesKeys.presence(it)); add(GamesKeys.request(it)) }
+            add(GamesKeys.END)
+        }.joinToString(",")
+        val small = safeApiCall { api.getGames(session.coupleId, keys) }
+        val read = if (small is AppResult.Success) small else safeApiCall { api.getState(session.coupleId) }
+        return when (val result = read) {
             is AppResult.Failure -> result
             is AppResult.Success -> {
                 val state = result.data.asStateObject()

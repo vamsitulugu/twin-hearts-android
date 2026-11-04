@@ -9,6 +9,7 @@ import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.Part
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 /**
  * Games has no server routes of its own. Like Home and Us it saves into the couple's shared
@@ -19,6 +20,13 @@ interface GamesApi {
     /** Whole saved state, or JSON `null` when the couple has none yet. */
     @GET("api/data/state/{coupleId}")
     suspend fun getState(@Path("coupleId") coupleId: String): JsonElement
+
+    /**
+     * Only the requested `gm_*` keys (routes/data.js `GET /games/:coupleId`). Games poll every 2 seconds, so they must not
+     * download the whole state (photos, music, chat...) each time.
+     */
+    @GET("api/data/games/{coupleId}")
+    suspend fun getGames(@Path("coupleId") coupleId: String, @Query("keys") keys: String): JsonElement
 
     /** Merges the top-level keys of `state` into the couple's saved state. */
     @POST("api/data/state")

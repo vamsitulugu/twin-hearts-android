@@ -53,6 +53,13 @@ abstract class SyncedGameViewModel<S : Any>(
 
     private val envelopeSerializer = GameEnvelope.serializer(serializer)
 
+    /**
+     * Saved games are also read by the web app, which has no Kotlin defaults. The shared Json leaves out every
+     * field that still has its default value (an empty board, phase Idle, turn One...), so the web saw a game
+     * with no board. Games are therefore written with every field present.
+     */
+    private val wireJson = Json(from = json) { encodeDefaults = true }
+
     private val _ui = MutableStateFlow<UiState<GameContent<S>>>(UiState.Loading)
     val ui: StateFlow<UiState<GameContent<S>>> = _ui.asStateFlow()
 
@@ -229,7 +236,7 @@ abstract class SyncedGameViewModel<S : Any>(
         saveLock.withLock {
             val current = envelope ?: return
             if (!dirty || ended) return
-            val element = json.encodeToJsonElement(envelopeSerializer, current)
+            val element = wireJson.encodeToJsonElement(envelopeSerializer, current)
             when (repository.saveDoc(game, element)) {
                 is AppResult.Success -> if (envelope?.rev == current.rev) dirty = false
                 is AppResult.Failure -> notifyOffline()
