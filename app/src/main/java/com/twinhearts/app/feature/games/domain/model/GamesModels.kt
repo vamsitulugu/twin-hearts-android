@@ -125,6 +125,14 @@ data class GameRequest(
     val ts: Long,
 )
 
+/** "I ended this game": the other phone sees a new [ts] for its game and leaves too. */
+@Serializable
+data class GameEnd(
+    val by: Side,
+    val game: String,
+    val ts: Long,
+)
+
 /** Names, photos and progress for both people: the top of the hub and every game screen. */
 data class Players(
     val side: Side,
@@ -138,6 +146,8 @@ data class Players(
     val partnerOnline: Boolean,
     /** A game invitation the partner sent that I have not answered yet. */
     val pendingRequest: GameRequest? = null,
+    /** The last "end game" either of us pressed (null if never). */
+    val gameEnd: GameEnd? = null,
 )
 
 /** Wrapper saved around every game so an old write from one phone can never undo a newer one. */

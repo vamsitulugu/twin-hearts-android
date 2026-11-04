@@ -416,5 +416,10 @@
     <string name="games_invite_partner">Invite %1$s to play</string>
     <string name="games_invite_sent">Invite sent — waiting for %1$s…</string>
     <string name="games_invited_here">%1$s invited you to play this game</string>
+    <string name="games_end_game">End game</string>
+    <string name="games_end_title">End this game?</string>
+    <string name="games_end_body">This ends it for both of you and clears the board.</string>
+    <string name="games_end_cancel">Cancel</string>
+    <string name="games_partner_ended">%1$s ended the game</string>
     <string name="games_partner_here">%1$s is in this game</string>
 </resources>

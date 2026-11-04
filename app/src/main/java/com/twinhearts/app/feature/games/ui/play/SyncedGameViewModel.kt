@@ -64,6 +64,8 @@ abstract class SyncedGameViewModel<S : Any>(
     private var dirty = false
     private var offlineShown = false
     private val saveLock = Mutex()
+    private var ended = false
+    private var endBaseline: Long? = null
 
     /** A brand-new game, used when nothing has been saved yet. */
     protected abstract fun fresh(): S
@@ -120,6 +122,30 @@ abstract class SyncedGameViewModel<S : Any>(
         viewModelScope.launch { repository.clearRequest() }
     }
 
+    /** True when my partner just ended this game (then this screen closes). The first read only sets the baseline. */
+    private fun watchForEnd(end: com.twinhearts.app.feature.games.domain.model.GameEnd?): Boolean {
+        val baseline = endBaseline
+        if (baseline == null) { endBaseline = end?.ts ?: 0L; return false }
+        if (end == null || end.ts == baseline) return false
+        endBaseline = end.ts
+        if (end.by == side || end.game != game.key) return false
+        ended = true
+        dirty = false
+        emit(GameEvent.Message(R.string.games_partner_ended, listOf(partnerName)))
+        emit(GameEvent.Exit)
+        return true
+    }
+
+    /** "End game" button: clears the saved game for both phones and tells my partner to leave. */
+    fun endGame(onDone: () -> Unit) {
+        ended = true
+        dirty = false
+        viewModelScope.launch {
+            saveLock.withLock { repository.endGame(game) }
+            onDone()
+        }
+    }
+
     /** Pull-to-retry / the Retry button. */
     fun retry() {
         viewModelScope.launch {
@@ -140,6 +166,7 @@ abstract class SyncedGameViewModel<S : Any>(
             is AppResult.Success -> {
                 offlineShown = false
                 players = result.data.players
+                if (watchForEnd(result.data.players.gameEnd)) return
                 adopt(result.data.doc)
                 if (dirty) flush()
                 publish()
@@ -189,6 +216,7 @@ abstract class SyncedGameViewModel<S : Any>(
      */
     protected fun mutate(block: (S) -> S?): Boolean {
         val current = envelope ?: return false
+        if (ended) return false
         val next = block(current.data) ?: return false
         envelope = GameEnvelope(rev = current.rev + 1, by = side, data = next)
         dirty = true
@@ -200,7 +228,7 @@ abstract class SyncedGameViewModel<S : Any>(
     private suspend fun flush() {
         saveLock.withLock {
             val current = envelope ?: return
-            if (!dirty) return
+            if (!dirty || ended) return
             val element = json.encodeToJsonElement(envelopeSerializer, current)
             when (repository.saveDoc(game, element)) {
                 is AppResult.Success -> if (envelope?.rev == current.rev) dirty = false

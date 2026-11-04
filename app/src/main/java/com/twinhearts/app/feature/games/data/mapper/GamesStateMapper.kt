@@ -20,6 +20,9 @@ internal object GamesKeys {
     fun presence(side: Side) = "gm_presence_${suffix(side)}"
     /** One pending game invitation, written by the inviter under their own side key. */
     fun request(side: Side) = "gm_request_${suffix(side)}"
+    const val END = "gm_end"
+    /** The web app keeps games without an Android twin under this key; ending a game clears both. */
+    fun webDoc(game: GameId) = "gm_web_${game.key}"
     private fun suffix(side: Side) = if (side == Side.One) "u1" else "u2"
 }
 
@@ -30,6 +33,11 @@ internal fun JsonElement.asStateObject(): JsonObject = this as? JsonObject ?: Js
 
 internal fun JsonObject.gameDoc(game: GameId): JsonElement? =
     this[GamesKeys.doc(game)]?.takeUnless { it is JsonNull }
+
+internal fun JsonObject.gameEndOf(json: Json): com.twinhearts.app.feature.games.domain.model.GameEnd? {
+    val element = this[GamesKeys.END]?.takeUnless { it is JsonNull } ?: return null
+    return runCatching { json.decodeFromJsonElement(com.twinhearts.app.feature.games.domain.model.GameEnd.serializer(), element) }.getOrNull()
+}
 
 /** A missing or unreadable profile simply starts fresh. */
 internal fun JsonObject.profileOf(side: Side, json: Json): PlayerProfile? {

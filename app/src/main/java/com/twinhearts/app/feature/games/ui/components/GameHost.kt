@@ -60,6 +60,8 @@ fun <S : Any> GameHost(
     val snackbar = remember { SnackbarHostState() }
     val prizes = remember { mutableStateListOf<com.twinhearts.app.feature.games.ui.play.Prize>() }
 
+    var confirmEnd by remember { androidx.compose.runtime.mutableStateOf(false) }
+
     BackHandler(onBack = onExit)
 
     LaunchedEffect(viewModel) {
@@ -75,6 +77,7 @@ fun <S : Any> GameHost(
             when (event) {
                 is GameEvent.Cue -> feedback.play(event.cue)
                 is GameEvent.ShowPrize -> prizes.add(event.prize)
+                GameEvent.Exit -> onExit()
                 is GameEvent.Message -> snackbar.showSnackbar(context.getString(event.res, *event.args.toTypedArray()))
             }
         }
@@ -103,10 +106,36 @@ fun <S : Any> GameHost(
                         onAnswer = viewModel::answerInvite,
                     )
                     content(current.data.state, current.data.players)
+                    com.twinhearts.app.core.design.GlassButton(
+                        text = androidx.compose.ui.res.stringResource(com.twinhearts.app.R.string.games_end_game),
+                        onClick = { confirmEnd = true },
+                        style = com.twinhearts.app.core.design.GlassButtonStyle.Secondary,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    androidx.compose.foundation.layout.Spacer(Modifier.padding(bottom = TwinTheme.spacing.m))
                 }
             }
         }
         SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
+    }
+
+    if (confirmEnd) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmEnd = false },
+            title = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(com.twinhearts.app.R.string.games_end_title)) },
+            text = { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(com.twinhearts.app.R.string.games_end_body)) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    confirmEnd = false
+                    viewModel.endGame(onDone = onExit)
+                }) { androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(com.twinhearts.app.R.string.games_end_game)) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { confirmEnd = false }) {
+                    androidx.compose.material3.Text(androidx.compose.ui.res.stringResource(com.twinhearts.app.R.string.games_end_cancel))
+                }
+            },
+        )
     }
 
     prizes.firstOrNull()?.let { prize ->

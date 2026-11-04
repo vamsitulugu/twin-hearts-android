@@ -10,6 +10,7 @@ import com.twinhearts.app.core.network.safeApiCall
 import com.twinhearts.app.feature.games.data.mapper.GamesKeys
 import com.twinhearts.app.feature.games.data.mapper.asStateObject
 import com.twinhearts.app.feature.games.data.mapper.gameDoc
+import com.twinhearts.app.feature.games.data.mapper.gameEndOf
 import com.twinhearts.app.feature.games.data.mapper.presenceOf
 import com.twinhearts.app.feature.games.data.mapper.pendingRequestOf
 import com.twinhearts.app.feature.games.data.mapper.profileOf
@@ -72,6 +73,9 @@ interface GamesRepository {
 
     /** Clears my pending invitation (after it is accepted, declined, or cancelled). */
     suspend fun clearRequest(): AppResult<Unit>
+
+    /** Ends [game] for BOTH of us: its saved position is cleared and my partner is told to leave. */
+    suspend fun endGame(game: GameId): AppResult<Unit>
 
     /** Uploads the Picture Puzzle photo at [uri] and returns where it now lives. */
     suspend fun uploadPhoto(uri: String): AppResult<String>
@@ -168,6 +172,7 @@ class GamesRepositoryImpl @Inject constructor(
             partnerPresence = presence,
             partnerOnline = presence.isOnline(System.currentTimeMillis()),
             pendingRequest = state.pendingRequestOf(side, json),
+            gameEnd = state.gameEndOf(json),
         )
     }
 
@@ -235,6 +240,19 @@ class GamesRepositoryImpl @Inject constructor(
         val patch = buildJsonObject {
             put(GamesKeys.request(side.other), kotlinx.serialization.json.JsonNull)
             put(GamesKeys.request(side), kotlinx.serialization.json.JsonNull)
+        }
+        return save(patch)
+    }
+
+    override suspend fun endGame(game: GameId): AppResult<Unit> {
+        val session = session() ?: return AppResult.Failure(AppError.Unauthorized())
+        val end = com.twinhearts.app.feature.games.domain.model.GameEnd(
+            by = Side.fromRole(session.role), game = game.key, ts = System.currentTimeMillis(),
+        )
+        val patch = buildJsonObject {
+            put(GamesKeys.doc(game), kotlinx.serialization.json.JsonNull)
+            put(GamesKeys.webDoc(game), kotlinx.serialization.json.JsonNull)
+            put(GamesKeys.END, json.encodeToJsonElement(com.twinhearts.app.feature.games.domain.model.GameEnd.serializer(), end))
         }
         return save(patch)
     }

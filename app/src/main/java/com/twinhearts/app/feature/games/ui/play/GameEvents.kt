@@ -45,4 +45,7 @@ sealed interface GameEvent {
 
     /** A short toast. Args are inserted into the string (for example the partner's name). */
     data class Message(@StringRes val res: Int, val args: List<String> = emptyList()) : GameEvent
+
+    /** The game was ended (by my partner): leave the screen. */
+    object Exit : GameEvent
 }
