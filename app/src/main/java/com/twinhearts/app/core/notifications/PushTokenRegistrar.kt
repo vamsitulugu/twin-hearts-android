@@ -26,13 +26,18 @@ class PushTokenRegistrar @Inject constructor(
     val isConfigured: Boolean
         get() = runCatching { FirebaseApp.getApps(context).isNotEmpty() }.getOrDefault(false)
 
-    suspend fun sync(knownToken: String? = null) {
+    /**
+     * [force] uploads again even when this token was already sent. The server keeps one token per
+     * person and can lose it (another install of the app took it, or the server dropped it), and the
+     * "already sent" note on this phone would then hide the problem forever.
+     */
+    suspend fun sync(knownToken: String? = null, force: Boolean = false) {
         if (!isConfigured) return
         val session = sessionStore.session.first() ?: return
         val token = knownToken ?: fetchToken() ?: return
         // Re-upload when the token changed or a different person signed in on this phone.
         val marker = "${session.userId}|$token"
-        if (prefs.lastUploadedToken() == marker) return
+        if (!force && prefs.lastUploadedToken() == marker) return
         runCatching {
             api.registerToken(RegisterTokenBody(session.userId, session.coupleId, session.role, token))
         }.onSuccess { prefs.saveUploadedToken(marker) }

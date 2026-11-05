@@ -53,7 +53,7 @@ class TwinHeartsApp : Application() {
             sessionStore.session
                 .map { it?.userId }
                 .distinctUntilChanged()
-                .collect { userId -> if (userId != null) pushTokens.sync() }
+                .collect { userId -> if (userId != null) pushTokens.sync(force = true) }
         }
     }
 }
