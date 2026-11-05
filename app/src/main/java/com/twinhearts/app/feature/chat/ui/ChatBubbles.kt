@@ -108,7 +108,7 @@ import kotlin.math.roundToInt
  */
 
 private val BubbleMaxWidth = 300.dp
-private val BubbleCorner = 8.dp // WhatsApp: 8dp corners on every bubble
+private val BubbleCorner = 12.dp // WhatsApp: soft rounded corners on every bubble
 private val BubbleFlat = 8.dp
 private val BubbleTail = 8.dp
 private val TailWidth = 8.dp
@@ -360,12 +360,14 @@ private fun MessageBubble(
                             if (hasTail) {
                                 val tw = TailWidth.toPx()
                                 val th = TailHeight.toPx()
+                                // WhatsApp's curved tail: flat on top, tip pointing out, swooping back into the bubble.
                                 val path = Path().apply {
-                                    if (mine) {
-                                        moveTo(size.width, 0f); lineTo(size.width + tw, 0f); lineTo(size.width, th)
-                                    } else {
-                                        moveTo(0f, 0f); lineTo(-tw, 0f); lineTo(0f, th)
-                                    }
+                                    val dir = if (mine) 1f else -1f
+                                    val x0 = if (mine) size.width else 0f
+                                    moveTo(x0, 0f)
+                                    lineTo(x0 + dir * tw, 0f)
+                                    cubicTo(x0 + dir * tw * 0.78f, th * 0.03f, x0 + dir * tw * 0.52f, th * 0.15f, x0 + dir * tw * 0.52f, th * 0.38f)
+                                    cubicTo(x0 + dir * tw * 0.42f, th * 0.62f, x0 + dir * tw * 0.25f, th * 0.86f, x0, th)
                                     close()
                                 }
                                 if (mine) drawPath(path, ChatStyle.SentBubble)
@@ -377,7 +379,7 @@ private fun MessageBubble(
                             if (mine) Modifier.background(ChatStyle.SentBubble)
                             else Modifier.background(StoreFxState.theme?.partner ?: colors.neutralGlass.copy(alpha = BUBBLE_FILL_ALPHA)),
                         )
-                        .border(1.dp, if (failed) colors.error else colors.lineSoft, shape)
+                        .then(if (failed) Modifier.border(1.dp, colors.error, shape) else Modifier)
                         .combinedClickable(
                             onClick = { if (selecting) actions.onTap(message) else if (failed) actions.onRetry(message) },
                             onLongClick = { if (!message.deleted) actions.onLongPress(message) },
