@@ -60,6 +60,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -373,8 +376,13 @@ private fun MessageBubble(
                     if (message.replyToId != null && !message.deleted) {
                         ReplyQuote(quoted = quoted, partnerName = partnerName, onClick = { actions.onJump(message.replyToId) })
                     }
-                    BubbleBody(message, votes, voice, actions)
-                    MetaRow(message, Modifier.align(if (mine) Alignment.End else Alignment.Start))
+                    if (usesInlineMeta(message)) {
+                        // WhatsApp style: time + ticks sit beside the last line of the text.
+                        InlineMetaText(message)
+                    } else {
+                        BubbleBody(message, votes, voice, actions)
+                        MetaRow(message, Modifier.align(if (mine) Alignment.End else Alignment.Start))
+                    }
                     if (failed) {
                         Text(stringResource(R.string.chat_failed_retry), style = MaterialTheme.typography.labelSmall, color = colors.error)
                     }
@@ -567,7 +575,7 @@ private fun BubbleBody(message: ChatMessage, votes: Map<String, Int>, voice: Voi
 
 /** Text with the web's formatting: *bold*, _italic_, ~strike~, ```mono```, ||spoiler|| and links. */
 @Composable
-private fun BodyText(text: String) {
+private fun BodyText(text: String, onTextLayout: (TextLayoutResult) -> Unit = {}) {
     val colors = TwinTheme.colors
     var revealed by remember { mutableStateOf(false) }
     val annotated = remember(text, revealed, colors) { richAnnotated(parseRichText(text), colors.pinkSoft, colors.ink, ChatStyle.Glass, revealed) }
@@ -576,8 +584,47 @@ private fun BodyText(text: String) {
         text = annotated,
         style = MaterialTheme.typography.bodyLarge,
         color = colors.ink,
+        onTextLayout = onTextLayout,
         modifier = if (hasSpoiler) Modifier.clickable { revealed = !revealed } else Modifier,
     )
+}
+
+/** True for a plain text message (no media, no link card), where the time can sit beside the text. */
+private fun usesInlineMeta(message: ChatMessage): Boolean =
+    !message.deleted &&
+        !(message.viewOnce && message.mediaUrl == null) &&
+        message.kind == MessageKind.Text &&
+        !message.text.isNullOrBlank() &&
+        firstLink(message.text) == null
+
+/**
+ * Text with the time/ticks on the same line as the end of the text when they fit (like WhatsApp),
+ * and on a new line at the bottom right only when the last line is too full.
+ */
+@Composable
+private fun InlineMetaText(message: ChatMessage) {
+    var lastLineRight by remember(message.text) { mutableFloatStateOf(0f) }
+    val gapPx = with(LocalDensity.current) { 8.dp.roundToPx() }
+    Layout(
+        content = {
+            BodyText(message.text.orEmpty(), onTextLayout = { r ->
+                if (r.lineCount > 0) lastLineRight = r.getLineRight(r.lineCount - 1)
+            })
+            MetaRow(message, Modifier)
+        },
+    ) { measurables, constraints ->
+        val loose = Constraints(maxWidth = constraints.maxWidth)
+        val textP = measurables[0].measure(loose)
+        val metaP = measurables[1].measure(Constraints())
+        val inlineWidth = lastLineRight.toInt() + gapPx + metaP.width
+        val fitsInline = inlineWidth <= constraints.maxWidth && textP.width > 0
+        val width = if (fitsInline) maxOf(textP.width, inlineWidth) else maxOf(textP.width, metaP.width)
+        val height = if (fitsInline) maxOf(textP.height, metaP.height) else textP.height + metaP.height
+        layout(width, height) {
+            textP.placeRelative(0, 0)
+            metaP.placeRelative(width - metaP.width, height - metaP.height)
+        }
+    }
 }
 
 private fun richAnnotated(pieces: List<RichPiece>, linkColor: Color, ink: Color, monoBg: Color, revealed: Boolean): AnnotatedString =
