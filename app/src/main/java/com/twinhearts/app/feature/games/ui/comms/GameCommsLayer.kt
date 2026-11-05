@@ -103,7 +103,7 @@ fun BoxScope.GameCommsLayer(gameKey: String, hooks: GameCallHooks) {
             icon = if (voiceState.running) Icons.Rounded.CallEnd else Icons.Rounded.Call,
         )
         HeaderButton(
-            onClick = { if (inCall) hooks.hangUp() else hooks.startVideo() },
+            onClick = { if (inCall) hooks.hangUp() else hooks.startVideo(gameKey) },
             description = stringResource(if (inCall) R.string.games_call_end else R.string.games_call_start),
             tint = if (inCall) TwinTheme.colors.accent else TwinTheme.colors.ink,
             icon = if (inCall) Icons.Rounded.CallEnd else Icons.Rounded.Videocam,

@@ -68,6 +68,8 @@ data class CallState(
     val upgradeNotice: UpgradeNotice? = null,
     /** The connection dropped and is being given a few seconds to come back. */
     val reconnecting: Boolean = false,
+    /** Set when this is the in-game face-to-face video (the game id, e.g. "tod"); null for a normal call. */
+    val gameCtx: String? = null,
 ) {
     /** True from the first ring until the call is over. */
     val inCall: Boolean get() = phase != CallPhase.Idle && phase != CallPhase.Ended
@@ -120,6 +122,8 @@ class CallEngine @Inject constructor(
     private var cursorReady = false
     private var iAmCaller = false
     private var logged = false
+    /** Game id while an in-game video call runs. Every signal I send carries it, so the web game window accepts it. */
+    private var callCtx: String? = null
     private var ringJob: Job? = null
     private var timerJob: Job? = null
     private var ringtone: Ringtone? = null
@@ -208,7 +212,16 @@ class CallEngine @Inject constructor(
     }
 
     private suspend fun handle(payload: JsonObject) {
-        if (payload.truthy("gameCtx")) return // in-game face-to-face video, not a call
+        val ctx = payload.text("gameCtx")?.takeIf { it.isNotBlank() && it != "false" && it != "0" }
+        // "v:<game>" is the in-game voice call (GameVoiceEngine). Never ours.
+        if (ctx != null && ctx.startsWith("v:")) return
+        val type = payload.text("type")
+        if (type == "offer") {
+            // A new call: a tagged offer is the web game's face-to-face video; an untagged one is a normal call.
+        } else if (ctx != callCtx) {
+            // Answer / ice / end / decline must belong to the call that is running (same tag, or both untagged).
+            return
+        }
         if (payload.text("context") == "watch_together") return // Watch Together has its own screen
         when (payload.text("type")) {
             "offer" -> onOffer(payload)
@@ -231,14 +244,18 @@ class CallEngine @Inject constructor(
         val sentAt = payload.text("ts")?.toLongOrNull() ?: 0L
         if (sentAt > 0 && System.currentTimeMillis() - sentAt > STALE_OFFER_MS) return
         val sdp = (payload["sdp"] as? JsonObject)?.text("sdp") ?: return
+        val ctx = payload.text("gameCtx")?.takeIf { it.isNotBlank() && it != "false" && it != "0" }
         pendingOfferSdp = sdp
         iAmCaller = false
         logged = false
+        callCtx = ctx
         _state.value = CallState(
             phase = CallPhase.Incoming,
-            video = payload.text("callType") == "video",
+            // The web game video never sends callType: a game-tagged offer is always video.
+            video = ctx != null || payload.text("callType") == "video",
             partnerName = who?.partnerName.orEmpty(),
             egl = egl.eglBaseContext,
+            gameCtx = ctx,
         )
         startRingtone()
         ringJob?.cancel()
@@ -282,7 +299,7 @@ class CallEngine @Inject constructor(
     // ───────────── actions ─────────────
 
     /** Starts a call. The screen must have asked for the microphone (and camera) permission first. */
-    fun startCall(video: Boolean) {
+    fun startCall(video: Boolean, gameCtx: String? = null) {
         scope.launch {
             lock.withLock {
                 if (_state.value.inCall) return@withLock
@@ -293,12 +310,14 @@ class CallEngine @Inject constructor(
                 }
                 resetForNewCall()
                 iAmCaller = true
+                callCtx = gameCtx
                 _state.value = CallState(
                     phase = CallPhase.Calling,
                     video = video,
                     partnerName = me.partnerName,
                     speaker = video,
                     egl = egl.eglBaseContext,
+                    gameCtx = gameCtx,
                 )
                 try {
                     enterCallAudio(speaker = video)
@@ -318,7 +337,8 @@ class CallEngine @Inject constructor(
                         },
                     )
                     openLocalIce()
-                    repository.notifyPartner(me, video)
+                    // In-game video rings inside the web game window; a push would open the full-screen call page.
+                    if (gameCtx == null) repository.notifyPartner(me, video)
                     startRingback()
                     ringJob?.cancel()
                     ringJob = scope.launch {
@@ -614,10 +634,11 @@ class CallEngine @Inject constructor(
     }
 
     /** Posts one signal; tries again a couple of times because the free server may answer "busy". */
-    private suspend fun send(payload: JsonObject) {
+    private suspend fun send(payload: JsonObject, ctx: String? = callCtx) {
         val me = who ?: return
+        val tagged = if (ctx == null) payload else JsonObject(payload + ("gameCtx" to JsonPrimitive(ctx)))
         repeat(SEND_TRIES) { attempt ->
-            if (repository.send(me, payload) is AppResult.Success) return
+            if (repository.send(me, tagged) is AppResult.Success) return
             if (attempt < SEND_TRIES - 1) delay(SEND_RETRY_MS)
         }
     }
@@ -640,7 +661,8 @@ class CallEngine @Inject constructor(
         if (before.phase == CallPhase.Connected) TwinSound.callEnded() else if (reason == EndReason.Failed) TwinSound.error()
         val me = who
         val wasCaller = iAmCaller
-        val shouldLog = wasCaller && !logged && me != null
+        val endCtx = callCtx // resetCallMemory() clears it, but the closing "end" must still carry it
+        val shouldLog = wasCaller && !logged && me != null && endCtx == null
         logged = true
         _state.value = before.copy(
             phase = CallPhase.Ended,
@@ -657,7 +679,7 @@ class CallEngine @Inject constructor(
                     EndReason.Declined -> "decline"
                     else -> "end"
                 }
-                send(buildJsonObject { put("type", type) })
+                send(buildJsonObject { put("type", type) }, endCtx)
             }
             if (me != null && shouldLog) {
                 val status = when {
@@ -680,6 +702,7 @@ class CallEngine @Inject constructor(
     }
 
     private fun resetCallMemory() {
+        callCtx = null
         pendingOfferSdp = null
         remoteIceQueue.clear()
         localIceQueue.clear()

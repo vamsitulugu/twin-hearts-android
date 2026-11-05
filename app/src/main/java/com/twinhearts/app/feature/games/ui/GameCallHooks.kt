@@ -12,8 +12,8 @@ import com.twinhearts.app.feature.games.ui.comms.GameVoiceHooks
  * It also carries the in-game voice call (the 📞 button); the chat (💬) needs nothing from Calls.
  */
 class GameCallHooks(
-    /** Starts a video call (asks for camera + mic first). Does nothing if a call is already running. */
-    val startVideo: () -> Unit,
+    /** Starts a video call for this game id (asks for camera + mic first). Does nothing if a call is already running. */
+    val startVideo: (gameKey: String) -> Unit,
     /** Ends the running call. */
     val hangUp: () -> Unit,
     /** True while a call is ringing or running. Read inside a composable so the button updates. */

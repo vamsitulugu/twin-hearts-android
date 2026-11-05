@@ -19,7 +19,7 @@ import com.twinhearts.app.feature.calls.data.GameVoiceState
 import com.twinhearts.app.feature.calls.ui.CallViewModel
 import com.twinhearts.app.feature.calls.ui.GameVoiceViewModel
 import com.twinhearts.app.feature.calls.ui.WatchCallOverlay
-import com.twinhearts.app.feature.calls.ui.rememberCallStarter
+import com.twinhearts.app.feature.calls.ui.rememberGameVideoStarter
 import com.twinhearts.app.feature.calls.ui.rememberGameVoiceActions
 import com.twinhearts.app.feature.games.ui.GameCallHooks
 import com.twinhearts.app.feature.games.ui.GamesScreen
@@ -36,7 +36,7 @@ import com.twinhearts.app.feature.games.ui.comms.GameVoiceUiPhase
  */
 fun NavGraphBuilder.gamesGraph(navController: NavHostController) {
     composable<Routes.Games> {
-        val startCall = rememberCallStarter()
+        val startGameVideo = rememberGameVideoStarter()
         val engine = hiltViewModel<CallViewModel>().engine
         val voiceEngine = hiltViewModel<GameVoiceViewModel>().engine
         val voiceActions = rememberGameVoiceActions()
@@ -58,12 +58,12 @@ fun NavGraphBuilder.gamesGraph(navController: NavHostController) {
                 leave = voiceEngine::leave,
             )
         }
-        val hooks = remember(engine, startCall, voice, voiceEngine) {
+        val hooks = remember(engine, startGameVideo, voice, voiceEngine) {
             GameCallHooks(
                 // Video already carries voice, so a running game voice call ends first.
-                startVideo = {
+                startVideo = { gameKey ->
                     if (voiceEngine.state.value.running) voiceEngine.stop()
-                    startCall(true)
+                    startGameVideo(gameKey)
                 },
                 hangUp = { engine.hangUp() },
                 inCall = {

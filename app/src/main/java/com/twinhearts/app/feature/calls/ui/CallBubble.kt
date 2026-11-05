@@ -74,6 +74,28 @@ fun rememberCallStarter(viewModel: CallViewModel = hiltViewModel()): (video: Boo
     }
 }
 
+/**
+ * Same as [rememberCallStarter] but for the in-game 📹: the call is tagged with the game id, so the web
+ * game shows its small accept card / side-by-side window instead of the full-screen call page.
+ */
+@Composable
+fun rememberGameVideoStarter(viewModel: CallViewModel = hiltViewModel()): (gameKey: String) -> Unit {
+    val engine = viewModel.engine
+    var pendingGame by remember { mutableStateOf<String?>(null) }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted ->
+        val game = pendingGame
+        if (granted.values.all { it } && game != null) engine.startCall(video = true, gameCtx = game) else engine.permissionDenied()
+    }
+    return remember(engine, launcher) {
+        { gameKey: String ->
+            if (!engine.state.value.inCall) {
+                pendingGame = gameKey
+                launcher.launch(arrayOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA))
+            }
+        }
+    }
+}
+
 /** The small call window. Draws nothing when there is no call. Drag it anywhere over the movie. */
 @Composable
 fun CallBubble(modifier: Modifier = Modifier, viewModel: CallViewModel = hiltViewModel()) {
