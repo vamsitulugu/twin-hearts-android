@@ -19,8 +19,8 @@ enum class TwinChannel(
 ) {
     MESSAGES("twin_messages", R.string.notif_ch_messages, R.string.notif_ch_messages_desc, NotificationManager.IMPORTANCE_HIGH),
     CALLS("twin_calls", R.string.notif_ch_calls, R.string.notif_ch_calls_desc, NotificationManager.IMPORTANCE_HIGH),
-    /** Own channel so Touch can buzz long. A channel's vibration can't change once created, so this is a new id. */
-    TOUCH("twin_touch", R.string.notif_ch_touch, R.string.notif_ch_touch_desc, NotificationManager.IMPORTANCE_HIGH),
+    /** Own channel so Touch can buzz long. A channel's vibration can't change once created, so every change of the buzz needs a new id (v2 = 10-second buzz). */
+    TOUCH("twin_touch_v2", R.string.notif_ch_touch, R.string.notif_ch_touch_desc, NotificationManager.IMPORTANCE_HIGH),
     LOVE("twin_love", R.string.notif_ch_love, R.string.notif_ch_love_desc, NotificationManager.IMPORTANCE_HIGH),
     LOCATION("twin_location", R.string.notif_ch_location, R.string.notif_ch_location_desc, NotificationManager.IMPORTANCE_HIGH),
     /** Same id the Reminders feature already used, so people keep their existing sound settings. */

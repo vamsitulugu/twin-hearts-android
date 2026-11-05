@@ -11,6 +11,8 @@ object NotificationChannels {
 
     fun ensure(context: Context) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        // The first Touch channel kept its old (shorter) buzz forever, so it is replaced by v2.
+        manager.deleteNotificationChannel(OLD_TOUCH_CHANNEL_ID)
         TwinChannel.entries.forEach { ch ->
             val channel = NotificationChannel(ch.id, context.getString(ch.title), ch.importance).apply {
                 description = context.getString(ch.description)
@@ -31,7 +33,7 @@ object NotificationChannels {
                     }
                     TwinChannel.TOUCH -> {
                         enableVibration(true)
-                        // Long buzz (about 7 seconds) so a Touch is felt even in a pocket.
+                        // Long buzz (about 10 seconds, same as the web app) so a Touch is felt even in a pocket.
                         vibrationPattern = TOUCH_VIBRATION
                     }
                     TwinChannel.LOVE -> {
@@ -48,7 +50,9 @@ object NotificationChannels {
     }
 
     /** Wait, buzz, pause, buzz ... in milliseconds (the first number is the wait before the first buzz). */
-    val TOUCH_VIBRATION: LongArray = longArrayOf(0, 2000, 400, 2000, 400, 2000)
+    val TOUCH_VIBRATION: LongArray = longArrayOf(0, 3000, 400, 3000, 400, 3000)
+
+    private const val OLD_TOUCH_CHANNEL_ID = "twin_touch"
 
     /** The app's burgundy (same as TwinLook.Accent). */
     const val ACCENT: Int = 0xFFC2185B.toInt()

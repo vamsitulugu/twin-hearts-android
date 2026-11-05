@@ -110,6 +110,8 @@ class TwinNotifier @Inject constructor(
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setSilent(silent)
+        // Phones older than Android 8 have no channels, so the long buzz is set on the notification.
+        if (type == NotificationType.PARTNER_TOUCH && !silent) builder.setVibrate(NotificationChannels.TOUCH_VIBRATION)
         if (!showDetails) builder.setPublicVersion(publicVersion(type))
 
         when (type) {
