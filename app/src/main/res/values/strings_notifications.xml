@@ -5,6 +5,8 @@
     <string name="notif_ch_messages_desc">Chat messages and reactions from your partner</string>
     <string name="notif_ch_calls">Calls</string>
     <string name="notif_ch_calls_desc">Incoming and missed calls</string>
+    <string name="notif_ch_touch">Touch</string>
+    <string name="notif_ch_touch_desc">A long vibration when your partner sends you a touch</string>
     <string name="notif_ch_love">Love</string>
     <string name="notif_ch_love_desc">Hugs, touches, surprises, memories and milestones</string>
     <string name="notif_ch_location">Live Map</string>

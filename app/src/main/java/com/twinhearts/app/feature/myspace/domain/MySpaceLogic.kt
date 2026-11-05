@@ -37,7 +37,9 @@ object MySpaceLogic {
     fun visibleNotes(all: List<Note>, role: String): List<Note> =
         all.filter { canSee(it.visibility, it.by, it.me && it.by.isBlank(), role) }
 
-    fun visibleReminders(all: List<Reminder>): List<Reminder> = all
+    /** Mine, or made for both / for me. Another person's "just me" reminder stays private (same as the web). */
+    fun visibleReminders(all: List<Reminder>, myRole: String): List<Reminder> =
+        all.filter { it.by.isBlank() || it.by == myRole || it.forWhom != Visibility.Self }
 
     /** Web `calcStreak`: days in a row ending today (or yesterday when today is not done yet). */
     fun streak(doneDates: Collection<String>, today: LocalDate = LocalDate.now()): Int {

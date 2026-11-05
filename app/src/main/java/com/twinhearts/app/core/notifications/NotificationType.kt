@@ -19,6 +19,8 @@ enum class TwinChannel(
 ) {
     MESSAGES("twin_messages", R.string.notif_ch_messages, R.string.notif_ch_messages_desc, NotificationManager.IMPORTANCE_HIGH),
     CALLS("twin_calls", R.string.notif_ch_calls, R.string.notif_ch_calls_desc, NotificationManager.IMPORTANCE_HIGH),
+    /** Own channel so Touch can buzz long. A channel's vibration can't change once created, so this is a new id. */
+    TOUCH("twin_touch", R.string.notif_ch_touch, R.string.notif_ch_touch_desc, NotificationManager.IMPORTANCE_HIGH),
     LOVE("twin_love", R.string.notif_ch_love, R.string.notif_ch_love_desc, NotificationManager.IMPORTANCE_HIGH),
     LOCATION("twin_location", R.string.notif_ch_location, R.string.notif_ch_location_desc, NotificationManager.IMPORTANCE_HIGH),
     /** Same id the Reminders feature already used, so people keep their existing sound settings. */
@@ -58,7 +60,7 @@ enum class NotificationType(
     // Love
     PARTNER_HUG("partner_hug", TwinChannel.LOVE, R.string.notif_t_partner_hug, NotifScreen.HOME),
     PARTNER_MISS("partner_miss", TwinChannel.LOVE, R.string.notif_t_partner_miss, NotifScreen.HOME),
-    PARTNER_TOUCH("partner_touch", TwinChannel.LOVE, R.string.notif_t_partner_touch, NotifScreen.HOME),
+    PARTNER_TOUCH("partner_touch", TwinChannel.TOUCH, R.string.notif_t_partner_touch, NotifScreen.HOME),
     SURPRISE_NEW("surprise_new", TwinChannel.LOVE, R.string.notif_t_surprise_new, NotifScreen.SURPRISES),
     SURPRISE_UNLOCKED("surprise_unlocked", TwinChannel.LOVE, R.string.notif_t_surprise_unlocked, NotifScreen.SURPRISES),
     ANNIVERSARY("anniversary", TwinChannel.LOVE, R.string.notif_t_anniversary, NotifScreen.US, breaksQuietHours = false),

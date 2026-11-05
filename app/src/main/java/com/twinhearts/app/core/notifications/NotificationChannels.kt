@@ -29,6 +29,11 @@ object NotificationChannels {
                                 .build(),
                         )
                     }
+                    TwinChannel.TOUCH -> {
+                        enableVibration(true)
+                        // Long buzz (about 7 seconds) so a Touch is felt even in a pocket.
+                        vibrationPattern = TOUCH_VIBRATION
+                    }
                     TwinChannel.LOVE -> {
                         enableVibration(true)
                         // Two soft pulses, like a heartbeat.
@@ -41,6 +46,9 @@ object NotificationChannels {
             manager.createNotificationChannel(channel)
         }
     }
+
+    /** Wait, buzz, pause, buzz ... in milliseconds (the first number is the wait before the first buzz). */
+    val TOUCH_VIBRATION: LongArray = longArrayOf(0, 2000, 400, 2000, 400, 2000)
 
     /** The app's burgundy (same as TwinLook.Accent). */
     const val ACCENT: Int = 0xFFC2185B.toInt()

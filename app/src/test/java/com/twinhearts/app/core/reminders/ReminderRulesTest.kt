@@ -50,8 +50,13 @@ class ReminderRulesTest {
         assertEquals(listOf("1"), ids(item(forWhom = "", by = ""), role = "user1"))
     }
 
-    @Test fun `partner reminders never ring here`() {
+    @Test fun `partner reminders do not ring on the phone that made them`() {
         assertEquals(emptyList<String>(), ids(item(forWhom = "partner")))
+    }
+
+    @Test fun `partner reminders ring on the other phone`() {
+        assertEquals(listOf("1"), ids(item(forWhom = "partner", by = "user1"), role = "user2"))
+        assertEquals(emptyList<String>(), ids(item(forWhom = "partner", by = ""), role = "user2"))
     }
 
     @Test fun `result is sorted by time and capped`() {

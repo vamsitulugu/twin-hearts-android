@@ -47,10 +47,10 @@ object ReminderRules {
         PhoneAlarm(item.id, item.title, item.note, at)
     }.sortedBy { it.triggerAtMillis }.take(MAX_ALARMS)
 
-    /** "partner" is for the other phone. "self" rings only for its creator (blank creator: rings). */
+    /** "partner" rings on the other person's phone, never on the creator's. "self" rings only for its creator (blank creator: rings). */
     private fun isForMe(item: ReminderItem, myRole: String): Boolean = when (item.forWhom.ifBlank { "self" }) {
         "both" -> true
         "self" -> item.by.isBlank() || item.by == myRole
-        else -> false
+        else -> item.by.isNotBlank() && item.by != myRole
     }
 }

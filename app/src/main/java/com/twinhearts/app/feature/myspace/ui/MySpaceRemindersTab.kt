@@ -48,7 +48,7 @@ internal fun RemindersTab(
     var note by rememberSaveable(resetKey) { mutableStateOf("") }
     var showDate by rememberSaveable { mutableStateOf(false) }
     var showTime by rememberSaveable { mutableStateOf(false) }
-    val sorted = remember(data.reminders) { MySpaceLogic.sortedReminders(MySpaceLogic.visibleReminders(data.reminders)) }
+    val sorted = remember(data.reminders, data.role) { MySpaceLogic.sortedReminders(MySpaceLogic.visibleReminders(data.reminders, data.role)) }
 
     GlassCard {
         Text(stringResource(R.string.myspace_rem_add_title), style = MaterialTheme.typography.titleSmall, color = TwinTheme.colors.ink)

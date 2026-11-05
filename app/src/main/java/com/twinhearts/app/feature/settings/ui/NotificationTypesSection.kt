@@ -110,6 +110,7 @@ internal fun NotificationTypesSection(vm: NotificationPrefsViewModel = hiltViewM
 private fun channelIcon(channel: TwinChannel) = when (channel) {
     TwinChannel.MESSAGES -> Icons.Rounded.ChatBubbleOutline
     TwinChannel.CALLS -> Icons.Rounded.Call
+    TwinChannel.TOUCH -> Icons.Rounded.Favorite
     TwinChannel.LOVE -> Icons.Rounded.Favorite
     TwinChannel.LOCATION -> Icons.Rounded.LocationOn
     TwinChannel.REMINDERS -> Icons.Rounded.Alarm
