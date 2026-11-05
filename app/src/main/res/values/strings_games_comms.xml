@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Games: talking while you play. Wording follows the web page (game-comms.js). -->
+<resources>
+    <!-- Chat sheet -->
+    <string name="games_comms_chat">Chat</string>
+    <string name="games_comms_close">Close</string>
+    <string name="games_comms_empty_title">Say something sweet 💕</string>
+    <string name="games_comms_empty_hint">Send a message or a voice note while you play</string>
+    <string name="games_comms_input_hint">Type a message…</string>
+    <string name="games_comms_mic">Record a voice message</string>
+    <string name="games_comms_send">Send</string>
+    <string name="games_comms_send_voice">Send voice message</string>
+    <string name="games_comms_cancel_rec">Cancel recording</string>
+    <string name="games_comms_recording">Recording…</string>
+    <string name="games_comms_play">Play voice message</string>
+    <string name="games_comms_pause">Pause voice message</string>
+    <string name="games_comms_sending">sending…</string>
+    <string name="games_comms_retry">⚠️ Not sent · retry</string>
+    <string name="games_comms_connect_first">Connect with your partner to chat 💗</string>
+    <string name="games_comms_mic_needed">⚠️ Microphone permission needed</string>
+    <string name="games_comms_mic_failed">Could not start recording</string>
+    <string name="games_comms_too_short">Too short — hold on a little longer 🎙️</string>
+    <string name="games_comms_voice_failed">⚠️ Voice message not sent — tap retry</string>
+    <string name="games_comms_play_failed">Could not play this voice message</string>
+    <string name="games_comms_toast_text">💬 %1$s: %2$s</string>
+    <string name="games_comms_toast_voice">🎙️ %1$s sent a voice message</string>
+
+    <!-- Voice call (mute, speaker, end only) -->
+    <string name="games_voice_start">Voice call</string>
+    <string name="games_voice_end">End voice call</string>
+    <string name="games_voice_mute">Mute</string>
+    <string name="games_voice_speaker">Speaker</string>
+    <string name="games_voice_end_call">End call</string>
+    <string name="games_voice_partner">Partner</string>
+    <string name="games_voice_incoming">%1$s is calling — talk while you play 💗</string>
+    <string name="games_voice_decline">Decline</string>
+    <string name="games_voice_accept">Accept 📞</string>
+    <string name="games_voice_n_ended">%1$s ended the voice call</string>
+    <string name="games_voice_n_declined">%1$s declined the voice call</string>
+    <string name="games_voice_n_no_answer">%1$s did not answer</string>
+    <string name="games_voice_n_lost">Voice connection lost</string>
+    <string name="games_voice_n_failed">Could not start the voice call</string>
+    <string name="games_voice_n_needs_mic">⚠️ Microphone permission needed for voice</string>
+    <string name="games_voice_n_busy">📞 End your other call first</string>
+</resources>

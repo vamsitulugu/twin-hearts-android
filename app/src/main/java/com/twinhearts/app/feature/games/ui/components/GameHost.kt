@@ -8,14 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CallEnd
-import androidx.compose.material.icons.rounded.Videocam
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
@@ -39,6 +33,7 @@ import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.core.design.TwinTopBar
 import com.twinhearts.app.feature.games.domain.model.Players
 import com.twinhearts.app.feature.games.ui.LocalGameCallHooks
+import com.twinhearts.app.feature.games.ui.comms.GameCommsLayer
 import com.twinhearts.app.feature.games.ui.play.GameContent
 import com.twinhearts.app.feature.games.ui.play.GameEvent
 import com.twinhearts.app.feature.games.ui.play.SyncedGameViewModel
@@ -125,27 +120,8 @@ fun <S : Any> GameHost(
                 }
             }
         }
-        // Face-to-face video (web: the 📹 button in the game header). Sits on the empty right side of the top bar.
-        if (callHooks != null) {
-            val inCall = callHooks.inCall()
-            IconButton(
-                onClick = { if (inCall) callHooks.hangUp() else callHooks.startVideo() },
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .statusBarsPadding()
-                    .padding(horizontal = TwinTheme.spacing.s, vertical = TwinTheme.spacing.xs),
-            ) {
-                Icon(
-                    imageVector = if (inCall) Icons.Rounded.CallEnd else Icons.Rounded.Videocam,
-                    contentDescription = androidx.compose.ui.res.stringResource(
-                        if (inCall) com.twinhearts.app.R.string.games_call_end else com.twinhearts.app.R.string.games_call_start,
-                    ),
-                    tint = if (inCall) TwinTheme.colors.accent else TwinTheme.colors.ink,
-                )
-            }
-            // The small draggable call window, over whichever game is open.
-            callHooks.overlay(this)
-        }
+        // Talking while you play: 💬 chat, 📞 voice call and 📹 face-to-face video, top-right of every game.
+        if (callHooks != null) GameCommsLayer(gameKey = viewModel.game.key, hooks = callHooks)
         SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
     }
 

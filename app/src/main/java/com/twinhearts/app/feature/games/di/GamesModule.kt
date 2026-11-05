@@ -1,5 +1,7 @@
 package com.twinhearts.app.feature.games.di
 
+import com.twinhearts.app.feature.games.data.GameChatRepository
+import com.twinhearts.app.feature.games.data.GameChatRepositoryImpl
 import com.twinhearts.app.feature.games.data.GamesRepository
 import com.twinhearts.app.feature.games.data.GamesRepositoryImpl
 import com.twinhearts.app.feature.games.data.remote.GamesApi
@@ -18,6 +20,9 @@ abstract class GamesModule {
 
     @Binds
     abstract fun bindGamesRepository(impl: GamesRepositoryImpl): GamesRepository
+
+    @Binds
+    abstract fun bindGameChatRepository(impl: GameChatRepositoryImpl): GameChatRepository
 
     companion object {
         @Provides

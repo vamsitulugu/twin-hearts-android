@@ -51,4 +51,13 @@ interface GamesApi {
         @Part file: MultipartBody.Part,
         @Part("coupleId") coupleId: RequestBody,
     ): UploadDto
+
+    /** routes/media.js `POST /upload-voice` (multipart `file`, `coupleId`, `senderRole`): a voice message in the in-game chat. */
+    @Multipart
+    @POST("api/media/upload-voice")
+    suspend fun uploadVoice(
+        @Part file: MultipartBody.Part,
+        @Part("coupleId") coupleId: RequestBody,
+        @Part("senderRole") senderRole: RequestBody,
+    ): UploadDto
 }
