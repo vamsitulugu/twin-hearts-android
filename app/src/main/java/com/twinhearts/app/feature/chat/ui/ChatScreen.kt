@@ -165,12 +165,17 @@ fun ChatScreen(
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             viewModel.heartbeat(true)
+            viewModel.startLive()
             var tick = 0
-            while (true) {
-                delay(POLL_MS)
-                tick++
-                viewModel.poll(full = tick % FULL_REFRESH_EVERY == 0)
-                if (tick % HEARTBEAT_EVERY == 0) viewModel.heartbeat(true)
+            try {
+                while (true) {
+                    delay(POLL_MS)
+                    tick++
+                    viewModel.poll(full = tick % FULL_REFRESH_EVERY == 0)
+                    if (tick % HEARTBEAT_EVERY == 0) viewModel.heartbeat(true)
+                }
+            } finally {
+                viewModel.stopLive()
             }
         }
     }

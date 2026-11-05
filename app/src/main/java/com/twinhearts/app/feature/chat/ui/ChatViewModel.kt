@@ -15,6 +15,16 @@ import com.twinhearts.app.feature.chat.data.ChatFiles
 import com.twinhearts.app.feature.chat.data.ChatLocalStore
 import com.twinhearts.app.feature.chat.data.ChatRepository
 import com.twinhearts.app.feature.chat.data.PhotoPick
+import com.twinhearts.app.feature.chat.data.mapper.isHiddenFor
+import com.twinhearts.app.feature.chat.data.mapper.toDomain
+import com.twinhearts.app.feature.chat.data.mapper.toMessageDto
+import com.twinhearts.app.feature.chat.data.realtime.ChatLive
+import com.twinhearts.app.feature.chat.data.realtime.NoChatLive
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 import com.twinhearts.app.feature.chat.domain.MAX_SCHEDULE_MINUTES
 import com.twinhearts.app.feature.chat.domain.MIN_SCHEDULE_MINUTES
 import com.twinhearts.app.feature.chat.domain.CropRect
@@ -129,6 +139,7 @@ class ChatViewModel @Inject constructor(
     private val repository: ChatRepository,
     private val local: ChatLocalStore,
     private val files: ChatFiles,
+    private val live: ChatLive = NoChatLive,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ChatUiState())
@@ -158,6 +169,7 @@ class ChatViewModel @Inject constructor(
                 return@launch
             }
             _state.update { it.copy(identity = who, draft = "") }
+            if (liveWanted) connectLive(who)
             observeLocalSettings(who)
             // Saved copy first: the chat opens instantly even while the server is waking up.
             if (_state.value.messages.isEmpty()) {
@@ -208,6 +220,56 @@ class ChatViewModel @Inject constructor(
     private fun publishWallpaper() {
         val effective = if (localWallpaper.mode != WallpaperMode.Default) localWallpaper else serverWallpaper
         _state.update { it.copy(wallpaper = effective) }
+    }
+
+    // ───────────── instant updates (ChatRealtime) ─────────────
+
+    private var liveWanted = false
+
+    /** Chat is on screen: listen for new messages and tick changes the moment the server has them. */
+    fun startLive() {
+        liveWanted = true
+        _state.value.identity?.let { connectLive(it) }
+    }
+
+    fun stopLive() {
+        liveWanted = false
+        live.close()
+    }
+
+    private fun connectLive(who: ChatIdentity) {
+        live.connect(who.coupleId) { event, payload -> viewModelScope.launch { onLive(who, event, payload) } }
+    }
+
+    private fun onLive(who: ChatIdentity, event: String, payload: JsonObject) {
+        when (event) {
+            "new_message" -> {
+                val dto = payload["message"]?.toMessageDto() ?: return
+                if (dto.isHiddenFor(who.myRole)) return
+                val msg = dto.toDomain(who.myRole) ?: return
+                _state.update { it.copy(messages = incoming(it.messages, listOf(msg), announce = true)) }
+                if (!msg.mine) markReadIfNeeded()
+            }
+            "message_status" -> applyStatus(payload)
+        }
+    }
+
+    /** Delivered / seen flips pushed by the server. Only my own messages have ticks, and ticks never go backwards. */
+    private fun applyStatus(p: JsonObject) {
+        val ids = buildSet {
+            (p["ids"] as? JsonArray)?.forEach { e -> e.jsonPrimitive.longOrNull?.let { add(it) } }
+            p["id"]?.jsonPrimitive?.longOrNull?.let { add(it) }
+        }
+        if (ids.isEmpty()) return
+        val read = p["read"]?.jsonPrimitive?.booleanOrNull == true
+        val delivered = read || p["delivered"]?.jsonPrimitive?.booleanOrNull == true
+        if (!delivered) return
+        val target = if (read) DeliveryState.Read else DeliveryState.Delivered
+        _state.update { s ->
+            s.copy(messages = s.messages.map { m ->
+                if (m.mine && m.id in ids && m.delivery.ordinal < target.ordinal && m.delivery >= DeliveryState.Sent) m.copy(delivery = target) else m
+            })
+        }
     }
 
     /**

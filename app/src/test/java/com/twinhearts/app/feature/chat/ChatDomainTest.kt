@@ -97,6 +97,29 @@ class ChatDomainTest {
     }
 
     @Test
+    fun merge_pendingMessageStaysBelowServerMessages_evenWithAFastClock() {
+        // My phone clock is ahead: my unsent bubble must not jump above my partner's newer server message.
+        val pending = msg(ChatMessage.LOCAL_ID, "mine", "2026-10-26T10:00:05Z", delivery = DeliveryState.Sending)
+        val partner = msg(50, "theirs", "2026-10-26T10:00:01Z")
+        assertEquals(listOf("theirs", "mine"), mergeMessages(listOf(pending), listOf(partner)).map { it.clientId })
+    }
+
+    @Test
+    fun merge_sameInstant_isOrderedByServerId() {
+        val a = msg(8, "a", "2026-10-26T10:00:00Z")
+        val b = msg(7, "b", "2026-10-26T10:00:00Z")
+        assertEquals(listOf("b", "a"), mergeMessages(emptyList(), listOf(a, b)).map { it.clientId })
+        assertEquals(listOf("b", "a"), mergeMessages(emptyList(), listOf(b, a)).map { it.clientId })
+    }
+
+    @Test
+    fun merge_ticksNeverGoBackwards() {
+        val seen = msg(9, "m", "2026-10-26T10:00:00Z", delivery = DeliveryState.Read)
+        val stale = msg(9, "m", "2026-10-26T10:00:00Z", delivery = DeliveryState.Sent)
+        assertEquals(DeliveryState.Read, mergeMessages(listOf(seen), listOf(stale)).single().delivery)
+    }
+
+    @Test
     fun items_getADayPillPerDay() {
         val today = LocalDate.of(2026, 10, 26)
         val items = buildChatItems(

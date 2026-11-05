@@ -45,6 +45,10 @@ interface ChatApi {
     @POST("api/chat/{coupleId}/read")
     suspend fun markRead(@Path("coupleId") coupleId: String, @Body body: RoleBody): OkResponse
 
+    /** The receiving phone got my partner's message(s): the server turns their single tick into a double tick. */
+    @POST("api/chat/{coupleId}/delivered")
+    suspend fun ackDelivered(@Path("coupleId") coupleId: String, @Body body: RoleBody): OkResponse
+
     @POST("api/chat/{id}/star")
     suspend fun toggleStar(@Path("id") id: Long, @Body body: StarBody): JsonElement
 

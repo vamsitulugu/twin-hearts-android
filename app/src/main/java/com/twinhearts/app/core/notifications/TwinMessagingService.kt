@@ -8,6 +8,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
+import com.twinhearts.app.feature.chat.data.ChatRepository
 import javax.inject.Inject
 
 /**
@@ -22,6 +24,7 @@ class TwinMessagingService : FirebaseMessagingService() {
 
     @Inject lateinit var notifier: TwinNotifier
     @Inject lateinit var registrar: PushTokenRegistrar
+    @Inject lateinit var chat: ChatRepository
 
     override fun onNewToken(token: String) {
         scope.launch { registrar.sync(knownToken = token) }
@@ -39,10 +42,19 @@ class TwinMessagingService : FirebaseMessagingService() {
         )
         val event = TwinNotification(type, raw["title"], raw["body"], data)
         // FCM gives this method about 20 seconds; showing is quick, so wait for it here.
-        runBlocking { notifier.show(event) }
+        runBlocking {
+            notifier.show(event)
+            // A chat message reached this phone: tell the server now, so my partner's single tick
+            // becomes a double tick even though the app is closed (their tick stays single only
+            // when this phone has no internet).
+            if (raw["tag"] == "chat-msg") {
+                withTimeoutOrNull(ACK_TIMEOUT_MS) { chat.identity()?.let { chat.ackDelivered(it) } }
+            }
+        }
     }
 
     private companion object {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        const val ACK_TIMEOUT_MS = 6_000L
     }
 }

@@ -96,6 +96,9 @@ interface ChatRepository {
     // ── message actions ──
     /** Marks everything my partner sent as read (blue ticks on their side). */
     suspend fun markRead(who: ChatIdentity): AppResult<Unit>
+
+    /** "This phone received my partner's message" (double tick for them), even before I open the chat. */
+    suspend fun ackDelivered(who: ChatIdentity): AppResult<Unit> = AppResult.Success(Unit)
     suspend fun toggleStar(who: ChatIdentity, messageId: Long): AppResult<ChatMessage>
     suspend fun edit(who: ChatIdentity, messageId: Long, text: String): AppResult<ChatMessage>
 
@@ -345,6 +348,12 @@ class ChatRepositoryImpl @Inject constructor(
 
     override suspend fun markRead(who: ChatIdentity): AppResult<Unit> =
         when (val r = safeApiCall { api.markRead(who.coupleId, RoleBody(who.myRole)) }) {
+            is AppResult.Success -> AppResult.Success(Unit)
+            is AppResult.Failure -> r
+        }
+
+    override suspend fun ackDelivered(who: ChatIdentity): AppResult<Unit> =
+        when (val r = safeApiCall { api.ackDelivered(who.coupleId, RoleBody(who.myRole)) }) {
             is AppResult.Success -> AppResult.Success(Unit)
             is AppResult.Failure -> r
         }

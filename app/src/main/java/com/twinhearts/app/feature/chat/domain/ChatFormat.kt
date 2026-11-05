@@ -1,6 +1,7 @@
 package com.twinhearts.app.feature.chat.domain
 
 import com.twinhearts.app.feature.chat.domain.model.ChatMessage
+import com.twinhearts.app.feature.chat.domain.model.DeliveryState
 import com.twinhearts.app.feature.chat.domain.model.PartnerPresence
 import com.twinhearts.app.feature.chat.domain.model.PresenceState
 import java.time.Duration
@@ -89,10 +90,23 @@ fun presenceFrom(status: String?, lastSeen: Instant?, now: Instant): PartnerPres
 fun mergeMessages(current: List<ChatMessage>, incoming: List<ChatMessage>): List<ChatMessage> {
     val byKey = LinkedHashMap<String, ChatMessage>()
     current.forEach { byKey[it.clientId] = it }
-    incoming.forEach { byKey[it.clientId] = it }
+    incoming.forEach { fresh ->
+        val old = byKey[fresh.clientId]
+        // Ticks only move forward: a slow poll answer (still "sent") must not undo a
+        // "delivered" / "seen" that arrived live a moment earlier.
+        byKey[fresh.clientId] =
+            if (old != null && fresh.mine && old.delivery.ordinal > fresh.delivery.ordinal &&
+                old.delivery >= DeliveryState.Delivered && fresh.delivery >= DeliveryState.Sent
+            ) fresh.copy(delivery = old.delivery, deliveredAt = fresh.deliveredAt ?: old.deliveredAt, readAt = fresh.readAt ?: old.readAt)
+            else fresh
+    }
+    // The server decides the order (exact time, then server id), so both phones always show the same
+    // order. A message of mine that is still on its way sits at the very bottom, whatever my phone's
+    // clock says, so it can never jump above a partner message the server already ordered.
     return byKey.values.sortedWith(
-        compareBy<ChatMessage> { it.createdAt }
-            .thenBy { if (it.id == ChatMessage.LOCAL_ID) Long.MAX_VALUE else it.id },
+        compareBy<ChatMessage> { it.id == ChatMessage.LOCAL_ID }
+            .thenBy { it.createdAt }
+            .thenBy { it.id },
     )
 }
 

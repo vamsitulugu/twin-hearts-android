@@ -4,6 +4,8 @@ import com.twinhearts.app.feature.chat.data.ChatLocalStore
 import com.twinhearts.app.feature.chat.data.ChatRepository
 import com.twinhearts.app.feature.chat.data.ChatRepositoryImpl
 import com.twinhearts.app.feature.chat.data.DataStoreChatLocalStore
+import com.twinhearts.app.feature.chat.data.realtime.ChatLive
+import com.twinhearts.app.feature.chat.data.realtime.ChatRealtime
 import com.twinhearts.app.feature.chat.data.remote.ChatApi
 import dagger.Binds
 import dagger.Module
@@ -23,6 +25,9 @@ abstract class ChatModule {
 
     @Binds
     abstract fun bindChatLocalStore(impl: DataStoreChatLocalStore): ChatLocalStore
+
+    @Binds
+    abstract fun bindChatLive(impl: ChatRealtime): ChatLive
 
     companion object {
         @Provides
