@@ -58,6 +58,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
@@ -106,9 +108,11 @@ import kotlin.math.roundToInt
  */
 
 private val BubbleMaxWidth = 300.dp
-private val BubbleCorner = 18.dp
-private val BubbleFlat = 6.dp
-private val BubbleTail = 4.dp
+private val BubbleCorner = 8.dp // WhatsApp: 8dp corners on every bubble
+private val BubbleFlat = 8.dp
+private val BubbleTail = 8.dp
+private val TailWidth = 8.dp
+private val TailHeight = 13.dp
 private val TickSize = 18.dp
 private val PlaySize = 36.dp
 private val WaveBarWidth = 3.dp
@@ -285,16 +289,14 @@ internal fun DayPill(label: DayLabel) {
     }
 }
 
-/** Telegram-style corners: inside a run of messages the side next to the edge is flatter. */
+/** WhatsApp corners: 8dp everywhere; the first bubble of a run has a square corner on the sender's side (where the tail is). */
 private fun bubbleShape(mine: Boolean, position: GroupPosition): RoundedCornerShape {
-    val joinsAbove = position == GroupPosition.Middle || position == GroupPosition.Last
-    val joinsBelow = position == GroupPosition.First || position == GroupPosition.Middle
-    val edgeTop = if (joinsAbove) BubbleFlat else BubbleCorner
-    val edgeBottom = if (joinsBelow) BubbleFlat else BubbleTail
+    val hasTail = position == GroupPosition.First || position == GroupPosition.Single
+    val top = if (hasTail) 0.dp else BubbleCorner
     return if (mine) {
-        RoundedCornerShape(topStart = BubbleCorner, topEnd = edgeTop, bottomEnd = edgeBottom, bottomStart = BubbleCorner)
+        RoundedCornerShape(topStart = BubbleCorner, topEnd = top, bottomEnd = BubbleCorner, bottomStart = BubbleCorner)
     } else {
-        RoundedCornerShape(topStart = edgeTop, topEnd = BubbleCorner, bottomEnd = BubbleCorner, bottomStart = edgeBottom)
+        RoundedCornerShape(topStart = top, topEnd = BubbleCorner, bottomEnd = BubbleCorner, bottomStart = BubbleCorner)
     }
 }
 
@@ -319,6 +321,7 @@ private fun MessageBubble(
     }
     val failed = message.delivery == DeliveryState.Failed
     val shape = bubbleShape(mine, position)
+    val hasTail = !message.deleted && (position == GroupPosition.First || position == GroupPosition.Single)
     val topGap = if (position == GroupPosition.First || position == GroupPosition.Single) TwinTheme.spacing.s else PillShadowGap
     val triggerPx = with(LocalDensity.current) { SwipeTrigger.toPx() }
     val maxPx = with(LocalDensity.current) { SwipeMax.toPx() }
@@ -353,6 +356,22 @@ private fun MessageBubble(
                 Column(
                     modifier = Modifier
                         .widthIn(max = BubbleMaxWidth)
+                        .drawBehind {
+                            if (hasTail) {
+                                val tw = TailWidth.toPx()
+                                val th = TailHeight.toPx()
+                                val path = Path().apply {
+                                    if (mine) {
+                                        moveTo(size.width, 0f); lineTo(size.width + tw, 0f); lineTo(size.width, th)
+                                    } else {
+                                        moveTo(0f, 0f); lineTo(-tw, 0f); lineTo(0f, th)
+                                    }
+                                    close()
+                                }
+                                if (mine) drawPath(path, ChatStyle.SentBubble)
+                                else drawPath(path, StoreFxState.theme?.partner ?: colors.neutralGlass.copy(alpha = BUBBLE_FILL_ALPHA))
+                            }
+                        }
                         .clip(shape)
                         .then(
                             if (mine) Modifier.background(ChatStyle.SentBubble)
@@ -363,7 +382,7 @@ private fun MessageBubble(
                             onClick = { if (selecting) actions.onTap(message) else if (failed) actions.onRetry(message) },
                             onLongClick = { if (!message.deleted) actions.onLongPress(message) },
                         )
-                        .padding(horizontal = TwinTheme.spacing.m, vertical = TwinTheme.spacing.s),
+                        .padding(start = 9.dp, end = 9.dp, top = 6.dp, bottom = 5.dp),
                 ) {
                     if (message.forwarded && !message.deleted) {
                         Text(
