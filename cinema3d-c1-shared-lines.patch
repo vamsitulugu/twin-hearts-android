@@ -1,0 +1,108 @@
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+index 8280f89..4bfc37f 100644
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -135,6 +135,9 @@ dependencies {
+     implementation(libs.maplibre.android)
+     implementation(libs.stream.webrtc)
+     implementation(libs.razorpay.checkout)
++    // 3D theatre (Filament). Not filament-utils: it is Kotlin and could clash with Kotlin 2.0.21.
++    implementation(libs.filament.android)
++    implementation(libs.gltfio.android)
+     implementation(libs.play.services.ads)
+ 
+     // Continue with Google
+diff --git a/app/proguard-rules.pro b/app/proguard-rules.pro
+index 9bece51..9ac8461 100644
+--- a/app/proguard-rules.pro
++++ b/app/proguard-rules.pro
+@@ -7,6 +7,10 @@
+ # WebRTC talks to its native code by name
+ -keep class org.webrtc.** { *; }
+ 
++# Filament (3D theatre) talks to its native code by name
++-keep class com.google.android.filament.** { *; }
++-dontwarn com.google.android.filament.**
++
+ # Razorpay checkout (payments)
+ -keepattributes JavascriptInterface
+ -keepclassmembers class * { @android.webkit.JavascriptInterface <methods>; }
+diff --git a/app/src/main/java/com/twinhearts/app/core/navigation/FeatureGraphs.kt b/app/src/main/java/com/twinhearts/app/core/navigation/FeatureGraphs.kt
+index 955a13a..6007490 100644
+--- a/app/src/main/java/com/twinhearts/app/core/navigation/FeatureGraphs.kt
++++ b/app/src/main/java/com/twinhearts/app/core/navigation/FeatureGraphs.kt
+@@ -38,6 +38,7 @@ import com.twinhearts.app.feature.help.helpGraph
+ import com.twinhearts.app.feature.myspace.mySpaceGraph
+ import com.twinhearts.app.feature.vault.vaultGraph
+ import com.twinhearts.app.feature.surprises.surprisesGraph
++import com.twinhearts.app.feature.cinema3d.cinema3dGraph
+ import com.twinhearts.app.feature.globe.globeGraph
+ import com.twinhearts.app.feature.games.gamesGraph
+ import com.twinhearts.app.feature.dailyroutine.dailyRoutineGraph
+@@ -83,6 +84,7 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
+     vaultGraph(navController) // Secret Vault
+     surprisesGraph(navController) // Surprises + Love Capsule
+     globeGraph(navController) // 6.x Memory Globe
++    cinema3dGraph(navController) // Cinema 3D spike (C1)
+     gamesGraph(navController) // Games
+     dailyRoutineGraph(navController) // 4.x Daily Routine
+     searchGraph(navController) // Global search (Home search bar)
+diff --git a/app/src/main/java/com/twinhearts/app/core/navigation/Routes.kt b/app/src/main/java/com/twinhearts/app/core/navigation/Routes.kt
+index 88e875e..e48f427 100644
+--- a/app/src/main/java/com/twinhearts/app/core/navigation/Routes.kt
++++ b/app/src/main/java/com/twinhearts/app/core/navigation/Routes.kt
+@@ -67,6 +67,7 @@ object Routes {
+     @Serializable data object Vault
+     @Serializable data object Surprises
+     @Serializable data object Globe
++    @Serializable data object Cinema3dSpike
+     @Serializable data object Games
+     @Serializable data object DailyRoutine
+ 
+diff --git a/app/src/main/java/com/twinhearts/app/core/navigation/TwinApp.kt b/app/src/main/java/com/twinhearts/app/core/navigation/TwinApp.kt
+index 633d706..eaf642f 100644
+--- a/app/src/main/java/com/twinhearts/app/core/navigation/TwinApp.kt
++++ b/app/src/main/java/com/twinhearts/app/core/navigation/TwinApp.kt
+@@ -89,7 +89,7 @@ private val noPullRefreshRoutes: List<KClass<out Any>> = listOf(
+     Routes.CompleteProfile::class,
+     Routes.Pairing::class, Routes.Chat::class, Routes.TwinAi::class, Routes.LiveMap::class,
+     Routes.Globe::class, Routes.Call::class, Routes.Movie::class, Routes.Music::class,
+-    Routes.Games::class, Routes.Vault::class, Routes.Pro::class,
++    Routes.Games::class, Routes.Vault::class, Routes.Pro::class, Routes.Cinema3dSpike::class,
+ )
+ 
+ /** Pages that show the bottom bar although they are not tabs. */
+diff --git a/app/src/main/java/com/twinhearts/app/core/navigation/TwinSidebar.kt b/app/src/main/java/com/twinhearts/app/core/navigation/TwinSidebar.kt
+index 188d4f0..8d6f76d 100644
+--- a/app/src/main/java/com/twinhearts/app/core/navigation/TwinSidebar.kt
++++ b/app/src/main/java/com/twinhearts/app/core/navigation/TwinSidebar.kt
+@@ -126,6 +126,7 @@ internal val sidebarGroups = listOf(
+         R.string.home_group_explore,
+         listOf(
+             SidebarEntry(Routes.Globe, R.string.home_page_globe, Icons.Outlined.Public),
++            SidebarEntry(Routes.Cinema3dSpike, R.string.cinema3d_sidebar_spike, Icons.Outlined.MovieCreation),
+             SidebarEntry(Routes.Places, R.string.home_page_places, Icons.Outlined.Place),
+             SidebarEntry(Routes.Collection, R.string.home_page_collection, Icons.Outlined.CardGiftcard),
+             SidebarEntry(Routes.Games, R.string.home_page_games, Icons.Outlined.SportsEsports),
+diff --git a/gradle/libs.versions.toml b/gradle/libs.versions.toml
+index a2f6609..a65a7d3 100644
+--- a/gradle/libs.versions.toml
++++ b/gradle/libs.versions.toml
+@@ -37,6 +37,8 @@ playServicesAds = "24.0.0"
+ # Continue with Google (Credential Manager). 1.3.0 / 1.1.1 are stable and build with Kotlin 2.0.21.
+ credentials = "1.3.0"
+ googleid = "1.1.1"
++# Filament (3D theatre). Java/JNI only, so it does not depend on the Kotlin version. Confirm the newest stable on Maven Central before you commit (R-15).
++filament = "1.77.3"
+ 
+ [libraries]
+ androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+@@ -84,6 +86,8 @@ androidx-credentials-play-services-auth = { group = "androidx.credentials", name
+ googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid" }
+ play-services-ads = { group = "com.google.android.gms", name = "play-services-ads", version.ref = "playServicesAds" }
+ turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
++filament-android = { group = "com.google.android.filament", name = "filament-android", version.ref = "filament" }
++gltfio-android = { group = "com.google.android.filament", name = "gltfio-android", version.ref = "filament" }
+ 
+ firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+ firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
