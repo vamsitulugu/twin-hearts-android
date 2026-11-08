@@ -241,6 +241,7 @@ private fun streamMovie(context: Context, uri: Uri, headers: Map<String, String>
         "Accept-Ranges" to "bytes",
         "Content-Length" to length.toString(),
         "Access-Control-Allow-Origin" to "*",
+        "Access-Control-Expose-Headers" to "Content-Range, Content-Length, Accept-Ranges",   // the theatre reads Content-Range to upload this file once (auto-share)
         "Cache-Control" to "no-store",
     )
     if (range != null) reply["Content-Range"] = "bytes $start-$end/$total"
