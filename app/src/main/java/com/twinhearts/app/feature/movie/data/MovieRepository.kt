@@ -40,7 +40,7 @@ interface MovieRepository {
     suspend fun identity(): MovieIdentity?
 
     /** Server clock minus phone clock, in ms. Needed so both phones start at the same moment. */
-    suspend fun clockOffsetMs(): Long
+    suspend fun clockOffsetMs(): Long?
 
     suspend fun room(who: MovieIdentity): AppResult<WatchRoom?>
     suspend fun pickMovie(who: MovieIdentity, title: String, durationSec: Int): AppResult<WatchRoom>
@@ -48,7 +48,7 @@ interface MovieRepository {
     suspend fun requestStart(who: MovieIdentity): AppResult<WatchRoom>
     suspend fun cancelStart(who: MovieIdentity): AppResult<WatchRoom>
     suspend fun acceptStart(who: MovieIdentity): AppResult<WatchRoom>
-    suspend fun sendState(who: MovieIdentity, playing: Boolean, positionSec: Double, seq: Long): AppResult<WatchRoom>
+    suspend fun sendState(who: MovieIdentity, playing: Boolean, positionSec: Double, seq: Long, clientTs: Long): AppResult<WatchRoom>
     suspend fun end(who: MovieIdentity, title: String?, durationSec: Int?, positionSec: Double, sessionKey: String?): AppResult<WatchRoom>
     suspend fun reset(who: MovieIdentity): AppResult<Unit>
 
@@ -94,15 +94,16 @@ class MovieRepositoryImpl @Inject constructor(
         MovieIdentity(it.userId, it.coupleId, it.role, it.myName, it.partnerName)
     }
 
-    override suspend fun clockOffsetMs(): Long {
+    override suspend fun clockOffsetMs(): Long? {
         // Take a few samples and keep the one with the shortest round trip: it is the most accurate.
+        // Returns null when the server could not be reached, so a failed refresh never resets a good offset to 0.
         var bestRtt = Long.MAX_VALUE
-        var bestOffset = 0L
-        repeat(3) {
+        var bestOffset: Long? = null
+        repeat(4) {
             val t0 = System.currentTimeMillis()
             val now = runCatching { api.time().now }.getOrNull() ?: return@repeat
             val rtt = System.currentTimeMillis() - t0
-            if (rtt < bestRtt) {
+            if (rtt < bestRtt && rtt < MAX_CLOCK_RTT_MS) {
                 bestRtt = rtt
                 bestOffset = now + rtt / 2 - System.currentTimeMillis()
             }
@@ -130,8 +131,8 @@ class MovieRepositoryImpl @Inject constructor(
     override suspend fun acceptStart(who: MovieIdentity) =
         safeApiCall { api.acceptStart(who.coupleId, AcceptBody(who.role, COUNTDOWN_MS)).toDomain(who.role) }
 
-    override suspend fun sendState(who: MovieIdentity, playing: Boolean, positionSec: Double, seq: Long) =
-        safeApiCall { api.state(who.coupleId, StateBody(who.role, playing, positionSec, seq)).toDomain(who.role) }
+    override suspend fun sendState(who: MovieIdentity, playing: Boolean, positionSec: Double, seq: Long, clientTs: Long) =
+        safeApiCall { api.state(who.coupleId, StateBody(who.role, playing, positionSec, seq, clientTs = clientTs)).toDomain(who.role) }
 
     override suspend fun end(who: MovieIdentity, title: String?, durationSec: Int?, positionSec: Double, sessionKey: String?) =
         safeApiCall {
@@ -223,6 +224,7 @@ class MovieRepositoryImpl @Inject constructor(
         safeApiCall { api.reactions(who.coupleId, afterMs).map { it.toDomain(who.role) } }
 
     private companion object {
-        const val COUNTDOWN_MS = 4000
+        const val MAX_CLOCK_RTT_MS = 2500L
+        const val COUNTDOWN_MS = 5000   // time for both phones to open the movie before it starts
     }
 }

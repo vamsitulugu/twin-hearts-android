@@ -102,7 +102,9 @@ class WatchViewModel @Inject constructor(
     private var lastChatStamp: String? = null
     private var localUri: String? = null
     private var savedMovie: SavedLocalMovie? = null
-    private var sentFirstState = false
+    private var cloudUrlFor: String? = null      // the cloud movie whose link was already asked for (also during the countdown)
+    private var holdingForBuffer = false         // this phone paused BOTH phones because its own video was loading
+    private var bufferHoldSeq = 0L               // the action number of that pause: if it is still the latest, this phone resumes it
     private var reactionsSupported = true
     private var lastReactionAt = 0L
     private var playedMs = 0L // time the movie has really played since the last ad break
@@ -127,7 +129,7 @@ class WatchViewModel @Inject constructor(
             }
             _state.update { it.copy(who = who) }
             savedMovie = store.savedLocalMovie(who.coupleId)
-            clockOffsetMs = repo.clockOffsetMs()
+            repo.clockOffsetMs()?.let { clockOffsetMs = it }
             refreshRoom(first = true)
         }
     }
@@ -140,6 +142,7 @@ class WatchViewModel @Inject constructor(
         while (true) {
             updateStage()
             if (tick % POLL_EVERY == 0) refreshRoom(first = false)
+            if (tick > 0 && tick % CLOCK_EVERY == 0) viewModelScope.launch { repo.clockOffsetMs()?.let { clockOffsetMs = it } } // phone clocks drift
             if (tick % CHAT_EVERY == 0 && _state.value.stage == WatchStage.Watching) refreshChat()
             if (tick % REACTION_EVERY == 0 && _state.value.stage == WatchStage.Watching) refreshReactions()
             trackAdBreak()
@@ -165,7 +168,23 @@ class WatchViewModel @Inject constructor(
         }
     }
 
-    private fun applyRoom(room: WatchRoom?) {
+    /** A countdown whose start time has passed is a movie that started at that exact moment (the server does the same). */
+    private fun settleLocal(room: WatchRoom): WatchRoom {
+        val start = room.scheduledStartMs
+        if (room.status != RoomStatus.Countdown || start == null || serverNowMs() < start) return room
+        return room.copy(
+            status = RoomStatus.Watching, playing = true, positionSec = 0.0, playbackRate = 1.0,
+            updatedAtMs = start, actionSeq = room.actionSeq + 1, updatedByMe = false,
+        )
+    }
+
+    private fun applyRoom(incoming: WatchRoom?) {
+        val room = incoming?.let(::settleLocal)
+        val current = _state.value.room
+        // A slow answer must never overwrite a newer one (that made pauses and jumps "bounce back").
+        if (room != null && current != null && room.scheduledStartRaw == current.scheduledStartRaw &&
+            room.status == RoomStatus.Watching && current.status == RoomStatus.Watching && room.actionSeq < current.actionSeq
+        ) return
         if (room != null) lastSeq = maxOf(lastSeq, room.actionSeq)
         // After an app restart the server still has this phone's movie name, but the file link is gone from memory.
         // Take it back from the phone's storage when it is the same movie.
@@ -180,12 +199,19 @@ class WatchViewModel @Inject constructor(
     /** Works out Setup / Countdown / Watching from the room and the shared clock. */
     private fun updateStage() {
         val s = _state.value
-        val room = s.room
+        val raw = s.room
+        val room = raw?.let(::settleLocal)
+        if (room != null && room !== raw) {
+            lastSeq = maxOf(lastSeq, room.actionSeq)
+            _state.update { it.copy(room = room) }
+        }
         val start = room?.scheduledStartMs
         val running = room != null && (room.status == RoomStatus.Countdown || room.status == RoomStatus.Watching)
         if (room == null || !running || start == null) {
             if (s.stage != WatchStage.Setup) {
                 lastReactionAt = 0L
+                cloudUrlFor = null
+                holdingForBuffer = false
                 _state.update { it.copy(stage = WatchStage.Setup, streamUrl = null, chat = emptyList(), reactions = emptyList()) }
             }
             return
@@ -194,6 +220,8 @@ class WatchViewModel @Inject constructor(
         if (msLeft > 0) {
             val sec = ((msLeft + 999) / 1000).toInt().coerceAtMost(3)
             _state.update { it.copy(stage = WatchStage.Countdown, countdown = sec) }
+            // Use the countdown: get the cloud link now, so the movie opens the moment it starts.
+            if (room.sharedMovieId != null) loadCloudUrl(room.sharedMovieId)
             return
         }
         if (s.stage == WatchStage.Watching) return
@@ -203,23 +231,32 @@ class WatchViewModel @Inject constructor(
             if (s.stage != WatchStage.NeedFile) _state.update { it.copy(stage = WatchStage.NeedFile) }
             return
         }
-        _state.update { it.copy(stage = WatchStage.Watching, streamUrl = localUri) }
+        _state.update { it.copy(stage = WatchStage.Watching, streamUrl = localUri ?: it.streamUrl) }
         if (room.sharedMovieId != null) loadCloudUrl(room.sharedMovieId)
-        // Only the very first start sends "play from 0". A phone that joins later must not pull the partner back to 0.
-        if (room.status == RoomStatus.Countdown && !sentFirstState && !room.playing && room.positionSec == 0.0) {
-            sentFirstState = true
-            sendAction(playing = true, positionSec = 0.0)
-        }
+        // Nobody sends "play from 0" any more: the SERVER starts the movie at scheduled_start_at (both phones used to
+        // write it at the same moment, each with its own position, and one of them ended up stuck while the other idled).
     }
 
-    private fun loadCloudUrl(movieId: String) {
+    /** Asks for a fresh cloud link. [force] is used when the link expired or the connection dropped mid-movie. */
+    fun loadCloudUrl(movieId: String, force: Boolean = false) {
+        if (!force && cloudUrlFor == movieId) return
         val who = _state.value.who ?: return
+        cloudUrlFor = movieId
         viewModelScope.launch {
             when (val r = repo.playbackUrl(who, movieId)) {
                 is AppResult.Success -> _state.update { it.copy(streamUrl = r.data) }
-                is AppResult.Failure -> _messages.tryEmit(R.string.movie_toast_cloud_unavailable)
+                is AppResult.Failure -> {
+                    cloudUrlFor = null
+                    _messages.tryEmit(R.string.movie_toast_cloud_unavailable)
+                }
             }
         }
+    }
+
+    /** The player could not read the movie (expired link, dropped connection): get a fresh link and carry on from the same spot. */
+    fun reloadStream() {
+        val id = _state.value.room?.sharedMovieId ?: return
+        loadCloudUrl(id, force = true)
     }
 
     // ── Lobby actions ──
@@ -294,15 +331,11 @@ class WatchViewModel @Inject constructor(
         }
     }
 
-    private fun startNow() = runAction(R.string.movie_toast_start_failed) { who ->
-        sentFirstState = false
-        repo.requestStart(who)
-    }
+    private fun startNow() = runAction(R.string.movie_toast_start_failed) { who -> repo.requestStart(who) }
 
     fun cancelStart() = runAction(R.string.movie_toast_cancel_failed) { who -> repo.cancelStart(who) }
 
     fun acceptInvite() {
-        sentFirstState = false
         runAction(R.string.movie_toast_accept_failed) { who -> repo.acceptStart(who) }
     }
 
@@ -339,13 +372,49 @@ class WatchViewModel @Inject constructor(
 
     /** Tell the server (and so the partner) that this phone played, paused or jumped. */
     fun sendAction(playing: Boolean, positionSec: Double) {
+        holdingForBuffer = false // a deliberate play / pause / jump always wins over an automatic wait
+        sendActionInternal(playing, positionSec, buffering = false)
+    }
+
+    /**
+     * [ts] is the shared-clock moment [positionSec] was read at. The server anchors the position to it, so the
+     * partner's position does not include this request's network delay.
+     */
+    private fun sendActionInternal(playing: Boolean, positionSec: Double, buffering: Boolean, ts: Long = serverNowMs(), retry: Boolean = false) {
         val who = _state.value.who ?: return
         lastSeq = maxOf(lastSeq + 1, System.currentTimeMillis())
         val seq = lastSeq
+        if (buffering) bufferHoldSeq = seq
         viewModelScope.launch {
-            val r = repo.sendState(who, playing, positionSec, seq)
-            if (r is AppResult.Success) applyRoom(r.data)
+            val r = repo.sendState(who, playing, positionSec, seq, ts)
+            if (r is AppResult.Success) {
+                val row = r.data
+                if (row.actionSeq > seq && !retry && row.status == RoomStatus.Watching) {
+                    // The server holds a NEWER number (the other phone's clock runs ahead), so this action was ignored.
+                    // Send it again, numbered after it.
+                    lastSeq = maxOf(lastSeq, row.actionSeq)
+                    sendActionInternal(playing, positionSec, buffering, ts, retry = true)
+                    return@launch
+                }
+                applyRoom(row)
+            }
         }
+    }
+
+    /** This phone's video cannot keep up: pause BOTH phones at this spot until it can (instead of drifting apart). */
+    fun holdForBuffering(positionSec: Double) {
+        val room = _state.value.room ?: return
+        if (!room.playing || holdingForBuffer) return
+        holdingForBuffer = true
+        sendActionInternal(playing = false, positionSec = positionSec, buffering = true)
+    }
+
+    /** This phone's video has enough data again. It resumes only if nobody else touched the room meanwhile. */
+    fun resumeAfterBuffering(positionSec: Double) {
+        if (!holdingForBuffer) return
+        holdingForBuffer = false
+        if (lastSeq == bufferHoldSeq) sendActionInternal(playing = true, positionSec = positionSec, buffering = false)
+        // else: the partner acted while we loaded — the room effect in the player already follows it.
     }
 
     fun endMovie(positionSec: Double) {
@@ -579,6 +648,7 @@ class WatchViewModel @Inject constructor(
         const val DURATION_TOLERANCE_SEC = 3   // same rule the server uses to call two files "the same movie"
         const val TICK_MS = 250L
         const val POLL_EVERY = 6   // 1.5 s
+        const val CLOCK_EVERY = 160 // 40 s
         const val CHAT_EVERY = 8   // 2 s
     }
 }

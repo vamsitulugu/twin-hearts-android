@@ -34,7 +34,12 @@ data class RoomDto(
 @Serializable data class RoleBody(val role: String)
 @Serializable data class AcceptBody(val role: String, val countdownMs: Int)
 @Serializable
-data class StateBody(val role: String, val playing: Boolean, val positionSec: Double, val actionSeq: Long, val playbackRate: Double = 1.0)
+data class StateBody(
+    val role: String, val playing: Boolean, val positionSec: Double, val actionSeq: Long,
+    val playbackRate: Double = 1.0,
+    /** Shared-clock time at which [positionSec] was read, so the server can anchor the position exactly (no network delay). */
+    val clientTs: Long? = null,
+)
 @Serializable
 data class EndBody(
     val role: String, val movieTitle: String?, val durationSec: Int?, val completedPct: Int,

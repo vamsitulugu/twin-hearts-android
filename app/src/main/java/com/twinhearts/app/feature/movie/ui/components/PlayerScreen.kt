@@ -54,8 +54,11 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
@@ -85,6 +88,9 @@ fun PlayerScreen(
     chat: List<ChatMessage>,
     serverNowMs: () -> Long,
     onAction: (playing: Boolean, positionSec: Double) -> Unit,
+    onBufferingHold: (positionSec: Double) -> Unit,
+    onBufferingDone: (positionSec: Double) -> Unit,
+    onReloadStream: () -> Unit,
     onSendChat: (text: String, positionSec: Double) -> Unit,
     onEnd: (positionSec: Double) -> Unit,
     reactions: List<MovieReaction>,
@@ -102,7 +108,11 @@ fun PlayerScreen(
     val colors = TwinTheme.colors
     val density = LocalDensity.current
     val latestRoom by rememberUpdatedState(room)
-    val player = remember { ExoPlayer.Builder(context).build() }
+    val player = remember { buildMoviePlayer(context) }
+    var buffering by remember { mutableStateOf(false) }
+    var holding by remember { mutableStateOf(false) } // this phone paused BOTH phones because its own video is still loading
+    var lastSeekAt by remember { mutableStateOf(0L) }
+    var errorCount by remember { mutableIntStateOf(0) }
     var positionSec by remember { mutableDoubleStateOf(0.0) }
     var scrubbing by remember { mutableStateOf(false) }
     var controlsVisible by remember { mutableStateOf(true) }
@@ -209,10 +219,22 @@ fun PlayerScreen(
     DisposableEffect(player) {
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
+                buffering = playbackState == Player.STATE_BUFFERING
+                if (playbackState == Player.STATE_READY) errorCount = 0
                 if (playbackState == Player.STATE_ENDED) {
                     Toast.makeText(context, R.string.movie_finished, Toast.LENGTH_SHORT).show()
                     onEnd(durationSec)
                 }
+            }
+
+            // A dropped connection, an expired cloud link or a flaky decoder used to leave the picture frozen for good.
+            override fun onPlayerError(error: PlaybackException) {
+                errorCount++
+                if (errorCount > MAX_PLAYER_ERRORS) {
+                    Toast.makeText(context, R.string.movie_toast_cant_play, Toast.LENGTH_LONG).show()
+                    return
+                }
+                if (isCloud) onReloadStream() else player.prepare() // cloud: fresh link, same spot · file: try again, same spot
             }
         }
         player.addListener(listener)
@@ -236,8 +258,50 @@ fun PlayerScreen(
         if (room.playing) everPlayed = true
         if (streamUrl == null) return@LaunchedEffect
         val expected = room.expectedPositionSec(serverNowMs())
-        if (abs(player.currentPosition / MS - expected) > SEEK_TOLERANCE_SEC) player.seekTo((expected * MS).toLong())
+        if (abs(player.currentPosition / MS - expected) > SEEK_TOLERANCE_SEC) {
+            player.seekTo((expected * MS).toLong())
+            lastSeekAt = System.currentTimeMillis()
+        }
         player.playWhenReady = room.playing
+        // The partner started it again while this phone was still waiting: stop waiting, follow the room (and re-check below).
+        if (holding && room.playing) {
+            holding = false
+            onBufferingDone(player.currentPosition / MS)
+        }
+    }
+
+    // This phone's video cannot keep up (still loading after 1.5 s): say so, pause both phones, and wait.
+    LaunchedEffect(buffering, holding) {
+        if (!buffering || holding || streamUrl == null) return@LaunchedEffect
+        if (!latestRoom.playing) return@LaunchedEffect
+        delay(STALL_REPORT_MS)
+        if (player.playbackState == Player.STATE_BUFFERING && latestRoom.playing && !holding) {
+            holding = true
+            player.playWhenReady = false
+            onBufferingHold(player.currentPosition / MS)
+        }
+    }
+    // ...and resume together as soon as there is enough movie loaded again (or after a few seconds if the link is slow but alive).
+    LaunchedEffect(holding) {
+        if (!holding) return@LaunchedEffect
+        val since = System.currentTimeMillis()
+        var reloaded = false
+        while (true) {
+            delay(HOLD_CHECK_MS)
+            val ahead = player.bufferedPosition - player.currentPosition
+            val ready = player.playbackState == Player.STATE_READY &&
+                (ahead >= READY_AHEAD_MS || player.bufferedPercentage >= FULLY_BUFFERED_PCT)
+            val waited = System.currentTimeMillis() - since
+            if (ready || (player.playbackState == Player.STATE_READY && waited > FORCE_RESUME_MS)) {
+                holding = false
+                onBufferingDone(player.currentPosition / MS)
+                break
+            }
+            if (waited > RELOAD_AFTER_MS && !reloaded) { // stuck for a long time: ask for a fresh link / reopen the file once
+                reloaded = true
+                if (isCloud) onReloadStream() else player.prepare()
+            }
+        }
     }
 
     // Small drift correction once a second. It never writes to the server.
@@ -245,15 +309,19 @@ fun PlayerScreen(
         while (true) {
             delay(DRIFT_EVERY_MS)
             val r = latestRoom
-            if (streamUrl == null || !r.playing || scrubbing) continue
+            if (streamUrl == null || !r.playing || scrubbing || holding) continue
+            // Never fight a video that is loading: seeking again and again while buffering is what froze the picture.
+            if (player.playbackState != Player.STATE_READY || !player.playWhenReady) continue
+            if (System.currentTimeMillis() - lastSeekAt < SEEK_COOLDOWN_MS) continue // let the last jump settle first
             val expected = r.expectedPositionSec(serverNowMs())
             val diff = expected - player.currentPosition / MS
             when {
-                abs(diff) < 0.5 -> player.setPlaybackSpeed(1f)
-                abs(diff) < 2.0 -> player.setPlaybackSpeed(if (diff > 0) 1.03f else 0.97f)
+                abs(diff) < DRIFT_OK_SEC -> if (player.playbackParameters.speed != 1f) player.setPlaybackSpeed(1f)
+                abs(diff) < DRIFT_JUMP_SEC -> player.setPlaybackSpeed(if (diff > 0) 1.05f else 0.95f)
                 else -> {
                     player.setPlaybackSpeed(1f)
                     player.seekTo((expected * MS).toLong())
+                    lastSeekAt = System.currentTimeMillis()
                 }
             }
         }
@@ -320,6 +388,7 @@ fun PlayerScreen(
     }
 
     fun togglePlay() {
+        holding = false
         val play = !player.playWhenReady
         player.playWhenReady = play
         onAction(play, player.currentPosition / MS)
@@ -327,6 +396,8 @@ fun PlayerScreen(
 
     fun seekTo(sec: Double) {
         val target = sec.coerceIn(0.0, durationSec)
+        holding = false
+        lastSeekAt = System.currentTimeMillis()
         player.seekTo((target * MS).toLong())
         positionSec = target
         onAction(player.playWhenReady, target)
@@ -348,6 +419,7 @@ fun PlayerScreen(
 
     // The pill under the title: "Paused", "Paused by Partner" or "✓ In Sync" (same texts as the web page).
     val pill: PillState? = when {
+        holding -> PillState(stringResource(R.string.movie_pill_buffering), PillKind.Warn)
         syncedPill -> PillState(stringResource(R.string.movie_in_sync), PillKind.Good)
         !room.playing && everPlayed -> PillState(
             stringResource(if (room.updatedByMe) R.string.movie_pill_paused else R.string.movie_pill_paused_partner), PillKind.Warn,
@@ -417,6 +489,7 @@ fun PlayerScreen(
                     PlayerSecondaryRow(
                         onSync = {
                             player.seekTo((latestRoom.expectedPositionSec(serverNowMs()) * MS).toLong())
+                            lastSeekAt = System.currentTimeMillis()
                             player.setPlaybackSpeed(1f)
                             syncedPill = true
                             touches++
@@ -482,6 +555,21 @@ fun PlayerScreen(
     }
 }
 
+/**
+ * One player for the movie. Decoder fallback means a phone whose first video decoder fails on this file tries another
+ * one instead of showing a black screen; the larger buffer and the slightly longer wait before (re)starting stop the
+ * stop-start stutter on slow connections.
+ */
+@OptIn(UnstableApi::class)
+private fun buildMoviePlayer(context: Context): ExoPlayer {
+    val renderers = DefaultRenderersFactory(context).setEnableDecoderFallback(true)
+    val load = DefaultLoadControl.Builder()
+        .setBufferDurationsMs(MIN_BUFFER_MS, MAX_BUFFER_MS, START_BUFFER_MS, REBUFFER_MS)
+        .setPrioritizeTimeOverSizeThresholds(true)
+        .build()
+    return ExoPlayer.Builder(context, renderers).setLoadControl(load).setHandleAudioBecomingNoisy(true).build()
+}
+
 @OptIn(UnstableApi::class)
 private fun buildMediaItem(url: String, subs: SubtitleChoice?): MediaItem {
     val builder = MediaItem.Builder().setUri(url)
@@ -537,6 +625,20 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
 
 private const val MS = 1000.0
 private const val SEEK_TOLERANCE_SEC = 0.7
+private const val SEEK_COOLDOWN_MS = 4000L       // after a jump, wait before judging the position again (a stream needs time to re-buffer)
+private const val DRIFT_OK_SEC = 0.4
+private const val DRIFT_JUMP_SEC = 1.5            // smaller drift is fixed by speed (±5 %), only bigger drift by a jump
+private const val STALL_REPORT_MS = 1500L
+private const val HOLD_CHECK_MS = 500L
+private const val READY_AHEAD_MS = 2000L          // resume together only with this much movie already loaded
+private const val FULLY_BUFFERED_PCT = 99
+private const val FORCE_RESUME_MS = 4000L
+private const val RELOAD_AFTER_MS = 25_000L
+private const val MAX_PLAYER_ERRORS = 4
+private const val MIN_BUFFER_MS = 20_000
+private const val MAX_BUFFER_MS = 60_000
+private const val START_BUFFER_MS = 1_500
+private const val REBUFFER_MS = 4_000
 private const val SKIP_SEC = 10.0
 private const val DRIFT_EVERY_MS = 1000L
 private const val POSITION_EVERY_MS = 500L

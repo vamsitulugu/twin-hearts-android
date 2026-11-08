@@ -240,6 +240,8 @@
     <string name="movie_watching_together">Watching Together</string>
     <string name="movie_pill_paused">Paused</string>
     <string name="movie_pill_paused_partner">Paused by Partner</string>
+    <string name="movie_pill_buffering">Buffering… waiting for your video</string>
+    <string name="movie_toast_cant_play">This movie can't be played on this phone. Try an MP4 copy (H.264 video, AAC audio).</string>
     <string name="movie_chat_placeholder">Message your partner…</string>
     <string name="movie_chat_close">Close</string>
     <string name="movie_call_expand">Expand call</string>
