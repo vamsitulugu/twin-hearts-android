@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Cinema 3D (C1 spike). Only the sidebar label is a string resource; the spike page itself is a developer test page. -->
-    <string name="cinema3d_sidebar_spike">3D theatre (test)</string>
-</resources>
