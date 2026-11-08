@@ -40,6 +40,7 @@ import androidx.compose.material.icons.outlined.MovieCreation
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Navigation
 import androidx.compose.material.icons.outlined.Place
+import androidx.compose.material.icons.outlined.Theaters
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SportsEsports
@@ -108,6 +109,7 @@ internal val sidebarGroups = listOf(
         listOf(
             SidebarEntry(Routes.Music, R.string.home_chip_music, Icons.Outlined.MusicNote),
             SidebarEntry(Routes.Movie, R.string.home_chip_movie, Icons.Outlined.MovieCreation),
+            SidebarEntry(Routes.Cinema(), R.string.cinema_chip_label, Icons.Outlined.Theaters),
             SidebarEntry(Routes.MeetPlanner, R.string.home_chip_meet_planner, Icons.Outlined.Navigation),
             SidebarEntry(Routes.DailyRoutine, R.string.home_chip_daily_routine, Icons.Outlined.WbSunny),
         ),

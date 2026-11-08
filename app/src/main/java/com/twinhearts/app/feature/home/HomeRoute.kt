@@ -27,6 +27,7 @@ fun NavGraphBuilder.homeGraph(navController: NavHostController) {
                     HomeShortcut.Search -> navController.navigate(Routes.Search)
                     HomeShortcut.OurProfile -> navController.navigate(Routes.Profile)
                     HomeShortcut.Movie -> navController.navigate(Routes.Movie)
+                    HomeShortcut.Cinema -> navController.navigate(Routes.Cinema())
                     HomeShortcut.MeetPlanner -> navController.navigate(Routes.MeetPlanner)
                     HomeShortcut.FightLog -> navController.navigate(Routes.Fights)
                     HomeShortcut.LoveCounter -> navController.navigate(Routes.Us(tab = 0))

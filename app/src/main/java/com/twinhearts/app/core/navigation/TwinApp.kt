@@ -58,6 +58,7 @@ import com.twinhearts.app.feature.ads.ui.AdBreakWatcher
 import com.twinhearts.app.feature.ads.ui.EarnCoinsPrompt
 import com.twinhearts.app.feature.calls.ui.CallBannerHost
 import com.twinhearts.app.feature.calls.ui.IncomingCallWatcher
+import com.twinhearts.app.feature.cinema.ui.invite.CinemaInviteWatcher
 import com.twinhearts.app.core.design.BottomBarItem
 import com.twinhearts.app.core.common.LocalReduceMotionSetting
 import com.twinhearts.app.core.design.LocalOpenSidebar
@@ -88,7 +89,7 @@ private val noPullRefreshRoutes: List<KClass<out Any>> = listOf(
     Routes.GetStarted::class, Routes.SignIn::class, Routes.SignUp::class, Routes.ForgotPassword::class,
     Routes.CompleteProfile::class,
     Routes.Pairing::class, Routes.Chat::class, Routes.TwinAi::class, Routes.LiveMap::class,
-    Routes.Globe::class, Routes.Call::class, Routes.Movie::class, Routes.Music::class,
+    Routes.Globe::class, Routes.Call::class, Routes.Movie::class, Routes.Cinema::class, Routes.Music::class,
     Routes.Games::class, Routes.Vault::class, Routes.Pro::class,
 )
 
@@ -183,6 +184,12 @@ private fun TwinNavigation(
     AdBreakWatcher(navController)
 
     val destination = backStackEntry?.destination
+
+    // A movie-night invite from my partner shows on any screen while the app is open (not while I am already in the cinema).
+    CinemaInviteWatcher(
+        enabled = session != null && destination?.hasRoute<Routes.Cinema>() != true,
+        onAccept = { sessionId -> navController.navigate(Routes.Cinema(sessionId)) { launchSingleTop = true } },
+    )
 
     // Pull down to reload the current page (whole app). The page is opened again fresh, so it loads its data again.
     var refreshing by remember { mutableStateOf(false) }

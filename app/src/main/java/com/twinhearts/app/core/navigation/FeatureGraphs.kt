@@ -10,6 +10,7 @@ import com.twinhearts.app.R
 import com.twinhearts.app.feature.auth.authGraph
 import com.twinhearts.app.feature.calendar.calendarGraph
 import com.twinhearts.app.feature.calls.callsGraph
+import com.twinhearts.app.feature.cinema.cinemaGraph
 import com.twinhearts.app.feature.chat.chatGraph
 import com.twinhearts.app.feature.collection.collectionGraph
 import com.twinhearts.app.feature.fights.fightsGraph
@@ -57,6 +58,7 @@ internal fun NavGraphBuilder.featureGraphs(navController: NavHostController) {
     chatGraph(navController) // 2.2 Chat
     twinAiGraph(navController) // 2.3 Twin AI
     movieGraph(navController) // 5.2 Watch Together (movies)
+    cinemaGraph(navController) // Twin Cinema (3D theatre)
     meetPlannerGraph(navController) // 4.x Meet Planner
     fightsGraph(navController) // 3.x Fight Log
     callsGraph(navController) // Calls (voice and video)

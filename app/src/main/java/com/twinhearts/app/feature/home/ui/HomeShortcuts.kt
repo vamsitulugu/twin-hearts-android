@@ -18,6 +18,7 @@ import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material.icons.rounded.MonetizationOn
 import androidx.compose.material.icons.rounded.Movie
+import androidx.compose.material.icons.rounded.Theaters
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material.icons.rounded.Place
@@ -43,6 +44,7 @@ enum class HomeShortcut(@StringRes val labelRes: Int, val icon: ImageVector) {
     Memories(R.string.home_chip_memories, Icons.Rounded.PhotoCamera),
     Music(R.string.home_chip_music, Icons.Rounded.MusicNote),
     Movie(R.string.home_chip_movie, Icons.Rounded.Movie),
+    Cinema(R.string.cinema_chip_label, Icons.Rounded.Theaters),
     MeetPlanner(R.string.home_chip_meet_planner, Icons.Rounded.Navigation),
     DailyRoutine(R.string.home_chip_daily_routine, Icons.Rounded.WbSunny),
 
@@ -97,5 +99,6 @@ internal val homeGroups = listOf(
 )
 
 internal val homeChips = listOf(
-    HomeShortcut.Memories, HomeShortcut.Music, HomeShortcut.Movie, HomeShortcut.MeetPlanner, HomeShortcut.DailyRoutine,
+    HomeShortcut.Memories, HomeShortcut.Music, HomeShortcut.Movie, HomeShortcut.Cinema, HomeShortcut.MeetPlanner,
+    HomeShortcut.DailyRoutine,
 )

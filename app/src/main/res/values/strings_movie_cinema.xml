@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Twin Cinema 3D inside Watch Together. Wording is copied from the web app's movie page (R-53). -->
+    <string name="movie_cinema_card_title">Watch in Twin Cinema 3D</string>
+    <string name="movie_cinema_card_sub">Open a private 3D theatre and invite your partner</string>
+    <string name="movie_start_3d">🎬 3D MOVIE (Twin Cinema)</string>
+
+    <string name="movie_cinema_sheet_title">Movie night</string>
+    <string name="movie_cinema_sheet_text">You will enter the cinema lobby first. Invite %1$s from there, and when they accept you both go in together.</string>
+    <string name="movie_cinema_sheet_label">Movie</string>
+    <string name="movie_cinema_sheet_hint">What are you watching? (optional)</string>
+    <string name="movie_cinema_cancel">Cancel</string>
+    <string name="movie_cinema_open">Open cinema lobby</string>
+
+    <string name="movie_cinema_invite_title">%1$s invited you</string>
+    <string name="movie_cinema_invite_text">🍿 Movie night in Twin Cinema. They are already waiting in the lobby.</string>
+    <string name="movie_cinema_not_now">Not now</string>
+    <string name="movie_cinema_accept">Accept ♥</string>
+
+    <string name="movie_cinema_connect_first">Connect with your partner first 🎬</string>
+    <string name="movie_cinema_err_open">Could not open the 3D cinema. Please try again.</string>
+    <string name="movie_cinema_err_join">Could not join. Ask your partner to invite you again 🎬</string>
+</resources>

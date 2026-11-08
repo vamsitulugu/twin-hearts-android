@@ -20,6 +20,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -299,20 +302,30 @@ internal fun HomeSearchRow(onShortcut: (HomeShortcut) -> Unit) {
     }
 }
 
-/** Memories, Music, Movie, Meet Planner, Daily Routine: one row of 5 equal tiles (web: 5-column grid). */
+/**
+ * Memories, Music, Movie, Cinema, Meet Planner, Daily Routine: one row of equal tiles. Six tiles do not fit a
+ * phone without cutting the labels, so each tile keeps at least [CHIP_MIN_WIDTH] and the row scrolls sideways
+ * when needed. On wide screens the tiles share the full width.
+ */
 @Composable
 internal fun HomeChips(onShortcut: (HomeShortcut) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = TwinTheme.spacing.screenEdge),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        homeChips.forEach { chip ->
-            ShortcutChip(chip, onClick = { onShortcut(chip) }, modifier = Modifier.weight(1f))
+    val edge = TwinTheme.spacing.screenEdge
+    val gap = 8.dp
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val shared = (maxWidth - edge * 2 - gap * (homeChips.size - 1)) / homeChips.size
+        val chipWidth = maxOf(shared, CHIP_MIN_WIDTH)
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = edge),
+            horizontalArrangement = Arrangement.spacedBy(gap),
+        ) {
+            items(homeChips) { chip ->
+                ShortcutChip(chip, onClick = { onShortcut(chip) }, modifier = Modifier.width(chipWidth))
+            }
         }
     }
 }
+
+private val CHIP_MIN_WIDTH = 64.dp
 
 @Composable
 private fun ShortcutChip(shortcut: HomeShortcut, onClick: () -> Unit, modifier: Modifier = Modifier) {

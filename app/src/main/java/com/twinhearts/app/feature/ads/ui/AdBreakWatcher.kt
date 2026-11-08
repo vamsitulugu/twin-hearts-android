@@ -39,7 +39,7 @@ fun AdBreakWatcher(navController: NavController) {
 
 /**
  * Screens a timed ad must NEVER cover: Chat and Twin AI (typing), calls, Live Map (navigating), Games,
- * Music (playback and Sing Together), Movie (watching together), payment, sign-in and pairing.
+ * Music (playback and Sing Together), Movie and Cinema (watching together), payment, sign-in and pairing.
  * On these the ad waits; it plays on the first other page once it has been on screen for a moment.
  */
 private fun canCoverWithAd(d: NavDestination): Boolean = !(
@@ -50,6 +50,7 @@ private fun canCoverWithAd(d: NavDestination): Boolean = !(
         d.hasRoute<Routes.Games>() ||
         d.hasRoute<Routes.Music>() ||
         d.hasRoute<Routes.Movie>() ||
+        d.hasRoute<Routes.Cinema>() ||
         d.hasRoute<Routes.Pro>() ||
         d.hasRoute<Routes.GetStarted>() ||
         d.hasRoute<Routes.SignIn>() ||

@@ -87,6 +87,7 @@ fun LobbyContent(
     busy: Boolean,
     onReady: () -> Unit,
     onStart: () -> Unit,
+    onStart3D: (() -> Unit)? = null,
     onCancelStart: () -> Unit,
     onCancelMovie: () -> Unit,
     onChange: () -> Unit,
@@ -186,6 +187,10 @@ fun LobbyContent(
             ) {
                 Text(stringResource(R.string.movie_both_ready), color = WineLight, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 GlassButton(stringResource(R.string.movie_start), onStart, Modifier.fillMaxWidth(), loading = busy)
+                // The web's second button: the same ready lobby, the other way to watch (private 3D theatre).
+                if (onStart3D != null) {
+                    GlassButton(stringResource(R.string.movie_start_3d), onStart3D, Modifier.fillMaxWidth(), style = GlassButtonStyle.Ghost, enabled = !busy)
+                }
             }
             // The ready button shows when the partner has not picked yet, or both picked the same movie.
             room.myTitle != null && (room.partnerTitle == null || room.moviesMatch) -> ReadyButton(room.myReady, busy, onReady)

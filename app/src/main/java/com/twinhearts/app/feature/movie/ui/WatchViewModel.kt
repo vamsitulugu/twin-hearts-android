@@ -10,6 +10,7 @@ import com.twinhearts.app.core.common.UiState
 import com.twinhearts.app.feature.ads.data.AdsManager
 import com.twinhearts.app.feature.ads.domain.AdRules
 import com.twinhearts.app.feature.movie.data.MovieRepository
+import com.twinhearts.app.feature.movie.cinema.domain.LocalMovieRef
 import com.twinhearts.app.feature.movie.data.local.MovieLocalStore
 import com.twinhearts.app.feature.movie.data.local.SavedLocalMovie
 import com.twinhearts.app.feature.movie.data.upload.CloudUploader
@@ -275,6 +276,21 @@ class WatchViewModel @Inject constructor(
                 gateOkAt = System.currentTimeMillis()
             }
             startNow()
+        }
+    }
+
+    /** The movie file this phone picked (null for a shared cloud movie): the 3D theatre plays it, so nobody chooses the movie twice. */
+    fun localMovie(): LocalMovieRef? = localUri?.let { LocalMovieRef(it, _state.value.room?.myTitle.orEmpty()) }
+
+    /** 3D MOVIE uses the same free-movie / coin pass as START TOGETHER, then runs [go]. */
+    fun pass3D(go: () -> Unit) {
+        viewModelScope.launch {
+            val recent = System.currentTimeMillis() - gateOkAt < 600_000L
+            if (!recent) {
+                if (!accessGate.check(com.twinhearts.app.feature.access.domain.AccessFeature.Movie)) return@launch
+                gateOkAt = System.currentTimeMillis()
+            }
+            go()
         }
     }
 

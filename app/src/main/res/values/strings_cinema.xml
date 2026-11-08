@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cinema (3D movie theatre inside the app). Wording follows the web invite card (public/cinema-invite.js). -->
+<resources>
+    <string name="cinema_chip_label">Cinema</string>
+
+    <string name="cinema_leave_title">Leave cinema?</string>
+    <string name="cinema_leave_message">Your partner stays in the room. You can come back from the Cinema chip or your partner\'s invite.</string>
+    <string name="cinema_leave_confirm">Leave</string>
+    <string name="cinema_leave_stay">Stay</string>
+
+    <string name="cinema_invite_title">%1$s invited you</string>
+    <string name="cinema_invite_message">🍿 Movie night in Twin Cinema. They are already waiting in the lobby.</string>
+    <string name="cinema_invite_message_movie">🍿 Movie night in Twin Cinema · %1$s. They are already waiting in the lobby.</string>
+    <string name="cinema_invite_accept">Accept ♥</string>
+    <string name="cinema_invite_not_now">Not now</string>
+
+    <!-- Settings › Notifications row for the push the server sends with type "cinema_invite". -->
+    <string name="notif_t_cinema_invite">Cinema invites</string>
+    <string name="notif_d_cinema_invite_title">%1$s invited you</string>
+    <string name="notif_d_cinema_invite_body">Movie night in Twin Cinema</string>
+</resources>

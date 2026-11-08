@@ -35,6 +35,7 @@ object NotificationDefaults {
         NotificationType.MONEY_UPDATE -> R.string.notif_d_money_update_title
         NotificationType.GAME_INVITE -> R.string.notif_d_game_invite_title
         NotificationType.MOVIE_INVITE -> R.string.notif_d_movie_invite_title
+        NotificationType.CINEMA_INVITE -> R.string.notif_d_cinema_invite_title
         NotificationType.MUSIC_SHARED -> R.string.notif_d_music_shared_title
         NotificationType.FIGHT_LOGGED -> R.string.notif_d_fight_logged_title
         NotificationType.FIGHT_RESOLVED -> R.string.notif_d_fight_resolved_title
@@ -77,6 +78,7 @@ object NotificationDefaults {
         NotificationType.MONEY_UPDATE -> R.string.notif_d_money_update_body
         NotificationType.GAME_INVITE -> R.string.notif_d_game_invite_body
         NotificationType.MOVIE_INVITE -> R.string.notif_d_movie_invite_body
+        NotificationType.CINEMA_INVITE -> R.string.notif_d_cinema_invite_body
         NotificationType.MUSIC_SHARED -> R.string.notif_d_music_shared_body
         NotificationType.FIGHT_LOGGED -> R.string.notif_d_fight_logged_body
         NotificationType.FIGHT_RESOLVED -> R.string.notif_d_fight_resolved_body

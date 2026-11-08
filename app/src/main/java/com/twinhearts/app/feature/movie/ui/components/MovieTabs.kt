@@ -107,6 +107,7 @@ fun MovieTabsContent(
     onCancelUpload: () -> Unit,
     onDismissUpload: () -> Unit,
     onDeleteShared: (SharedMovie) -> Unit,
+    onOpenCinema: () -> Unit = {},
 ) {
     val movies by browseVm.movies.collectAsState()
     val online by browseVm.online.collectAsState()
@@ -129,6 +130,13 @@ fun MovieTabsContent(
             onSelect = onTab,
             modifier = Modifier.padding(horizontal = edge, vertical = TwinTheme.spacing.s),
         )
+        // Same card the web shows on its Home and Watch tabs.
+        if (tab == 0 || tab == 3) {
+            com.twinhearts.app.feature.movie.cinema.ui.CinemaCard(
+                onClick = onOpenCinema,
+                modifier = Modifier.padding(horizontal = edge).padding(bottom = TwinTheme.spacing.s),
+            )
+        }
         if (tab == 3) {
             WatchTab(cloud, upload, onLoadCloud, onPickLocal, onPickShared, onUpload, onCancelUpload, onDismissUpload, onDeleteShared)
         } else when (val m = movies) {

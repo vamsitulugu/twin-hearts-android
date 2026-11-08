@@ -36,6 +36,12 @@ object Routes {
     // Phase 5: Watch Together (movies), opened from the Home "Movie" chip
     @Serializable data object Movie
 
+    /**
+     * Twin Cinema (3D movie theatre, shown live from the web inside the app). Opened from the Home "Cinema" chip as the host
+     * ([sessionId] = null: the server opens a session) or from my partner's invite ([sessionId] = the invite to accept).
+     */
+    @Serializable data class Cinema(val sessionId: String? = null)
+
     // Meet Planner, opened from the Home "Meet Planner" chip
     @Serializable data object MeetPlanner
 

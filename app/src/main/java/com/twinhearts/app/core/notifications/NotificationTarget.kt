@@ -25,6 +25,7 @@ data class NotificationTarget(val screen: NotifScreen, val video: Boolean = fals
         NotifScreen.MONEY -> Routes.Money
         NotifScreen.GAMES -> Routes.Games
         NotifScreen.MOVIE -> Routes.Movie
+        NotifScreen.CINEMA -> Routes.Home
         NotifScreen.MUSIC -> Routes.Music
         NotifScreen.FIGHTS -> Routes.Fights
         NotifScreen.US -> Routes.Us(usTab)

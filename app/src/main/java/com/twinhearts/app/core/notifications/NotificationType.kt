@@ -31,7 +31,7 @@ enum class TwinChannel(
 
 /** The screen a notification opens. Mapped to real navigation routes in [NotificationTarget]. */
 enum class NotifScreen {
-    HOME, CHAT, CALL, LIVEMAP, CALENDAR, STUDY, MEET_PLANNER, ROUTINE, PERIOD, MONEY, GAMES, MOVIE,
+    HOME, CHAT, CALL, LIVEMAP, CALENDAR, STUDY, MEET_PLANNER, ROUTINE, PERIOD, MONEY, GAMES, MOVIE, CINEMA,
     MUSIC, FIGHTS, US, MEMORIES, BUCKET, SURPRISES, LEVEL, PRO, SETTINGS, PAIRING, VAULT, PROFILE,
 }
 
@@ -89,6 +89,8 @@ enum class NotificationType(
     // Together
     GAME_INVITE("game_invite", TwinChannel.ACTIVITY, R.string.notif_t_game_invite, NotifScreen.GAMES),
     MOVIE_INVITE("movie_invite", TwinChannel.ACTIVITY, R.string.notif_t_movie_invite, NotifScreen.MOVIE),
+    /** Opens Home; the app-wide invite watcher then shows the Accept / Not now card (a tap needs no extra screen). */
+    CINEMA_INVITE("cinema_invite", TwinChannel.ACTIVITY, R.string.notif_t_cinema_invite, NotifScreen.CINEMA),
     MUSIC_SHARED("music_shared", TwinChannel.ACTIVITY, R.string.notif_t_music_shared, NotifScreen.MUSIC),
     FIGHT_LOGGED("fight_logged", TwinChannel.ACTIVITY, R.string.notif_t_fight_logged, NotifScreen.FIGHTS),
     FIGHT_RESOLVED("fight_resolved", TwinChannel.ACTIVITY, R.string.notif_t_fight_resolved, NotifScreen.FIGHTS),
@@ -120,6 +122,7 @@ enum class NotificationType(
                 t == "partner-request" -> PARTNER_REQUEST
                 t == "partner-accepted" || t == "paired" -> PARTNER_ACCEPTED
                 t == "ck-invite" || t == "both-nudge" -> GAME_INVITE
+                t == "cinema-invite" -> CINEMA_INVITE
                 t.startsWith("safety-") -> LOCATION_OFFLINE
                 t == "events" -> CALENDAR_EVENT
                 t == "reminder" -> CALENDAR_REMINDER
