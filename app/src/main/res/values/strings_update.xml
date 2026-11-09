@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="update_title">Update available</string>
-    <string name="update_message">Version %1$s is ready. Please update for the latest fixes.</string>
-    <string name="update_now">Update</string>
+    <string name="update_message">Version %1$s is ready. Please update for the latest features and fixes.</string>
+    <string name="update_version_label">Version %1$s</string>
+    <string name="update_now">Update now</string>
     <string name="update_later">Later</string>
+    <string name="update_cancel">Cancel</string>
+    <string name="update_required_hint">This update is required to keep using Twin Hearts.</string>
 </resources>

@@ -9,6 +9,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -48,9 +51,35 @@ object TwinTheme {
     val shapes: TwinShapes @Composable @ReadOnlyComposable get() = LocalTwinShapes.current
 }
 
+/**
+ * The screen width (in dp) the whole UI is designed for. A phone whose "Display size" setting makes
+ * it narrower than this gets a slightly smaller density, so it lays out exactly like the design
+ * instead of showing huge cards and overlapping text. Wider screens are left alone.
+ */
+private const val DESIGN_WIDTH_DP = 392f
+
+/**
+ * Makes the UI look the same on every phone: ignores the phone's "Font size" setting (text stays
+ * at design size) and shrinks the density on phones whose "Display size" setting is set to large.
+ */
+@Composable
+private fun StableDensity(content: @Composable () -> Unit) {
+    val system = LocalDensity.current
+    val widthDp = LocalConfiguration.current.screenWidthDp.toFloat()
+    val density = if (widthDp in 1f..DESIGN_WIDTH_DP) system.density * (widthDp / DESIGN_WIDTH_DP) else system.density
+    CompositionLocalProvider(LocalDensity provides Density(density = density, fontScale = 1f)) {
+        content()
+    }
+}
+
 /** Wraps the app. Dark only for now (R-54); the tokens are ready for a light set later. */
 @Composable
 fun TwinTheme(content: @Composable () -> Unit) {
+    StableDensity { ThemedContent(content) }
+}
+
+@Composable
+private fun ThemedContent(content: @Composable () -> Unit) {
     val c = DarkTwinColors
     val scheme = darkColorScheme(
         primary = c.primaryStart,

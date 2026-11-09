@@ -1,0 +1,7 @@
+Unzip into the project root (the folder that contains the 'app' folder), replacing these 4 files:
+app/src/main/java/com/twinhearts/app/core/design/TwinTheme.kt
+app/src/main/java/com/twinhearts/app/core/notifications/TwinNotifier.kt
+app/src/main/java/com/twinhearts/app/feature/cinema/ui/CinemaWebView.kt
+app/src/main/java/com/twinhearts/app/feature/movie/cinema/ui/CinemaTheatre.kt
+
+Then rebuild the APK.

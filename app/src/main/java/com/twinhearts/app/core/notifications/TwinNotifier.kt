@@ -95,7 +95,7 @@ class TwinNotifier @Inject constructor(
     }
 
     /** The simplest possible notification: logo, title, text. Used only when [showRich] threw. */
-    private fun showPlain(event: TwinNotification): Boolean {
+    private suspend fun showPlain(event: TwinNotification): Boolean {
         if (!canPost() || !prefs.isEnabled(event.type)) return false
         NotificationChannels.ensure(context)
         val partner = event.data["fromName"]?.takeIf { it.isNotBlank() } ?: context.getString(R.string.notif_partner_fallback)
@@ -164,6 +164,8 @@ class TwinNotifier @Inject constructor(
                     .addAction(0, context.getString(R.string.notif_action_open_map), openIntent(NotifScreen.LIVEMAP, id + 1))
                     .addAction(0, context.getString(R.string.notif_action_call), openIntent(NotifScreen.CALL, id + 2, video = false))
             }
+            // Admin push with a picture ("image" in the push data): show it as a big picture.
+            NotificationType.SYSTEM -> applyPicture(builder, title, body, event.data["image"])
             else -> if (type.channel == TwinChannel.REMINDERS) {
                 builder.addAction(0, context.getString(R.string.notif_action_done), actionIntent(NotificationActionReceiver.ACTION_DISMISS, id, type))
             }
@@ -265,6 +267,50 @@ class TwinNotifier @Inject constructor(
                     paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
                     canvas.drawBitmap(scaled, 0f, 0f, paint)
                     out
+                } finally {
+                    conn.disconnect()
+                }
+            }.getOrNull()
+        }
+    }
+
+    /**
+     * Admin push with a picture: the small version shows the picture as a thumbnail, pulling the
+     * notification down shows it large under the text. If the picture cannot be downloaded in a few
+     * seconds the notification is still shown, as plain text.
+     */
+    private suspend fun applyPicture(builder: NotificationCompat.Builder, title: String, body: String, url: String?) {
+        val picture = loadPicture(url) ?: return
+        builder.setLargeIcon(picture)
+            .setStyle(
+                NotificationCompat.BigPictureStyle()
+                    .bigPicture(picture)
+                    .bigLargeIcon(null as Bitmap?) // hide the thumbnail once expanded: the big picture replaces it
+                    .setBigContentTitle(title)
+                    .setSummaryText(body),
+            )
+    }
+
+    /** Downloads a notification picture, scaled down so it can never be too big for the system. Null on any problem. */
+    private suspend fun loadPicture(url: String?): Bitmap? {
+        if (url.isNullOrBlank() || !url.startsWith("https://")) return null
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 6000
+                    readTimeout = 6000
+                }
+                try {
+                    val bytes = conn.inputStream.use { it.readBytes() }
+                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+                    var sample = 1
+                    while (bounds.outWidth / sample > PICTURE_MAX_PX * 2) sample *= 2
+                    val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
+                        ?: return@runCatching null
+                    if (decoded.width > PICTURE_MAX_PX) {
+                        Bitmap.createScaledBitmap(decoded, PICTURE_MAX_PX, (decoded.height * PICTURE_MAX_PX.toFloat() / decoded.width).toInt().coerceAtLeast(1), true)
+                    } else decoded
                 } finally {
                     conn.disconnect()
                 }
@@ -409,5 +455,6 @@ class TwinNotifier @Inject constructor(
         private const val SUMMARY_BASE = 100_000
         private const val CALL_RING_MS = 45_000L
         private const val LOGO_PX = 192
+        private const val PICTURE_MAX_PX = 1024
     }
 }
