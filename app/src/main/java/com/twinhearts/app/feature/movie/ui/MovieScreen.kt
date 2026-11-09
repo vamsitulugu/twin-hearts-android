@@ -132,7 +132,8 @@ private fun MovieScreenContent(
 
     TwinBackground(Modifier.fillMaxSize()) {
         when (state.stage) {
-            WatchStage.Watching -> state.room?.let { room ->
+            // The 3D theatre plays this same room itself: no second (native) player underneath it.
+            WatchStage.Watching -> state.room?.takeIf { cinema.launch == null }?.let { room ->
                 PlayerScreen(
                     room = room,
                     streamUrl = state.streamUrl,
