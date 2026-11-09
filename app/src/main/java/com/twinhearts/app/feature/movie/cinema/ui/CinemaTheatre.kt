@@ -38,13 +38,15 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.twinhearts.app.core.cinema.BundledCinema
+import com.twinhearts.app.core.cinema.BundledCinemaServer
 import com.twinhearts.app.feature.movie.cinema.domain.CinemaLaunch
 import java.io.FilterInputStream
 import java.io.InputStream
 
 /**
  * Why this file exists: the Twin Cinema 3D theatre is a Three.js web page, so on Android it runs in a full-screen WebView
- * on top of Watch Together. (README R-01 says "no WebView screens": this is the one approved exception, because a native
+ * on top of Watch Together. The page is bundled inside the app (assets/cinema, see core/cinema/BundledCinema.kt): no website is loaded. (README R-01 says "no WebView screens": this is the one approved exception, because a native
  * 3D theatre was tried and reverted, and it is the same theatre the web app uses so both phones can sit together.)
  *
  * Two private addresses on a virtual host are answered by the app itself, nothing else:
@@ -54,15 +56,16 @@ import java.io.InputStream
  * While the theatre is open the phone is locked to LANDSCAPE and the window is truly full screen (status + navigation bars hidden,
  * drawn edge to edge, even into the camera cut-out) — no black bar at the top, and the cinema's bottom panel sits on the real edge.
  */
-private const val VIRTUAL_HOST = "appassets.androidplatform.net"
+private const val VIRTUAL_HOST = BundledCinema.HOST
 private const val MOVIE_PATH = "/twin-movie"
 private const val LEAVE_PATH = "/leave"
 
 private fun theatreUrl(launch: CinemaLaunch): String {
-    val sep = if ('#' in launch.url) "&" else "#"
     val back = Uri.encode("https://$VIRTUAL_HOST$LEAVE_PATH")
     val movie = launch.local?.let { "&mv=" + Uri.encode("https://$VIRTUAL_HOST$MOVIE_PATH") + "&mn=" + Uri.encode(it.title) }.orEmpty()
-    return launch.url + sep + "b=" + back + movie
+    // Only the room settings (the # part) of the server's link are used; the theatre itself is opened from the APK.
+    val base = BundledCinema.localUrl(launch.url) ?: BundledCinema.ENTRY
+    return base + (if ('#' in base) "&" else "#") + "b=" + back + movie
 }
 
 @SuppressLint("SetJavaScriptEnabled")
@@ -71,6 +74,7 @@ fun CinemaTheatre(launch: CinemaLaunch, onClose: () -> Unit) {
     val context = LocalContext.current
     LandscapeLock()
     val chooser = remember { FileChooser() }
+    val server = remember { BundledCinemaServer(context.applicationContext.assets) }
     val chooserLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         chooser.finish(WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data))
     }
@@ -120,8 +124,10 @@ fun CinemaTheatre(launch: CinemaLaunch, onClose: () -> Unit) {
                             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
                                 val u = request.url
                                 val local = launch.local
-                                if (local == null || u.host != VIRTUAL_HOST || u.path != MOVIE_PATH) return null
-                                return streamMovie(ctx, Uri.parse(local.uri), request.requestHeaders)
+                                if (local != null && u.host == VIRTUAL_HOST && u.path == MOVIE_PATH) {
+                                    return streamMovie(ctx, Uri.parse(local.uri), request.requestHeaders)
+                                }
+                                return server.handle(request) // theatre files come from the APK
                             }
                         }
                         loadUrl(theatreUrl(launch))

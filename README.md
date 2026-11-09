@@ -37,7 +37,7 @@ Old web app (read-only reference): `https://github.com/vamsitulugu/us-app.git`
 
 | ID | Decision | Value |
 |---|---|---|
-| R-01 | Language | **Kotlin** only. No Java files, no Flutter, no React Native, no WebView screens. |
+| R-01 | Language | **Kotlin** only. No Java files, no Flutter, no React Native, no WebView screens, except the two Twin Cinema 3D screens (`feature/cinema`, `feature/movie/cinema`), which show the theatre **bundled inside the APK** through `core/cinema`. |
 | R-02 | UI | **Jetpack Compose + Material 3**. No XML layouts (XML only for manifest/resources). |
 | R-03 | Architecture | Single `app` module, **feature packages**, MVVM + Repository (see §5). |
 | R-04 | DI | **Hilt**. |
@@ -336,7 +336,7 @@ User's environment: Windows PC, Android Studio, JDK 21 (Temurin), real Android p
 
 ## 14. Things a Claude must NEVER do
 
-- Copy-paste code from the old web files, or wrap web pages in a WebView.
+- Copy-paste code from the old web files, or wrap web pages in a WebView (the only exception is the bundled Twin Cinema theatre, see R-01).
 - Put any secret key, service key, or password in the app or the zip.
 - Call Supabase directly from the app (R-60).
 - Change versions, package name, architecture or design tokens on its own.
@@ -380,4 +380,5 @@ Error: <paste text>. Fix it and send only the changed files as th-<...>-v2.zip.
 | 2026-10-31 | Home search bar: global Search (pages, sub-pages, features, chat messages, items in pages) | th-p2-search-v1.zip | Not compiled in sandbox; matcher + privacy rule compiled with kotlinc 2.0.21, 12 tests pass. See docs/features/search.md and SHARED_CHANGES_search.md. Result opens the page, not the inner tab/message (no deep links yet). |
 | 2026-11-02 | Profile › Highlights (circles, camera/gallery upload, categories, viewer, edit) | patch: highlights-android.patch | Not compiled in sandbox; pure logic compiled with kotlinc 2.0.21. See docs/features/profile-highlights.md and SHARED_CHANGES_highlights.md. Needs web backend change. |
 | 2026-11-03 | Twin Store effects: themes (chat+music), frames, Cozy Corner decor, Truth or Dare packs | storefx-android.patch | Not compiled in sandbox. See SHARED_CHANGES_storefx.md. Needs web backend deploy. |
-| 2026-11-08 | Twin Cinema: 3D theatre shown live in a full-screen WebView (Home chip, invite dialog, push tap) | th-cinema-v1.zip | Not compiled in sandbox. One-time README exception to R-01/§14 (WebView) pending your OK, see SHARED_CHANGES_cinema.md. See docs/features/cinema.md. Needs Supabase SQL, Render deploy, Vercel env vars. |
+| 2026-11-09 | Twin Cinema now bundled inside the APK (assets/cinema, shown through core/cinema); no website is loaded any more. Update with tools/sync-cinema.ps1 | th-cinema-bundled-v1.zip | Not compiled in sandbox. R-01 exception approved. See docs/features/cinema.md. Needs one Render CORS line (us-app server.js). |
+| 2026-11-08 | (replaced by the line above) Twin Cinema: 3D theatre shown live in a full-screen WebView (Home chip, invite dialog, push tap) | th-cinema-v1.zip | Not compiled in sandbox. One-time README exception to R-01/§14 (WebView) pending your OK, see SHARED_CHANGES_cinema.md. See docs/features/cinema.md. Needs Supabase SQL, Render deploy, Vercel env vars. |

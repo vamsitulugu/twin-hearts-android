@@ -13,8 +13,7 @@
 ## One-time setup (cinema backend, only you can do this)
 1. Supabase → SQL Editor → run `migrations/cinema_sessions.sql` from the **us-app** repo.
 2. Render → deploy the current us-app.
-3. Vercel → twin-cinemas → Settings → Environment Variables → `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (the *anon public* key) → redeploy.
-   Without these the cinema shows "local test mode" and the two phones cannot meet.
+3. (No Vercel project or env vars are needed any more: the theatre is bundled in the APK and uses the web app's public Supabase keys. Do add `https://appassets.androidplatform.net` to Render CORS, see BUILD_NOTES_cinema_bundled.md.)
 
 ## Test (two phones, both paired as a couple)
 1. **Phone A (host):** Home → **Cinema** chip (scroll the chip row if needed). Expect: loading bars, then the 3D lobby full screen.

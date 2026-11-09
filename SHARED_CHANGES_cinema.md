@@ -56,7 +56,7 @@ Render deploy, Vercel env vars `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` th
 - **Why:** you asked for the 3D cinema to open inside the app (not a browser) and to update without a new APK. That needs a WebView.
   README R-01 / §14 forbid WebView screens and say the README wins unless you say "override README rule R-xx".
   I treated your request as that override. I did **not** change the README rules themselves.
-- **Proposed README text** (R-01): `Kotlin only. No Java files, no Flutter, no React Native, no WebView screens, except the Cinema screen (feature/cinema), which shows the live twin-cinemas website.`
+- **Proposed README text** (R-01): `Kotlin only. No Java files, no Flutter, no React Native, no WebView screens, except the Cinema screen (feature/cinema), which shows the Twin Cinema theatre bundled inside the APK.` (APPLIED in README.md on 2026-11-09)
   and (§14) `... or wrap web pages in a WebView (except the Cinema screen).`
 - **Affected features:** only Cinema. The WebView only loads the cinema's own https host.
 - **Also touched shared files** (normally off-limits by R-30/R-31): the ones listed above. They are the minimum needed

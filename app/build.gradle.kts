@@ -90,6 +90,11 @@ android {
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
+    // The bundled cinema (assets/cinema) has big media. Stored uncompressed they can be read by any byte range (seeking in the ad video and sounds)
+    // and they are already compressed formats, so the APK is not bigger for it.
+    androidResources {
+        noCompress += listOf("glb", "mp3", "mp4", "wav", "ogg", "webp")
+    }
 }
 
 // Room writes its schema files here so database migrations can be checked later.

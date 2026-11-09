@@ -5,8 +5,8 @@ import java.net.URLEncoder
 
 /**
  * Why this file exists: all the small rules about cinema links in one plain-Kotlin place, so they can be
- * unit tested without Android. The cinema (twin-cinemas) is loaded live from the web; these rules keep
- * that safe and make its "Leave" button return to the app.
+ * unit tested without Android. The cinema is bundled inside the app (see core/cinema/BundledCinema.kt);
+ * these rules pick the avatar and make the cinema's "Leave" button return to the app.
  */
 object CinemaLinks {
 
@@ -32,18 +32,7 @@ object CinemaLinks {
     /** True when the WebView is being sent to the back link, meaning "Leave" was pressed in the cinema. */
     fun isBackLink(url: String?): Boolean = hostOf(url) == hostOf(BACK_LINK)
 
-    /** Only secure (https) links are ever loaded in the cinema screen. */
-    fun isSecure(url: String?): Boolean = url != null && schemeOf(url) == "https" && hostOf(url) != null
-
-    /** True when [url] is on the same website as [cinemaUrl]: the only pages the cinema screen may show. */
-    fun isSameSite(url: String?, cinemaUrl: String): Boolean {
-        val host = hostOf(url) ?: return false
-        return isSecure(url) && host == hostOf(cinemaUrl)
-    }
-
     private fun hostOf(url: String?): String? = parse(url)?.host?.lowercase()
-
-    private fun schemeOf(url: String): String? = parse(url)?.scheme?.lowercase()
 
     private fun parse(url: String?): URI? = try {
         url?.let { URI(it) }

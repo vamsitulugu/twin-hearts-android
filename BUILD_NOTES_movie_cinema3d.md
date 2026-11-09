@@ -1,8 +1,7 @@
 # BUILD NOTES — Twin Cinema 3D (Android)
 
 1. Unzip over the project root. Sync Gradle, run the app on a phone (an emulator's WebGL is slow).
-2. Deploy the two web zips first: `us-app` (public/cinema-invite.js) and `twin-cinemas` (the cinema site). Android works on its own,
-   but the "no second choose-movie" part needs the new cinema site.
+2. Deploy `us-app` first (it now contains the cinema, `public/cinema`, and `public/cinema-invite.js`). The theatre itself is bundled in the APK (see BUILD_NOTES_cinema_bundled.md).
 
 ## Manual tests (use two accounts that are paired)
 1. **Card:** Home → Movie. "Watch in Twin Cinema 3D" is on the Home tab and the Watch tab. Tap it → "Movie night" box → Open cinema lobby → the theatre opens.

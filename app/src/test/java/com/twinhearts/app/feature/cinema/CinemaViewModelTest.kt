@@ -24,18 +24,19 @@ class CinemaViewModelTest {
     @get:Rule val mainDispatcher = MainDispatcherRule()
     private val repository = mockk<CinemaRepository>()
     private val me = CinemaIdentity(coupleId = "c1", role = "user1", gender = "female")
-    private val link = "https://twin-cinemas.vercel.app/#s=abc"
+    private val link = "https://twinhearts.vercel.app/cinema/#s=abc"   // what the server sends
+    private val local = "https://appassets.androidplatform.net/cinema/index.html#s=abc" // what the app opens
 
     private fun host() = CinemaViewModel(SavedStateHandle(), repository)
     private fun guest() = CinemaViewModel(SavedStateHandle(mapOf("sessionId" to "s1")), repository)
 
     @Test
-    fun host_opensASession_andLoadsTheLinkWithTheBackLink() {
+    fun host_opensASession_andOpensTheBundledTheatreWithTheBackLink() {
         coEvery { repository.identity() } returns me
         coEvery { repository.open(me) } returns AppResult.Success(link)
         val state = host().state.value
         assertTrue(state is UiState.Content)
-        assertTrue((state as UiState.Content).data.startsWith("$link&b="))
+        assertTrue((state as UiState.Content).data.startsWith("$local&b="))
     }
 
     @Test
@@ -64,9 +65,9 @@ class CinemaViewModelTest {
     }
 
     @Test
-    fun insecureLink_isNeverLoaded() {
+    fun linkWithoutRoomSettings_isNeverLoaded() {
         coEvery { repository.identity() } returns me
-        coEvery { repository.open(me) } returns AppResult.Success("http://twin-cinemas.vercel.app/")
+        coEvery { repository.open(me) } returns AppResult.Success("https://twinhearts.vercel.app/cinema/")
         assertEquals(UiState.Error(AppError.Unknown), host().state.value)
     }
 }

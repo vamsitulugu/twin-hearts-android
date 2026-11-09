@@ -7,6 +7,7 @@ import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.AppResult
 import com.twinhearts.app.core.common.UiState
 import com.twinhearts.app.feature.cinema.data.CinemaRepository
+import com.twinhearts.app.core.cinema.BundledCinema
 import com.twinhearts.app.feature.cinema.domain.CinemaLinks
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,9 +49,11 @@ class CinemaViewModel @Inject constructor(
             val result = if (sessionId == null) repository.open(who) else repository.accept(who, sessionId)
             _state.value = when (result) {
                 is AppResult.Failure -> UiState.Error(result.error)
-                is AppResult.Success ->
-                    if (CinemaLinks.isSecure(result.data)) UiState.Content(CinemaLinks.withBackLink(result.data))
-                    else UiState.Error(AppError.Unknown)
+                is AppResult.Success -> {
+                    // The server's link only tells us the room; the theatre itself is inside the app.
+                    val local = BundledCinema.localUrl(result.data)
+                    if (local != null) UiState.Content(CinemaLinks.withBackLink(local)) else UiState.Error(AppError.Unknown)
+                }
             }
         }
     }

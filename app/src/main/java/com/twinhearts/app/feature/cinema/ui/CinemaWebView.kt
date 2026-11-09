@@ -11,6 +11,7 @@ import android.view.ViewGroup
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
+import android.webkit.WebResourceResponse
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -43,13 +44,16 @@ import com.twinhearts.app.R
 import com.twinhearts.app.core.design.ErrorState
 import com.twinhearts.app.core.design.LoadingSkeleton
 import com.twinhearts.app.core.design.TwinTheme
+import com.twinhearts.app.core.cinema.BundledCinema
+import com.twinhearts.app.core.cinema.BundledCinemaServer
 import com.twinhearts.app.feature.cinema.domain.CinemaLinks
 
 /**
- * Why this file exists: shows the live twin-cinemas website full screen inside the app (no browser, no APK rebuild).
+ * Why this file exists: shows the Twin Cinema theatre full screen inside the app. The theatre is bundled in the APK
+ * (assets/cinema) and answered by [BundledCinemaServer], so there is no website to open and no link that can go down.
  * It does four jobs the plain WebView does not do by itself:
  *  1. full screen + screen stays awake while the movie runs;
- *  2. only the cinema's own website may open here (everything else is blocked);
+ *  2. only the bundled theatre may open here (everything else is blocked);
  *  3. the cinema's Leave button (a link to [CinemaLinks.BACK_LINK]) closes the screen via [onLeave];
  *  4. "Choose movie file" works (onShowFileChooser), otherwise the button does nothing in a WebView.
  */
@@ -61,6 +65,7 @@ internal fun CinemaWebView(url: String, onLeave: () -> Unit, modifier: Modifier 
     var loaded by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
     val chooser = remember { FileChooserHolder() }
+    val server = remember { BundledCinemaServer(context.applicationContext.assets) }
 
     val chooserLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         // parseResult gives null when the person cancelled; the callback must ALWAYS be answered.
@@ -87,8 +92,11 @@ internal fun CinemaWebView(url: String, onLeave: () -> Unit, modifier: Modifier 
                         currentOnLeave()
                         return true
                     }
-                    return !CinemaLinks.isSameSite(target, url) // true = block
+                    return !BundledCinema.isOwnUrl(target) // true = block
                 }
+
+                override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
+                    server.handle(request) // theatre files come from the APK, never from the network
 
                 override fun onPageStarted(view: WebView, pageUrl: String?, favicon: Bitmap?) {
                     failed = false

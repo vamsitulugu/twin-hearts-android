@@ -7,7 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CinemaLinksTest {
-    private val cinema = "https://twin-cinemas.vercel.app/#s=abc&r=1&h=1"
+    private val cinema = "https://appassets.androidplatform.net/cinema/index.html#s=abc&r=1&h=1"
 
     @Test
     fun avatarSlot_followsGender_thenRole() {
@@ -25,32 +25,15 @@ class CinemaLinksTest {
 
     @Test
     fun withBackLink_startsAHashWhenThereIsNone() {
-        assertTrue(CinemaLinks.withBackLink("https://twin-cinemas.vercel.app/").contains("/#b="))
+        assertTrue(CinemaLinks.withBackLink("https://appassets.androidplatform.net/cinema/index.html").contains("/#b="))
     }
 
     @Test
     fun isBackLink_onlyForTheBackAddress() {
         assertTrue(CinemaLinks.isBackLink(CinemaLinks.BACK_LINK))
         assertTrue(CinemaLinks.isBackLink("https://TwinHearts.invalid/anything"))
-        assertFalse(CinemaLinks.isBackLink("https://twin-cinemas.vercel.app/"))
+        assertFalse(CinemaLinks.isBackLink("https://appassets.androidplatform.net/cinema/index.html"))
         assertFalse(CinemaLinks.isBackLink(null))
         assertFalse(CinemaLinks.isBackLink("not a link"))
-    }
-
-    @Test
-    fun isSecure_rejectsPlainHttpAndOtherSchemes() {
-        assertTrue(CinemaLinks.isSecure(cinema))
-        assertFalse(CinemaLinks.isSecure("http://twin-cinemas.vercel.app/"))
-        assertFalse(CinemaLinks.isSecure("javascript:alert(1)"))
-        assertFalse(CinemaLinks.isSecure(null))
-    }
-
-    @Test
-    fun isSameSite_allowsOnlyTheCinemaHost() {
-        assertTrue(CinemaLinks.isSameSite("https://twin-cinemas.vercel.app/other", cinema))
-        assertFalse(CinemaLinks.isSameSite("https://evil.example.com/", cinema))
-        assertFalse(CinemaLinks.isSameSite("https://twin-cinemas.vercel.app.evil.com/", cinema))
-        assertFalse(CinemaLinks.isSameSite("http://twin-cinemas.vercel.app/", cinema))
-        assertFalse(CinemaLinks.isSameSite(null, cinema))
     }
 }
