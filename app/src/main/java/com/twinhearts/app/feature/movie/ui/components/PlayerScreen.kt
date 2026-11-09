@@ -258,7 +258,9 @@ fun PlayerScreen(
         if (room.playing) everPlayed = true
         if (streamUrl == null) return@LaunchedEffect
         val expected = room.expectedPositionSec(serverNowMs())
-        if (abs(player.currentPosition / MS - expected) > SEEK_TOLERANCE_SEC) {
+        // Playing: only jump on a real gap (a small one is fixed by speed). Every jump makes a phone re-buffer, and a re-buffer
+        // used to pause BOTH phones, which made the next jump... that was the "stuck again and again" loop.
+        if (abs(player.currentPosition / MS - expected) > (if (room.playing) SEEK_TOLERANCE_SEC else PAUSED_TOLERANCE_SEC)) {
             player.seekTo((expected * MS).toLong())
             lastSeekAt = System.currentTimeMillis()
         }
@@ -274,8 +276,17 @@ fun PlayerScreen(
     LaunchedEffect(buffering, holding) {
         if (!buffering || holding || streamUrl == null) return@LaunchedEffect
         if (!latestRoom.playing) return@LaunchedEffect
-        delay(STALL_REPORT_MS)
-        if (player.playbackState == Player.STATE_BUFFERING && latestRoom.playing && !holding) {
+        // Only a REAL stall pauses the partner: still loading after 3 s, nothing buffered ahead, and not just the
+        // re-buffer that follows our own jump / start (that is normal and must never stop the other phone).
+        var waited = 0L
+        while (waited < STALL_REPORT_MS) { delay(STALL_CHECK_MS); waited += STALL_CHECK_MS
+            if (player.playbackState != Player.STATE_BUFFERING || !latestRoom.playing) return@LaunchedEffect }
+        while (System.currentTimeMillis() - lastSeekAt < STALL_GRACE_MS) {
+            delay(STALL_CHECK_MS)
+            if (player.playbackState != Player.STATE_BUFFERING || !latestRoom.playing) return@LaunchedEffect
+        }
+        val ahead = player.bufferedPosition - player.currentPosition
+        if (player.playbackState == Player.STATE_BUFFERING && latestRoom.playing && !holding && ahead < 500) {
             holding = true
             player.playWhenReady = false
             onBufferingHold(player.currentPosition / MS)
@@ -317,7 +328,7 @@ fun PlayerScreen(
             val diff = expected - player.currentPosition / MS
             when {
                 abs(diff) < DRIFT_OK_SEC -> if (player.playbackParameters.speed != 1f) player.setPlaybackSpeed(1f)
-                abs(diff) < DRIFT_JUMP_SEC -> player.setPlaybackSpeed(if (diff > 0) 1.05f else 0.95f)
+                abs(diff) < DRIFT_JUMP_SEC -> player.setPlaybackSpeed(if (diff > 0) 1.06f else 0.94f)
                 else -> {
                     player.setPlaybackSpeed(1f)
                     player.seekTo((expected * MS).toLong())
@@ -624,11 +635,14 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
 }
 
 private const val MS = 1000.0
-private const val SEEK_TOLERANCE_SEC = 0.7
-private const val SEEK_COOLDOWN_MS = 4000L       // after a jump, wait before judging the position again (a stream needs time to re-buffer)
+private const val SEEK_TOLERANCE_SEC = 1.5          // while playing: smaller gaps are fixed by speed, not by a jump
+private const val PAUSED_TOLERANCE_SEC = 0.25
+private const val SEEK_COOLDOWN_MS = 6000L       // after a jump, wait before judging the position again (a stream needs time to re-buffer)
 private const val DRIFT_OK_SEC = 0.4
-private const val DRIFT_JUMP_SEC = 1.5            // smaller drift is fixed by speed (±5 %), only bigger drift by a jump
-private const val STALL_REPORT_MS = 1500L
+private const val DRIFT_JUMP_SEC = 2.5            // smaller drift is fixed by speed (±5 %), only bigger drift by a jump
+private const val STALL_REPORT_MS = 3000L         // was 1.5 s
+private const val STALL_CHECK_MS = 250L
+private const val STALL_GRACE_MS = 6000L          // no stall report this soon after a jump
 private const val HOLD_CHECK_MS = 500L
 private const val READY_AHEAD_MS = 2000L          // resume together only with this much movie already loaded
 private const val FULLY_BUFFERED_PCT = 99
