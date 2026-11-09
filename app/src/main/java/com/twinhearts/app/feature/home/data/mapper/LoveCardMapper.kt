@@ -53,5 +53,9 @@ fun JsonElement?.toLoveCardState(myRole: String): LoveCardState {
             }
         }
     }
-    return LoveCardState(last = candidates.maxByOrNull { it.timestampMillis }, pendingIncomingHugId = pendingHugId)
+    return LoveCardState(
+        last = candidates.maxByOrNull { it.timestampMillis },
+        pendingIncomingHugId = pendingHugId,
+        incoming = candidates.filter { !it.fromMe && it.kind != LoveKind.Hug }.sortedBy { it.timestampMillis },
+    )
 }

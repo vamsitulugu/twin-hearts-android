@@ -17,4 +17,6 @@ data class LoveInteraction(
 data class LoveCardState(
     val last: LoveInteraction? = null,
     val pendingIncomingHugId: Long? = null,
+    /** Every Touch / Miss You my partner sent (newest of each kind), for the Accept popup. */
+    val incoming: List<LoveInteraction> = emptyList(),
 )

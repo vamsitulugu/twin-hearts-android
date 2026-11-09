@@ -42,13 +42,17 @@ class TwinMessagingService : FirebaseMessagingService() {
         )
         val event = TwinNotification(type, raw["title"], raw["body"], data)
         // FCM gives this method about 20 seconds; showing is quick, so wait for it here.
+        // Hug / Touch / Miss You: let an open app show its Accept popup right now.
+        if (type == NotificationType.PARTNER_HUG || type == NotificationType.PARTNER_TOUCH || type == NotificationType.PARTNER_MISS) {
+            NotificationEvents.loveArrived()
+        }
         runBlocking {
             notifier.show(event)
             // A chat message reached this phone: tell the server now, so my partner's single tick
             // becomes a double tick even though the app is closed (their tick stays single only
             // when this phone has no internet).
             if (raw["tag"] == "chat-msg") {
-                withTimeoutOrNull(ACK_TIMEOUT_MS) { chat.identity()?.let { chat.ackDelivered(it) } }
+                runCatching { withTimeoutOrNull(ACK_TIMEOUT_MS) { chat.identity()?.let { chat.ackDelivered(it) } } }
             }
         }
     }

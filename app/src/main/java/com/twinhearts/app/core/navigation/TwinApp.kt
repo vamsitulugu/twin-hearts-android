@@ -59,6 +59,7 @@ import com.twinhearts.app.feature.ads.ui.EarnCoinsPrompt
 import com.twinhearts.app.feature.calls.ui.CallBannerHost
 import com.twinhearts.app.feature.calls.ui.IncomingCallWatcher
 import com.twinhearts.app.feature.cinema.ui.invite.CinemaInviteWatcher
+import com.twinhearts.app.feature.home.ui.signal.LoveSignalWatcher
 import com.twinhearts.app.core.design.BottomBarItem
 import com.twinhearts.app.core.common.LocalReduceMotionSetting
 import com.twinhearts.app.core.design.LocalOpenSidebar
@@ -189,6 +190,12 @@ private fun TwinNavigation(
     CinemaInviteWatcher(
         enabled = session != null && destination?.hasRoute<Routes.Cinema>() != true,
         onAccept = { sessionId -> navController.navigate(Routes.Cinema(sessionId)) { launchSingleTop = true } },
+    )
+
+    // A Hug / Touch / Miss You from my partner opens an Accept card on any screen (not during a call).
+    LoveSignalWatcher(
+        enabled = session != null && destination?.hasRoute<Routes.Call>() != true,
+        onHome = destination?.hasRoute<Routes.Home>() == true,
     )
 
     // Pull down to reload the current page (whole app). The page is opened again fresh, so it loads its data again.

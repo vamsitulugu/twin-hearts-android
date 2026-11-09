@@ -50,4 +50,15 @@ class LoveCardMapperTest {
         assertEquals(LoveKind.Hug, card.last!!.kind)
         assertEquals(1_700_000_000_000L, card.last!!.timestampMillis)
     }
+
+    @Test fun incoming_listsPartnerTouchAndMiss_oldestFirst() {
+        val state = parse("""{"touch":{"from":"user2","ts":3000},"missYou":{"from":"user2","ts":1000}}""")
+        val incoming = state.toLoveCardState("user1").incoming
+        assertEquals(listOf(LoveKind.MissYou, LoveKind.Touch), incoming.map { it.kind })
+    }
+
+    @Test fun incoming_ignoresMyOwnSignals() {
+        val state = parse("""{"touch":{"from":"user1","ts":3000}}""")
+        assertEquals(0, state.toLoveCardState("user1").incoming.size)
+    }
 }

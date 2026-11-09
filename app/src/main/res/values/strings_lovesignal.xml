@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="lovesignal_hug">%1$s is sending you a hug</string>
+    <string name="lovesignal_touch">%1$s sent you a touch</string>
+    <string name="lovesignal_miss">%1$s misses you</string>
+    <string name="lovesignal_accept_hug">Accept Hug</string>
+    <string name="lovesignal_accept">Accept</string>
+    <string name="lovesignal_later">Later</string>
+</resources>

@@ -81,8 +81,43 @@ class TwinNotifier @Inject constructor(
         return granted && manager.areNotificationsEnabled()
     }
 
-    /** Shows the notification. Returns false when it was skipped (switched off, app open, no permission). */
-    suspend fun show(event: TwinNotification): Boolean {
+    /**
+     * Shows the notification. Returns false when it was skipped (switched off, app open, no permission).
+     * If drawing the rich version fails for any reason (bad photo, odd data) a plain one is shown
+     * instead, so a message is never lost because of its decoration.
+     */
+    suspend fun show(event: TwinNotification): Boolean = try {
+        showRich(event)
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        showPlain(event)
+    }
+
+    /** The simplest possible notification: logo, title, text. Used only when [showRich] threw. */
+    private fun showPlain(event: TwinNotification): Boolean {
+        if (!canPost() || !prefs.isEnabled(event.type)) return false
+        NotificationChannels.ensure(context)
+        val partner = event.data["fromName"]?.takeIf { it.isNotBlank() } ?: context.getString(R.string.notif_partner_fallback)
+        val title = event.title?.takeIf { it.isNotBlank() } ?: titleFor(event, partner)
+        val body = event.body?.takeIf { it.isNotBlank() } ?: bodyFor(event, partner)
+        val shown = if (prefs.previewAllowed() && !event.type.sensitive) body else context.getString(R.string.notif_private_body)
+        val id = idFor(event)
+        val notification = NotificationCompat.Builder(context, event.type.channel.id)
+            .setSmallIcon(R.drawable.ic_stat_twin)
+            .setColor(NotificationChannels.ACCENT)
+            .setContentTitle(title)
+            .setContentText(shown)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(shown))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(openIntent(event.type.screen, id))
+            .build()
+        manager.notify(id, notification)
+        return true
+    }
+
+    private suspend fun showRich(event: TwinNotification): Boolean {
         val type = event.type
         if (!canPost()) return false
         if (!prefs.isEnabled(type)) return false
@@ -146,6 +181,14 @@ class TwinNotifier @Inject constructor(
     }
 
     fun cancel(id: Int) = manager.cancel(id)
+
+    /** Removes the Hug / Touch / Miss You notifications. Called when the person answers the popup. */
+    fun clearLoveSignals() {
+        val groups = setOf(TwinChannel.LOVE.id, TwinChannel.TOUCH.id)
+        manager.activeNotifications
+            .filter { it.notification.group in groups }
+            .forEach { manager.cancel(it.id) }
+    }
 
     /** After a reply from the notification: show it in the thread so the spinner goes away. */
     fun showReplySent(text: String) {
@@ -322,6 +365,9 @@ class TwinNotifier @Inject constructor(
     private fun idFor(event: TwinNotification): Int = when (event.type) {
         NotificationType.CHAT_MESSAGE -> ID_CHAT
         NotificationType.CALL_INCOMING -> ID_CALL
+        // Every Hug / Touch / Miss You gets its own card, so a second one never hides the first.
+        NotificationType.PARTNER_HUG, NotificationType.PARTNER_MISS, NotificationType.PARTNER_TOUCH ->
+            (event.type.key + System.nanoTime()).hashCode().let { if (it in 0..SUMMARY_BASE) it + SUMMARY_BASE else it }
         else -> (event.type.key + (event.data["id"] ?: "")).hashCode().let { if (it in 0..SUMMARY_BASE) it + SUMMARY_BASE else it }
     }
 

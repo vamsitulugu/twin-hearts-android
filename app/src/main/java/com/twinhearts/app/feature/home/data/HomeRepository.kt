@@ -57,6 +57,15 @@ interface HomeRepository {
     /** Accepts the hug my partner sent. */
     suspend fun acceptHug(): AppResult<Unit>
 
+    /**
+     * The time of the newest Touch / Miss You I already answered on this phone, or null when none was
+     * ever saved (the popup then starts from "now" so old signals do not pop up all at once).
+     */
+    suspend fun handledSignal(kind: LoveKind): Long? = null
+
+    /** Remembers that I answered the Touch / Miss You sent at [timestampMillis]. */
+    suspend fun markSignalHandled(kind: LoveKind, timestampMillis: Long) = Unit
+
     /** Uploads [jpeg] as the couple's own picture for [slot] and saves it in the shared state. */
     suspend fun saveCardPhoto(slot: CardPhotoSlot, jpeg: ByteArray): AppResult<Unit>
 
@@ -176,6 +185,18 @@ class HomeRepositoryImpl @Inject constructor(
         }
         return save(session, patch)
     }
+
+    override suspend fun handledSignal(kind: LoveKind): Long? {
+        val session = session() ?: return null
+        return cache.read(handledKey(session, kind))?.toLongOrNull()
+    }
+
+    override suspend fun markSignalHandled(kind: LoveKind, timestampMillis: Long) {
+        val session = session() ?: return
+        cache.write(handledKey(session, kind), timestampMillis.toString())
+    }
+
+    private fun handledKey(session: Session, kind: LoveKind) = "love-handled:${session.coupleId}:${kind.name}"
 
     override suspend fun acceptHug(): AppResult<Unit> {
         val session = session() ?: return notSignedIn
