@@ -95,6 +95,7 @@ fun CinemaTheatre(launch: CinemaLaunch, onClose: () -> Unit) {
                         keepScreenOn = true
                         overScrollMode = android.view.View.OVER_SCROLL_NEVER
                         settings.javaScriptEnabled = true
+                        settings.textZoom = 100 // ignore the phone's font size setting
                         settings.domStorageEnabled = true
                         settings.mediaPlaybackRequiresUserGesture = false
                         settings.allowFileAccess = false

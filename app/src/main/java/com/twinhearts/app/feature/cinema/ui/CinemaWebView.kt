@@ -78,6 +78,7 @@ internal fun CinemaWebView(url: String, onLeave: () -> Unit, modifier: Modifier 
             keepScreenOn = true
             settings.apply {
                 javaScriptEnabled = true
+                textZoom = 100 // ignore the phone's font size setting
                 domStorageEnabled = true
                 mediaPlaybackRequiresUserGesture = false // sound and picture start without a tap
                 allowFileAccess = false
