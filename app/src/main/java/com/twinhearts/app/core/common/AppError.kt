@@ -23,6 +23,8 @@ sealed interface AppError {
 fun AppError.asText(): String = when (this) {
     AppError.Network -> stringResource(R.string.core_error_network)
     is AppError.Unauthorized -> message ?: stringResource(R.string.core_error_unauthorized)
-    is AppError.Server -> message ?: stringResource(R.string.core_error_server)
+    is AppError.Server -> message ?: stringResource(
+        if (code in 502..504) R.string.core_error_waking else R.string.core_error_server,
+    )
     AppError.Unknown -> stringResource(R.string.core_error_unknown)
 }

@@ -31,8 +31,8 @@ fun JsonElement.toMessageDtos(): List<ChatMessageDto>? {
 fun JsonElement.toMessageDto(): ChatMessageDto? {
     val row = this as? JsonObject ?: return null
     val idText = (row["id"] as? JsonPrimitive)?.contentOrNull ?: return null
-    // Ids are numbers on the live table. If a table ever used text ids, a stable number keeps the row visible.
-    val id = idText.toLongOrNull() ?: (idText.hashCode().toLong() and 0x7FFFFFFFL).coerceAtLeast(1L)
+    // The live table uses text (UUID) ids. ChatIds keeps a number for the screens AND the original id for the server.
+    val id = ChatIds.idOf(idText)
     return ChatMessageDto(
         id = id,
         clientId = row["client_id"].asText(),

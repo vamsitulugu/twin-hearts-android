@@ -38,8 +38,9 @@ object NetworkModule {
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(75, TimeUnit.SECONDS)
         .writeTimeout(60, TimeUnit.SECONDS)
-        .callTimeout(90, TimeUnit.SECONDS)
+        .callTimeout(120, TimeUnit.SECONDS) // room for a few quiet retries (RetryInterceptor)
         .retryOnConnectionFailure(true)
+        .addInterceptor(RetryInterceptor())
         .addInterceptor(AppHeadersInterceptor())
         .build()
 

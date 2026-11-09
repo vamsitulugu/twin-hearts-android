@@ -1,5 +1,6 @@
 package com.twinhearts.app.feature.chat.data
 
+import com.twinhearts.app.feature.chat.data.mapper.ChatIds
 import android.net.Uri
 import com.twinhearts.app.core.common.AppError
 import com.twinhearts.app.core.common.AppResult
@@ -185,7 +186,7 @@ class ChatRepositoryImpl @Inject constructor(
     // ───────────── sending ─────────────
 
     override suspend fun sendText(who: ChatIdentity, clientId: String, text: String, replyTo: Long?, effect: String?): AppResult<ChatMessage> =
-        post(who, SendMessageBody(who.coupleId, clientId, who.myRole, type = "text", text = text, replyTo = replyTo, effect = effect))
+        post(who, SendMessageBody(who.coupleId, clientId, who.myRole, type = "text", text = text, replyTo = replyTo?.let(ChatIds::raw), effect = effect))
 
     override suspend fun sendPhotos(
         who: ChatIdentity,
@@ -219,7 +220,7 @@ class ChatRepositoryImpl @Inject constructor(
                 who,
                 SendMessageBody(
                     who.coupleId, clientId, who.myRole, type = "image",
-                    text = text, mediaUrl = uploaded.first().url, replyTo = replyTo, viewOnce = viewOnce,
+                    text = text, mediaUrl = uploaded.first().url, replyTo = replyTo?.let(ChatIds::raw), viewOnce = viewOnce,
                 ),
             )
         }
@@ -237,7 +238,7 @@ class ChatRepositoryImpl @Inject constructor(
             who,
             SendMessageBody(
                 who.coupleId, clientId, who.myRole, type = "image_group",
-                text = text, mediaUrl = uploaded.first().url, mediaMeta = meta, replyTo = replyTo,
+                text = text, mediaUrl = uploaded.first().url, mediaMeta = meta, replyTo = replyTo?.let(ChatIds::raw),
             ),
         )
     }
@@ -250,7 +251,7 @@ class ChatRepositoryImpl @Inject constructor(
             is AppResult.Failure -> return r
         }
         val meta = buildJsonObject { put("name", file.name); put("size", file.size) }
-        return post(who, SendMessageBody(who.coupleId, clientId, who.myRole, type = "video", mediaUrl = up.url, mediaMeta = meta, replyTo = replyTo))
+        return post(who, SendMessageBody(who.coupleId, clientId, who.myRole, type = "video", mediaUrl = up.url, mediaMeta = meta, replyTo = replyTo?.let(ChatIds::raw)))
     }
 
     override suspend fun sendFile(who: ChatIdentity, clientId: String, uri: Uri, replyTo: Long?): AppResult<ChatMessage> {
@@ -265,7 +266,7 @@ class ChatRepositoryImpl @Inject constructor(
             put("size", file.size)
             put("path", up.path.orEmpty())
         }
-        return post(who, SendMessageBody(who.coupleId, clientId, who.myRole, type = "file", mediaUrl = up.url, mediaMeta = meta, replyTo = replyTo))
+        return post(who, SendMessageBody(who.coupleId, clientId, who.myRole, type = "file", mediaUrl = up.url, mediaMeta = meta, replyTo = replyTo?.let(ChatIds::raw)))
     }
 
     override suspend fun sendAudioFile(who: ChatIdentity, clientId: String, uri: Uri, replyTo: Long?): AppResult<ChatMessage> {
@@ -276,7 +277,7 @@ class ChatRepositoryImpl @Inject constructor(
             is AppResult.Failure -> return r
         }
         val meta = buildJsonObject { put("name", file.name) }
-        return post(who, SendMessageBody(who.coupleId, clientId, who.myRole, type = "audio", mediaUrl = up.url, mediaMeta = meta, replyTo = replyTo))
+        return post(who, SendMessageBody(who.coupleId, clientId, who.myRole, type = "audio", mediaUrl = up.url, mediaMeta = meta, replyTo = replyTo?.let(ChatIds::raw)))
     }
 
     override suspend fun sendVoice(who: ChatIdentity, clientId: String, audio: File, durationSec: Int, replyTo: Long?): AppResult<ChatMessage> {
@@ -293,12 +294,12 @@ class ChatRepositoryImpl @Inject constructor(
         }
         return post(
             who,
-            SendMessageBody(who.coupleId, clientId, who.myRole, type = "voice", mediaUrl = upload.url, mediaMeta = meta, replyTo = replyTo),
+            SendMessageBody(who.coupleId, clientId, who.myRole, type = "voice", mediaUrl = upload.url, mediaMeta = meta, replyTo = replyTo?.let(ChatIds::raw)),
         )
     }
 
     override suspend fun sendGif(who: ChatIdentity, clientId: String, url: String, replyTo: Long?): AppResult<ChatMessage> =
-        post(who, SendMessageBody(who.coupleId, clientId, who.myRole, type = "gif", mediaUrl = url, replyTo = replyTo))
+        post(who, SendMessageBody(who.coupleId, clientId, who.myRole, type = "gif", mediaUrl = url, replyTo = replyTo?.let(ChatIds::raw)))
 
     override suspend fun sendEmojiCard(
         who: ChatIdentity,
@@ -309,22 +310,22 @@ class ChatRepositoryImpl @Inject constructor(
         replyTo: Long?,
     ): AppResult<ChatMessage> {
         val meta = buildJsonObject { put("emoji", emoji); put("name", name) }
-        return post(who, SendMessageBody(who.coupleId, clientId, who.myRole, type = type, mediaMeta = meta, replyTo = replyTo))
+        return post(who, SendMessageBody(who.coupleId, clientId, who.myRole, type = type, mediaMeta = meta, replyTo = replyTo?.let(ChatIds::raw)))
     }
 
     override suspend fun sendLocation(who: ChatIdentity, clientId: String, latitude: Double, longitude: Double, replyTo: Long?): AppResult<ChatMessage> {
         val meta = buildJsonObject { put("lat", latitude); put("lng", longitude) }
-        return post(who, SendMessageBody(who.coupleId, clientId, who.myRole, type = "location", mediaMeta = meta, replyTo = replyTo))
+        return post(who, SendMessageBody(who.coupleId, clientId, who.myRole, type = "location", mediaMeta = meta, replyTo = replyTo?.let(ChatIds::raw)))
     }
 
     override suspend fun sendContact(who: ChatIdentity, clientId: String, name: String, replyTo: Long?): AppResult<ChatMessage> {
         val meta = buildJsonObject { put("name", name) }
-        return post(who, SendMessageBody(who.coupleId, clientId, who.myRole, type = "contact", mediaMeta = meta, replyTo = replyTo))
+        return post(who, SendMessageBody(who.coupleId, clientId, who.myRole, type = "contact", mediaMeta = meta, replyTo = replyTo?.let(ChatIds::raw)))
     }
 
     override suspend fun sendPoll(who: ChatIdentity, clientId: String, question: String, options: List<String>, replyTo: Long?): AppResult<ChatMessage> {
         val meta = buildJsonObject { put("options", buildJsonArray { options.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) } }) }
-        return post(who, SendMessageBody(who.coupleId, clientId, who.myRole, type = "poll", text = question, mediaMeta = meta, replyTo = replyTo))
+        return post(who, SendMessageBody(who.coupleId, clientId, who.myRole, type = "poll", text = question, mediaMeta = meta, replyTo = replyTo?.let(ChatIds::raw)))
     }
 
     override suspend fun forward(who: ChatIdentity, clientId: String, message: ChatMessage): AppResult<ChatMessage> {
@@ -359,22 +360,22 @@ class ChatRepositoryImpl @Inject constructor(
         }
 
     override suspend fun toggleStar(who: ChatIdentity, messageId: Long): AppResult<ChatMessage> =
-        message(who) { api.toggleStar(messageId, StarBody(who.coupleId, who.myRole)) }
+        message(who) { api.toggleStar(ChatIds.raw(messageId), StarBody(who.coupleId, who.myRole)) }
 
     override suspend fun edit(who: ChatIdentity, messageId: Long, text: String): AppResult<ChatMessage> =
-        message(who) { api.edit(messageId, EditBody(who.coupleId, who.myRole, text)) }
+        message(who) { api.edit(ChatIds.raw(messageId), EditBody(who.coupleId, who.myRole, text)) }
 
     override suspend fun delete(who: ChatIdentity, messageId: Long, forEveryone: Boolean): AppResult<Unit> =
-        when (val r = safeApiCall { api.delete(messageId, DeleteBody(who.coupleId, who.myRole, if (forEveryone) "everyone" else "me")) }) {
+        when (val r = safeApiCall { api.delete(ChatIds.raw(messageId), DeleteBody(who.coupleId, who.myRole, if (forEveryone) "everyone" else "me")) }) {
             is AppResult.Success -> AppResult.Success(Unit)
             is AppResult.Failure -> r
         }
 
     override suspend fun react(who: ChatIdentity, messageId: Long, emoji: String): AppResult<ChatMessage> =
-        message(who) { api.react(messageId, ReactBody(who.coupleId, who.myRole, emoji)) }
+        message(who) { api.react(ChatIds.raw(messageId), ReactBody(who.coupleId, who.myRole, emoji)) }
 
     override suspend fun pin(who: ChatIdentity, messageId: Long, pinned: Boolean): AppResult<ChatMessage> =
-        message(who) { api.pin(messageId, PinBody(who.coupleId, pinned)) }
+        message(who) { api.pin(ChatIds.raw(messageId), PinBody(who.coupleId, pinned)) }
 
     private suspend fun message(who: ChatIdentity, call: suspend () -> JsonElement): AppResult<ChatMessage> =
         when (val r = safeApiCall(call)) {
@@ -383,7 +384,7 @@ class ChatRepositoryImpl @Inject constructor(
         }
 
     override suspend fun openViewOnce(who: ChatIdentity, message: ChatMessage): AppResult<ViewOnceResult> =
-        when (val r = safeApiCall { api.view(message.id, ViewBody(who.coupleId, who.myRole)) }) {
+        when (val r = safeApiCall { api.view(ChatIds.raw(message.id), ViewBody(who.coupleId, who.myRole)) }) {
             is AppResult.Success -> r.data.mediaUrl?.let {
                 AppResult.Success(ViewOnceResult(it, isVideo = message.kind == MessageKind.Video))
             } ?: AppResult.Failure(AppError.Unknown)

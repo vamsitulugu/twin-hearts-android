@@ -36,11 +36,11 @@ interface ChatApi {
     suspend fun send(@Body body: SendMessageBody): JsonElement
 
     @PATCH("api/chat/{id}")
-    suspend fun edit(@Path("id") id: Long, @Body body: EditBody): JsonElement
+    suspend fun edit(@Path("id") id: String, @Body body: EditBody): JsonElement
 
     /** DELETE with a JSON body: the old server reads `mode` from it. */
     @HTTP(method = "DELETE", path = "api/chat/{id}", hasBody = true)
-    suspend fun delete(@Path("id") id: Long, @Body body: DeleteBody): OkResponse
+    suspend fun delete(@Path("id") id: String, @Body body: DeleteBody): OkResponse
 
     @POST("api/chat/{coupleId}/read")
     suspend fun markRead(@Path("coupleId") coupleId: String, @Body body: RoleBody): OkResponse
@@ -50,17 +50,17 @@ interface ChatApi {
     suspend fun ackDelivered(@Path("coupleId") coupleId: String, @Body body: RoleBody): OkResponse
 
     @POST("api/chat/{id}/star")
-    suspend fun toggleStar(@Path("id") id: Long, @Body body: StarBody): JsonElement
+    suspend fun toggleStar(@Path("id") id: String, @Body body: StarBody): JsonElement
 
     @POST("api/chat/{id}/react")
-    suspend fun react(@Path("id") id: Long, @Body body: ReactBody): JsonElement
+    suspend fun react(@Path("id") id: String, @Body body: ReactBody): JsonElement
 
     @POST("api/chat/{id}/pin")
-    suspend fun pin(@Path("id") id: Long, @Body body: PinBody): JsonElement
+    suspend fun pin(@Path("id") id: String, @Body body: PinBody): JsonElement
 
     /** Opens (and burns) a view-once photo or video. 410 when it was already viewed. */
     @POST("api/chat/{id}/view")
-    suspend fun view(@Path("id") id: Long, @Body body: ViewBody): ViewOnceResponse
+    suspend fun view(@Path("id") id: String, @Body body: ViewBody): ViewOnceResponse
 
     @GET("api/chat/{coupleId}/search")
     suspend fun search(

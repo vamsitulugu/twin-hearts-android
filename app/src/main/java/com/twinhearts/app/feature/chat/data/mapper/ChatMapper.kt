@@ -71,7 +71,7 @@ fun ChatMessageDto.toDomain(myRole: String): ChatMessage? {
         fileName = meta?.get("name")?.stringOrNull(),
         fileSize = meta?.get("size")?.numberOrNull()?.toLong() ?: 0L,
         durationSec = meta?.get("duration")?.numberOrNull()?.toInt() ?: 0,
-        replyToId = replyTo?.stringOrNull()?.toLongOrNull(),
+        replyToId = replyTo?.stringOrNull()?.let { ChatIds.idOf(it) },
         createdAt = created,
         delivery = delivery,
         deliveredAt = parseServerTime(deliveredAt.asText()),

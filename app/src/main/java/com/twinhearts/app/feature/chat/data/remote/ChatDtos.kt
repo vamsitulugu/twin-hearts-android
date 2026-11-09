@@ -50,7 +50,8 @@ data class SendMessageBody(
     val text: String? = null,
     val mediaUrl: String? = null,
     val mediaMeta: JsonElement? = null,
-    val replyTo: Long? = null,
+    /** The server id (text) of the message being answered. */
+    val replyTo: String? = null,
     val forwarded: Boolean = false,
     val viewOnce: Boolean = false,
     val effect: String? = null,
