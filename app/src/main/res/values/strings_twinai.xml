@@ -79,6 +79,7 @@
     <string name="twinai_both_no_result">Result unavailable.</string>
     <string name="twinai_both_failed">Twin couldn\'t finish analyzing this round.</string>
     <string name="twinai_both_retry">Retry</string>
+    <string name="twinai_both_slow">This is taking longer than usual. You can try again.</string>
     <string name="twinai_both_safety_title">💛 Let\'s pause here</string>
     <string name="twinai_both_safety_note">If you\'re in immediate danger, please contact local emergency services or a crisis line for your country.</string>
     <string name="twinai_intent_conflict">⚡ Conflict</string>

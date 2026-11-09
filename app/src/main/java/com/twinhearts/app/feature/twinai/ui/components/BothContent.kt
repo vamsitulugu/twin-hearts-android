@@ -315,9 +315,14 @@ private fun RoundBody(round: BothRound, state: BothUiState, actions: BothActions
                 ResultCard(result, onContinue = actions.onContinue)
             }
         }
-        round.youSubmitted && round.partnerSubmitted -> StatusCard {
+        // Analyzing also counts when the server already says so but my copy has not learned that my partner answered yet.
+        (round.youSubmitted && round.partnerSubmitted) || round.status == RoundStatus.Analyzing -> StatusCard {
             CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp, color = colors.accent)
             Text(stringResource(R.string.twinai_both_analyzing), style = MaterialTheme.typography.bodyLarge, color = colors.ink, textAlign = TextAlign.Center)
+            if (state.slow) {
+                Text(stringResource(R.string.twinai_both_slow), style = MaterialTheme.typography.bodyMedium, color = colors.inkMuted, textAlign = TextAlign.Center)
+                GlassButton(stringResource(R.string.twinai_both_retry), actions.onRetry, style = GlassButtonStyle.Secondary)
+            }
         }
         round.youSubmitted && state.editing -> TwinAiCard(Modifier.fillMaxWidth()) {
             GlassTextArea(value = state.draft, onValueChange = actions.onDraft, hint = stringResource(R.string.twinai_both_edit), minHeight = 120.dp, maxLines = 8, trailing = micButton)

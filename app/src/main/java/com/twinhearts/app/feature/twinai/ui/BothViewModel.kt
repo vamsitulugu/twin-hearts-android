@@ -50,6 +50,8 @@ data class BothUiState(
     val reminded: Boolean = false,
     val deleteTarget: BothSession? = null,
     val deleting: Boolean = false,
+    /** The analysis has run for over a minute: the screen offers Retry. */
+    val slow: Boolean = false,
 )
 
 /**
@@ -74,6 +76,7 @@ class BothViewModel @Inject constructor(
     private var visible = false
     private var pollJob: Job? = null
     private var restored = false
+    private var analyzingSince: Long? = null
 
     /** The screen calls this when the BOTH tab appears or disappears (or the app goes to the background). */
     fun setVisible(isVisible: Boolean) {
@@ -113,6 +116,7 @@ class BothViewModel @Inject constructor(
                         result = r.data.result,
                     )
                 }
+                trackSlow(r.data.status)
                 ensurePolling()
             }
         }
@@ -217,6 +221,7 @@ class BothViewModel @Inject constructor(
                         )
                     }
                     _state.update { it.copy(draft = "") }
+                    trackSlow(result.data)
                     ensurePolling()
                 }
                 else -> say(R.string.twinai_both_submit_failed)
@@ -287,7 +292,9 @@ class BothViewModel @Inject constructor(
             val who = who() ?: return@launch
             when (repository.retry(who, round.id)) {
                 is AppResult.Success -> {
+                    analyzingSince = null
                     updateRound(round.id) { it.copy(status = RoundStatus.Analyzing) }
+                    trackSlow(RoundStatus.Analyzing)
                     ensurePolling()
                 }
                 is AppResult.Failure -> say(R.string.twinai_both_retry_failed)
@@ -354,8 +361,22 @@ class BothViewModel @Inject constructor(
                         )
                     }
                 }
+                trackSlow(_state.value.open?.current?.status)
             }
+            trackSlow(_state.value.open?.current?.status)
         }
+    }
+
+    /** Remembers when the analysis started; after [SLOW_MS] the screen shows \"taking longer\" + Retry. */
+    private fun trackSlow(status: RoundStatus?) {
+        val now = System.currentTimeMillis()
+        if (status == RoundStatus.Analyzing) {
+            if (analyzingSince == null) analyzingSince = now
+        } else {
+            analyzingSince = null
+        }
+        val slow = analyzingSince?.let { now - it > SLOW_MS } == true
+        if (_state.value.slow != slow) _state.update { it.copy(slow = slow) }
     }
 
     private fun say(@StringRes id: Int) {
@@ -369,5 +390,6 @@ class BothViewModel @Inject constructor(
 
     private companion object {
         const val POLL_MS = 3_000L
+        const val SLOW_MS = 60_000L
     }
 }

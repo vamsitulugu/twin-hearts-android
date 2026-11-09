@@ -22,7 +22,7 @@ class TwinAiMapperTest {
     fun roundMapsStatusAndResult() {
         val dto = RoundDto(
             id = "r1", roundNumber = 2, status = "done", youSubmitted = true, partnerSubmitted = true,
-            result = ResultDto("conflict", listOf(SectionDto("Why", "Because")), safetyFlag = false),
+            result = ResultDto("conflict", listOf(SectionDto(kotlinx.serialization.json.JsonPrimitive("Why"), kotlinx.serialization.json.JsonPrimitive("Because"))), safetyFlag = false),
         )
         val round = dto.toDomain()
         assertEquals(RoundStatus.Done, round.status)

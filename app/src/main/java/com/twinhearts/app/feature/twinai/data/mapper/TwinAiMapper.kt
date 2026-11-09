@@ -23,8 +23,8 @@ import java.time.OffsetDateTime
 fun ResultDto.toDomain() = BothResult(
     intent = intent.uppercase(),
     safety = safetyFlag,
-    sections = sections.filter { it.title.isNotBlank() || it.content.isNotBlank() }
-        .map { BothSection(it.title, it.content) },
+    sections = sections.map { BothSection(it.title.asReadableText(), it.content.asReadableText()) }
+        .filter { it.title.isNotBlank() || it.content.isNotBlank() },
 )
 
 fun RoundDto.toDomain() = BothRound(
@@ -60,4 +60,13 @@ fun latestMood(state: JsonElement?): String {
     val first = journal.firstOrNull() as? JsonObject ?: return ""
     val mood = first["mood"] as? JsonPrimitive ?: return ""
     return mood.contentOrNull.orEmpty()
+}
+
+
+/** Text as it is; a list becomes one line per item; anything else its plain text. Never throws. */
+internal fun JsonElement?.asReadableText(): String = when (this) {
+    null -> ""
+    is JsonArray -> joinToString("\n") { it.asReadableText() }
+    is JsonObject -> entries.joinToString("\n") { (k, v) -> "$k: ${v.asReadableText()}" }
+    is JsonPrimitive -> contentOrNull.orEmpty()
 }

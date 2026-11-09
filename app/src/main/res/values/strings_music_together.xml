@@ -2,6 +2,7 @@
 <!-- Music: Sing Together (video-call karaoke). Wording follows the web app's couple-karaoke.js and music/library.js. -->
 <resources>
     <string name="music_together_tile">Sing Together</string>
+    <string name="music_together_card_subtitle">Pick a song and sing with %1$s on video</string>
     <string name="music_together_tile_hint">video</string>
     <string name="music_together_menu">Sing together (video)</string>
     <string name="music_together_pick_title">Choose a song to sing together</string>

@@ -152,15 +152,16 @@ private fun androidx.compose.foundation.lazy.LazyListScope.content(
     val mine = LibraryQueries.forScope(LibraryScope.Mine, songs, role)
     val partner = LibraryQueries.forScope(LibraryScope.Partner, songs, role)
     val featured = LibraryQueries.forScope(LibraryScope.Featured, songs, role)
-    val liked = LibraryQueries.forScope(LibraryScope.Liked, songs, role)
     val ready = LibraryQueries.singable(songs)
     val recent = LibraryQueries.forScope(LibraryScope.Recent, songs, role).take(RECENT_ON_HOME)
 
-    // 1. Liked Songs: the one big card, as in the design.
-    item(key = "liked") {
-        LikedCard(count = liked.size, coverUrl = liked.firstOrNull { !it.coverUrl.isNullOrBlank() }?.coverUrl) {
-            actions.onOpenScope(LibraryScope.Liked)
-        }
+    // 1. Sing Together: the one big card. Tap it, pick a song, and sing with my partner on video.
+    item(key = "together") {
+        SingTogetherCard(
+            partnerName = partnerName,
+            coverUrl = songs.firstOrNull { !it.coverUrl.isNullOrBlank() }?.coverUrl,
+            onClick = actions.onSingTogether,
+        )
     }
 
     // 2. The other libraries stay one tap away, in a single scrolling row instead of a 2x3 grid.
@@ -174,7 +175,6 @@ private fun androidx.compose.foundation.lazy.LazyListScope.content(
             item { LibraryChip(Icons.Rounded.Star, stringResource(R.string.music_tile_featured), featured.size.toString()) { actions.onOpenScope(LibraryScope.Featured) } }
             item { AddSongsButton(actions.onAddSongs) }
             item { LibraryChip(Icons.Rounded.Mic, stringResource(R.string.music_tile_karaoke), stringResource(R.string.music_tile_karaoke_ready, ready.size), actions.onKaraoke) }
-            item { LibraryChip(Icons.Rounded.Videocam, stringResource(R.string.music_together_tile), stringResource(R.string.music_together_tile_hint), actions.onSingTogether) }
         }
     }
 
@@ -296,9 +296,9 @@ private fun AddingCard(progress: AddProgress) {
     }
 }
 
-/** "Liked Songs": wide burgundy-glass card with the heart, the count and a faint cover behind it. */
+/** "Sing Together": wide burgundy-glass card with the video icon and a faint cover behind it. */
 @Composable
-private fun LikedCard(count: Int, coverUrl: String?, onClick: () -> Unit) {
+private fun SingTogetherCard(partnerName: String, coverUrl: String?, onClick: () -> Unit) {
     val shape = TwinTheme.shapes.card
     Box(
         modifier = Modifier
@@ -330,11 +330,11 @@ private fun LikedCard(count: Int, coverUrl: String?, onClick: () -> Unit) {
                 modifier = Modifier.size(56.dp).musicGlass(TwinTheme.shapes.field),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Rounded.Favorite, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+                Icon(Icons.Rounded.Videocam, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
             }
             Column(modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.music_tile_liked), style = MaterialTheme.typography.titleLarge, color = Color.White)
-                Text(stringResource(R.string.music_song_count, count), style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.75f))
+                Text(stringResource(R.string.music_together_tile), style = MaterialTheme.typography.titleLarge, color = Color.White)
+                Text(stringResource(R.string.music_together_card_subtitle, partnerName), style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.75f))
             }
             Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = Color.White.copy(alpha = 0.8f))
         }

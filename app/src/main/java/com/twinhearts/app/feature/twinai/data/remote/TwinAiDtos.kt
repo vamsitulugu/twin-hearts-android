@@ -29,7 +29,12 @@ data class FlagDto(val enabled: Boolean = false)
 data class NewSessionBody(val coupleId: String, val role: String, val title: String? = null)
 
 @Serializable
-data class SectionDto(val title: String = "", val content: String = "")
+data class SectionDto(
+    // The AI sometimes answers with a list or a number instead of text. Read it as raw JSON, so one odd
+    // section can never make the whole round fail to load (that looked like "nothing happens").
+    val title: kotlinx.serialization.json.JsonElement? = null,
+    val content: kotlinx.serialization.json.JsonElement? = null,
+)
 
 @Serializable
 data class ResultDto(
