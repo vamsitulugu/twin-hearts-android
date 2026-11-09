@@ -1,6 +1,23 @@
 package com.twinhearts.app.feature.livemap.domain
 
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import java.util.Locale
 import kotlin.math.roundToInt
+
+/** How a "last seen" moment should be worded. The screen turns each case into text from strings.xml. */
+sealed interface LastSeen {
+    /** No usable time (never shared, sharing paused, or a broken date). */
+    data object Unknown : LastSeen
+    data object JustNow : LastSeen
+    data class MinutesAgo(val minutes: Int) : LastSeen
+    data class HoursAgo(val hours: Int) : LastSeen
+    /** Earlier than yesterday-or-today's hours: [day] is "Yesterday" / "Mon" / "12 Oct", [time] is "6:42 PM". */
+    data class Yesterday(val time: String) : LastSeen
+    data class OnDay(val day: String, val time: String) : LastSeen
+}
 
 /** Number-to-text helpers for distances and durations. Language-neutral, so they live outside strings.xml. */
 object LiveMapFormat {
@@ -25,6 +42,39 @@ object LiveMapFormat {
             seconds < 3600 -> "${seconds / 60}m"
             seconds < 86_400 -> "${seconds / 3600}h"
             else -> "${seconds / 86_400}d"
+        }
+    }
+
+    /** Like [ago], but "—" when the time is a placeholder (1970), so the screen never shows "20000d". */
+    fun agoOrDash(nowMs: Long, thenMs: Long): String = if (thenMs < MIN_REAL_MS) "—" else ago(nowMs, thenMs)
+
+    /** Anything at or before this is a placeholder (the server writes 1970 when sharing is stopped). */
+    private const val MIN_REAL_MS = 946_684_800_000L // 1 Jan 2000
+
+    /**
+     * Turns a last-seen time into a [LastSeen]: minutes / hours while it is recent, then the real
+     * day and clock time ("Yesterday 6:42 PM", "Mon 6:42 PM", "12 Oct 6:42 PM") in the phone's zone.
+     */
+    fun lastSeen(
+        nowMs: Long,
+        thenMs: Long,
+        zone: ZoneId = ZoneId.systemDefault(),
+        locale: Locale = Locale.getDefault(),
+    ): LastSeen {
+        if (thenMs < MIN_REAL_MS) return LastSeen.Unknown
+        val seconds = ((nowMs - thenMs) / 1000).coerceAtLeast(0) // a slightly fast partner clock never shows the future
+        val then = Instant.ofEpochMilli(thenMs).atZone(zone)
+        val today = Instant.ofEpochMilli(nowMs).atZone(zone).toLocalDate()
+        val time = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale).format(then)
+        val days = java.time.temporal.ChronoUnit.DAYS.between(then.toLocalDate(), today)
+        return when {
+            seconds < 60 -> LastSeen.JustNow
+            seconds < 3600 -> LastSeen.MinutesAgo((seconds / 60).toInt())
+            seconds < 6 * 3600 && days == 0L -> LastSeen.HoursAgo((seconds / 3600).toInt())
+            days == 0L -> LastSeen.OnDay(DateTimeFormatter.ofPattern("EEE", locale).format(then), time)
+            days == 1L -> LastSeen.Yesterday(time)
+            days < 7 -> LastSeen.OnDay(DateTimeFormatter.ofPattern("EEE", locale).format(then), time)
+            else -> LastSeen.OnDay(DateTimeFormatter.ofPattern("d MMM", locale).format(then), time)
         }
     }
 }

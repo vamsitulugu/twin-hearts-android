@@ -49,6 +49,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -58,6 +59,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -146,6 +149,11 @@ fun ChatScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val voice = rememberVoicePlayer()
     val recorder = remember { VoiceRecorder(context.applicationContext) }
+    // Tell the notifier the chat is open, so it only hides message alerts while we are here.
+    DisposableEffect(Unit) {
+        com.twinhearts.app.core.notifications.AppForeground.chatScreenOpen = true
+        onDispose { com.twinhearts.app.core.notifications.AppForeground.chatScreenOpen = false }
+    }
     var sheet by rememberSaveable { mutableStateOf(Sheet.None) }
     var text by rememberSaveable { mutableStateOf("") }
     var recordingSeconds by remember { mutableStateOf<Int?>(null) }
@@ -754,6 +762,14 @@ private fun ChatHeader(partnerName: String, state: ChatUiState, actions: ChatAct
             contentAlignment = Alignment.Center,
         ) {
             Text(partnerName.take(1).uppercase(), style = MaterialTheme.typography.titleMedium, color = colors.ink)
+            if (!state.partnerAvatarUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = state.partnerAvatarUrl,
+                    contentDescription = partnerName,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
         }
         Column(Modifier.weight(1f).padding(horizontal = TwinTheme.spacing.xs)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.xs)) {

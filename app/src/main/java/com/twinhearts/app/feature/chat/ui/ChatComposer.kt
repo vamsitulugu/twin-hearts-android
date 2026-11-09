@@ -56,6 +56,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -186,7 +187,7 @@ internal fun Composer(text: String, recordingSeconds: Int?, editing: Boolean, ac
                         textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.ink),
                         cursorBrush = SolidColor(colors.pinkSoft),
                         maxLines = 5,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Default),
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }

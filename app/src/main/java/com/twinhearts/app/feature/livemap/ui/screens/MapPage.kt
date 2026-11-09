@@ -52,6 +52,7 @@ import com.twinhearts.app.core.design.TwinTextField
 import com.twinhearts.app.core.design.DarkTwinColors
 import com.twinhearts.app.core.design.TwinTheme
 import com.twinhearts.app.feature.livemap.domain.GeoMath
+import com.twinhearts.app.feature.livemap.domain.LastSeen
 import com.twinhearts.app.feature.livemap.domain.LiveMapFormat
 import com.twinhearts.app.feature.livemap.domain.model.LivePosition
 import com.twinhearts.app.feature.livemap.domain.spotKey
@@ -282,7 +283,18 @@ internal fun statusText(pos: LivePosition?, paused: Boolean, nowMs: Long): Strin
     pos == null -> stringResource(R.string.livemap_status_unknown)
     paused -> stringResource(R.string.livemap_status_paused)
     pos.online -> activityLabel(GeoMath.activity(pos.speedMps))
-    else -> stringResource(R.string.livemap_status_last_seen, LiveMapFormat.ago(nowMs, pos.updatedAtMs))
+    else -> lastSeenText(nowMs, pos.updatedAtMs)
+}
+
+/** "Last seen 5 min ago", "Last seen yesterday at 6:42 PM", "Last seen Mon at 6:42 PM" … */
+@Composable
+internal fun lastSeenText(nowMs: Long, thenMs: Long): String = when (val seen = LiveMapFormat.lastSeen(nowMs, thenMs)) {
+    LastSeen.Unknown -> stringResource(R.string.livemap_status_last_seen_unknown)
+    LastSeen.JustNow -> stringResource(R.string.livemap_status_last_seen_now)
+    is LastSeen.MinutesAgo -> stringResource(R.string.livemap_status_last_seen_min, seen.minutes)
+    is LastSeen.HoursAgo -> stringResource(R.string.livemap_status_last_seen_hours, seen.hours)
+    is LastSeen.Yesterday -> stringResource(R.string.livemap_status_last_seen_yesterday, seen.time)
+    is LastSeen.OnDay -> stringResource(R.string.livemap_status_last_seen_day, seen.day, seen.time)
 }
 
 @Composable

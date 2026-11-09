@@ -24,6 +24,10 @@ import retrofit2.http.Url
  */
 interface ChatApi {
 
+    /** My partner's profile row (photo). Same route the Profile page uses. */
+    @GET("api/profile/{userId}/partner")
+    suspend fun partnerProfile(@Path("userId") userId: String): ChatPartnerProfileDto
+
     /** Newest [limit] messages, oldest first. With [after] (an ISO time) only newer ones. */
     @GET("api/chat/{coupleId}")
     suspend fun messages(
@@ -137,3 +141,11 @@ interface ChatApi {
     @GET
     suspend fun gifs(@Url url: String): GifSearchResponse
 }
+
+
+/** GET /api/profile/:userId/partner → `{ profile: { avatar_url } | null }`. */
+@kotlinx.serialization.Serializable
+data class ChatPartnerProfileDto(val profile: ChatProfileRowDto? = null)
+
+@kotlinx.serialization.Serializable
+data class ChatProfileRowDto(@kotlinx.serialization.SerialName("avatar_url") val avatarUrl: String? = null)

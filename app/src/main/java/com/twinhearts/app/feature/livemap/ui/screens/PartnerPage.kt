@@ -74,7 +74,7 @@ fun PartnerPage(
         val away = me?.let { GeoMath.distanceM(it.first, it.second, partner.lat, partner.lng) }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
             StatTile(activityLabel(GeoMath.activity(partner.speedMps)), stringResource(R.string.livemap_stat_status), Modifier.weight(1f), Icons.Rounded.Speed)
-            StatTile(LiveMapFormat.ago(state.nowMs, partner.updatedAtMs), stringResource(R.string.livemap_stat_updated), Modifier.weight(1f), Icons.Rounded.AccessTime)
+            StatTile(LiveMapFormat.agoOrDash(state.nowMs, partner.updatedAtMs), stringResource(R.string.livemap_stat_updated), Modifier.weight(1f), Icons.Rounded.AccessTime)
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(TwinTheme.spacing.s)) {
             StatTile(away?.let { LiveMapFormat.distance(it) } ?: "—", stringResource(R.string.livemap_stat_away), Modifier.weight(1f), Icons.Rounded.SocialDistance)

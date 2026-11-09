@@ -86,7 +86,12 @@ class TwinNotifier @Inject constructor(
         val type = event.type
         if (!canPost()) return false
         if (!prefs.isEnabled(type)) return false
-        if (AppForeground.isVisible && !type.showInForeground) return false
+        if (AppForeground.isVisible && !type.showInForeground) {
+            // Chat messages / reactions are skipped only while the Chat screen itself is open.
+            // On any other screen of the app the person still needs to hear about them.
+            val chatType = type == NotificationType.CHAT_MESSAGE || type == NotificationType.CHAT_REACTION
+            if (!chatType || AppForeground.chatScreenOpen) return false
+        }
 
         NotificationChannels.ensure(context)
         val session = sessionStore.session.first()

@@ -12,6 +12,10 @@ object AppForeground : Application.ActivityLifecycleCallbacks {
 
     val isVisible: Boolean get() = started > 0
 
+    /** True while the Chat screen is on screen: the only place that already shows new messages itself. */
+    @Volatile
+    var chatScreenOpen: Boolean = false
+
     override fun onActivityStarted(activity: Activity) { started++ }
     override fun onActivityStopped(activity: Activity) { started = (started - 1).coerceAtLeast(0) }
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit

@@ -65,6 +65,9 @@ interface ChatRepository {
     /** Who is chatting, from the saved Session; `null` when nobody is signed in. */
     suspend fun identity(): ChatIdentity?
 
+    /** The partner's profile photo address, or `null` when they have none or it can't be loaded. */
+    suspend fun partnerAvatarUrl(): String? = null
+
     /** The newest 200 messages, oldest first. */
     suspend fun recent(who: ChatIdentity): AppResult<List<ChatMessage>>
 
@@ -150,6 +153,12 @@ class ChatRepositoryImpl @Inject constructor(
         sessionStore.session.first()?.takeIf { it.coupleId.isNotBlank() }?.let {
             ChatIdentity(it.coupleId, it.role, it.myName, it.partnerName)
         }
+
+    override suspend fun partnerAvatarUrl(): String? {
+        val userId = sessionStore.session.first()?.userId ?: return null
+        return (safeApiCall { api.partnerProfile(userId) } as? AppResult.Success)
+            ?.data?.profile?.avatarUrl?.takeIf { it.isNotBlank() }
+    }
 
     override suspend fun recent(who: ChatIdentity): AppResult<List<ChatMessage>> =
         when (val r = safeApiCall { api.messages(who.coupleId, limit = RECENT_LIMIT) }) {

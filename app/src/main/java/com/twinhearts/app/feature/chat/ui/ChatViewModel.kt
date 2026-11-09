@@ -88,6 +88,8 @@ data class GifState(
 
 data class ChatUiState(
     val identity: ChatIdentity? = null,
+    /** The partner's profile photo for the header; `null` shows their first letter. */
+    val partnerAvatarUrl: String? = null,
     /** True until the first load answers. */
     val loading: Boolean = true,
     /** Set only when the first load failed and there is nothing to show. */
@@ -169,6 +171,8 @@ class ChatViewModel @Inject constructor(
                 return@launch
             }
             _state.update { it.copy(identity = who, draft = "") }
+            // Best effort and in parallel: the chat must never wait for the photo.
+            launch { repository.partnerAvatarUrl()?.let { url -> _state.update { it.copy(partnerAvatarUrl = url) } } }
             if (liveWanted) connectLive(who)
             observeLocalSettings(who)
             // Saved copy first: the chat opens instantly even while the server is waking up.

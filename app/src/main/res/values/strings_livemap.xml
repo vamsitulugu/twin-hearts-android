@@ -166,7 +166,12 @@
     <string name="livemap_stat_points">Points</string>
     <string name="livemap_stat_status">Status</string>
     <string name="livemap_stat_updated">Updated ago</string>
-    <string name="livemap_status_last_seen">Last seen %1$s ago</string>
+    <string name="livemap_status_last_seen_unknown">Last seen a while ago</string>
+    <string name="livemap_status_last_seen_now">Last seen just now</string>
+    <string name="livemap_status_last_seen_min">Last seen %1$d min ago</string>
+    <string name="livemap_status_last_seen_hours">Last seen %1$d h ago</string>
+    <string name="livemap_status_last_seen_yesterday">Last seen yesterday at %1$s</string>
+    <string name="livemap_status_last_seen_day">Last seen %1$s at %2$s</string>
     <string name="livemap_status_paused">Paused</string>
     <string name="livemap_status_unknown">No location yet</string>
     <string name="livemap_stop_line">%1$s · stayed %2$s</string>

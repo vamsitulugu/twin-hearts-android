@@ -52,8 +52,17 @@ import kotlin.math.roundToInt
 /** Turns server answers into the models the screens use (R-03). Pure functions, covered by unit tests. */
 
 /** The server sends ISO times with "Z" or "+00:00". Returns null when the text is missing or odd. */
-fun parseIsoMs(text: String?): Long? =
-    if (text.isNullOrBlank()) null else runCatching { OffsetDateTime.parse(text).toInstant().toEpochMilli() }.getOrNull()
+/**
+ * Reads the server's time. Accepts "…+00:00", "…Z", "…+00", a date with no zone (the database
+ * stores UTC) and a space instead of the "T". Returns null when nothing fits, never throws.
+ */
+fun parseIsoMs(text: String?): Long? {
+    val raw = text?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    raw.toLongOrNull()?.let { return if (it < 100_000_000_000L) it * 1000 else it }
+    val iso = raw.replace(' ', 'T').let { Regex("([+-]\\d{2})$").replace(it) { m -> m.value + ":00" } }
+    return runCatching { OffsetDateTime.parse(iso).toInstant().toEpochMilli() }.getOrNull()
+        ?: runCatching { java.time.LocalDateTime.parse(iso).toInstant(java.time.ZoneOffset.UTC).toEpochMilli() }.getOrNull()
+}
 
 fun LocationRowDto.toPosition(): LivePosition? {
     val la = lat ?: return null
