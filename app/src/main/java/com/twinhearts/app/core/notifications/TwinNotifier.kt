@@ -95,7 +95,7 @@ class TwinNotifier @Inject constructor(
     }
 
     /** The simplest possible notification: logo, title, text. Used only when [showRich] threw. */
-    private fun showPlain(event: TwinNotification): Boolean {
+    private suspend fun showPlain(event: TwinNotification): Boolean {
         if (!canPost() || !prefs.isEnabled(event.type)) return false
         NotificationChannels.ensure(context)
         val partner = event.data["fromName"]?.takeIf { it.isNotBlank() } ?: context.getString(R.string.notif_partner_fallback)
