@@ -33,24 +33,30 @@ class PairingSync @Inject constructor(
         val result = safeApiCall { api.status(before.userId) }
         val dto = (result as? AppResult.Success)?.data ?: return false
 
-        when (dto.status) {
-            "connected" -> {
-                val partner = dto.partnerName?.takeIf { it.isNotBlank() } ?: "Partner"
-                val coupleId = dto.coupleId?.takeIf { it.isNotBlank() }
-                val role = dto.role?.takeIf { it == "user1" || it == "user2" }
-                sessionStore.update {
-                    it.copy(
-                        paired = true,
-                        partnerName = partner,
-                        coupleId = coupleId ?: it.coupleId,
-                        role = role ?: it.role,
-                    )
-                }
+        val serverCouple = dto.coupleId?.takeIf { it.isNotBlank() }
+        val serverRole = dto.role?.takeIf { it == "user1" || it == "user2" }
+
+        if (dto.status == "connected") {
+            val partner = dto.partnerName?.takeIf { it.isNotBlank() } ?: "Partner"
+            sessionStore.update {
+                it.copy(
+                    paired = true,
+                    partnerName = partner,
+                    coupleId = serverCouple ?: it.coupleId,
+                    role = serverRole ?: it.role,
+                )
             }
-            // Only an explicit "not connected / waiting / invitation" answer from the server
-            // clears the flag (the partner removed the link). Errors returned earlier above.
-            else -> if (before.paired) {
-                sessionStore.update { it.copy(paired = false, partnerName = "Partner") }
+        } else {
+            // Not connected (never was, or my partner removed me). In the second case the server
+            // has moved me to a fresh couple, so ALWAYS take its couple + role. Keeping the old
+            // ones would make this phone keep reading and writing my ex-partner's shared data.
+            sessionStore.update {
+                it.copy(
+                    paired = false,
+                    partnerName = "Partner",
+                    coupleId = serverCouple ?: it.coupleId,
+                    role = serverRole ?: it.role,
+                )
             }
         }
         val after = sessionStore.session.first()
