@@ -40,15 +40,17 @@ class PairingRepositoryImpl @Inject constructor(
             is AppResult.Success -> {
                 val status = result.data.toDomain()
                 // Partner accepted while we were waiting: remember it on this phone too.
-                if (status is PairingStatus.Connected && !session.paired) {
-                    sessionStore.save(
-                        session.copy(
+                if (status is PairingStatus.Connected) {
+                    val coupleId = result.data.coupleId?.takeIf { it.isNotBlank() }
+                    val role = result.data.role?.takeIf { it == "user1" || it == "user2" }
+                    sessionStore.update {
+                        it.copy(
                             paired = true,
                             partnerName = status.partnerName,
-                            coupleId = result.data.coupleId?.takeIf { it.isNotBlank() } ?: session.coupleId,
-                            role = result.data.role?.takeIf { it == "user1" || it == "user2" } ?: session.role,
-                        ),
-                    )
+                            coupleId = coupleId ?: it.coupleId,
+                            role = role ?: it.role,
+                        )
+                    }
                 }
                 AppResult.Success(status)
             }

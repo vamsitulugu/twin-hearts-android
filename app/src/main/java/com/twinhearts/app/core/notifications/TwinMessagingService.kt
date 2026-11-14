@@ -25,6 +25,7 @@ class TwinMessagingService : FirebaseMessagingService() {
     @Inject lateinit var notifier: TwinNotifier
     @Inject lateinit var registrar: PushTokenRegistrar
     @Inject lateinit var chat: ChatRepository
+    @Inject lateinit var pairingSync: com.twinhearts.app.core.data.PairingSync
 
     override fun onNewToken(token: String) {
         scope.launch { registrar.sync(knownToken = token) }
@@ -47,6 +48,10 @@ class TwinMessagingService : FirebaseMessagingService() {
             NotificationEvents.loveArrived()
         }
         runBlocking {
+            // My partner accepted my request: save the new couple on this phone before anything else.
+            if (type == NotificationType.PARTNER_ACCEPTED) {
+                runCatching { withTimeoutOrNull(ACK_TIMEOUT_MS) { pairingSync.sync() } }
+            }
             notifier.show(event)
             // A chat message reached this phone: tell the server now, so my partner's single tick
             // becomes a double tick even though the app is closed (their tick stays single only

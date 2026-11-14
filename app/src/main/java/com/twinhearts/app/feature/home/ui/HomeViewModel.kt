@@ -71,6 +71,7 @@ class HomeViewModel @Inject constructor(
     private val repository: HomeRepository,
     private val sessionStore: SessionStore,
     private val coinEarner: CoinEarner,
+    private val pairingSync: com.twinhearts.app.core.data.PairingSync,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeUiState())
@@ -85,6 +86,8 @@ class HomeViewModel @Inject constructor(
 
     /** Silent refresh: a failed check never replaces what is already on screen. */
     fun refresh() {
+        // Catch up with the server about who we are paired with (e.g. my partner just accepted).
+        viewModelScope.launch { pairingSync.sync() }
         viewModelScope.launch {
             // Paint the saved copy first so Home is never empty while the server wakes up.
             if (_state.value.events.isEmpty()) {

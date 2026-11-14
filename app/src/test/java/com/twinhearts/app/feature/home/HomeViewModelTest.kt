@@ -33,11 +33,12 @@ class HomeViewModelTest {
     @get:Rule val mainDispatcher = MainDispatcherRule()
     private val repository = mockk<HomeRepository>()
     private val sessionStore = mockk<SessionStore>()
+    private val pairingSync = mockk<com.twinhearts.app.core.data.PairingSync>(relaxed = true)
 
     private fun viewModel(session: Session): HomeViewModel {
         every { sessionStore.session } returns flowOf(session)
         coEvery { repository.overview() } returns AppResult.Success(HomeOverview())
-        return HomeViewModel(repository, sessionStore, NoCoinEarner)
+        return HomeViewModel(repository, sessionStore, NoCoinEarner, pairingSync)
     }
 
     @Test
@@ -71,7 +72,7 @@ class HomeViewModelTest {
         every { sessionStore.session } returns flowOf(testSession().copy(paired = true))
         coEvery { repository.overview() } returns AppResult.Success(HomeOverview(loveCard = LoveCardState(last = old)))
         coEvery { repository.send(LoveKind.MissYou) } returns AppResult.Failure(AppError.Network)
-        val vm = HomeViewModel(repository, sessionStore, NoCoinEarner)
+        val vm = HomeViewModel(repository, sessionStore, NoCoinEarner, pairingSync)
         vm.send(LoveKind.MissYou)
         assertEquals(old, vm.state.value.loveCard.last)
     }
@@ -81,7 +82,7 @@ class HomeViewModelTest {
         coEvery { repository.acceptHug() } returns AppResult.Success(Unit)
         coEvery { repository.overview() } returns AppResult.Success(HomeOverview(loveCard = LoveCardState(pendingIncomingHugId = 7L)))
         every { sessionStore.session } returns flowOf(testSession().copy(paired = true, partnerName = "Asha"))
-        val vm = HomeViewModel(repository, sessionStore, NoCoinEarner)
+        val vm = HomeViewModel(repository, sessionStore, NoCoinEarner, pairingSync)
         vm.dismissHug()
         assertEquals(7L, vm.state.value.dismissedHugId)
         vm.acceptHug()
@@ -129,7 +130,7 @@ class HomeViewModelTest {
         val photos = mapOf(CardPhotoSlot.Touch to CardPhoto("https://x/t.jpg", "c1/t.jpg"))
         every { sessionStore.session } returns flowOf(testSession().copy(paired = true))
         coEvery { repository.overview() } returns AppResult.Success(HomeOverview(cardPhotos = photos))
-        val vm = HomeViewModel(repository, sessionStore, NoCoinEarner)
+        val vm = HomeViewModel(repository, sessionStore, NoCoinEarner, pairingSync)
         assertEquals(photos, vm.state.value.cardPhotos)
     }
 }

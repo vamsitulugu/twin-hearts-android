@@ -16,24 +16,49 @@ class SessionStore @Inject constructor(
     private val dataStore: DataStore<Preferences>,
 ) {
     /** Emits the session, or null when nobody is signed in. */
-    val session: Flow<Session?> = dataStore.data.map { prefs ->
-        val userId = prefs[USER_ID]
-        val coupleId = prefs[COUPLE_ID]
-        if (userId.isNullOrBlank() || coupleId.isNullOrBlank()) {
+    val session: Flow<Session?> = dataStore.data.map { prefs -> prefs.toSession() }
+
+    private fun Preferences.toSession(): Session? {
+        val userId = this[USER_ID]
+        val coupleId = this[COUPLE_ID]
+        return if (userId.isNullOrBlank() || coupleId.isNullOrBlank()) {
             null
         } else {
             Session(
                 userId = userId,
                 coupleId = coupleId,
-                myName = prefs[MY_NAME].orEmpty(),
-                email = prefs[EMAIL].orEmpty(),
-                phoneNumber = prefs[PHONE].orEmpty(),
-                partnerName = prefs[PARTNER_NAME] ?: "Partner",
-                anniversary = prefs[ANNIVERSARY].orEmpty(),
-                role = prefs[ROLE] ?: "user1",
-                paired = prefs[PAIRED] ?: false,
-                gender = prefs[GENDER],
+                myName = this[MY_NAME].orEmpty(),
+                email = this[EMAIL].orEmpty(),
+                phoneNumber = this[PHONE].orEmpty(),
+                partnerName = this[PARTNER_NAME] ?: "Partner",
+                anniversary = this[ANNIVERSARY].orEmpty(),
+                role = this[ROLE] ?: "user1",
+                paired = this[PAIRED] ?: false,
+                gender = this[GENDER],
             )
+        }
+    }
+
+    /**
+     * Changes the saved session in ONE atomic read-modify-write. Prefer this over
+     * `save(session.copy(...))`: a copy made from an older read can overwrite a newer change
+     * (for example the pairing flag being set by a background check at the same moment).
+     */
+    suspend fun update(transform: (Session) -> Session) {
+        dataStore.edit { prefs ->
+            val current = prefs.toSession() ?: return@edit
+            val next = transform(current)
+            if (next == current) return@edit
+            prefs[USER_ID] = next.userId
+            prefs[COUPLE_ID] = next.coupleId
+            prefs[MY_NAME] = next.myName
+            prefs[EMAIL] = next.email
+            prefs[PHONE] = next.phoneNumber
+            prefs[PARTNER_NAME] = next.partnerName
+            prefs[ANNIVERSARY] = next.anniversary
+            prefs[ROLE] = next.role
+            prefs[PAIRED] = next.paired
+            if (next.gender != null) prefs[GENDER] = next.gender else prefs.remove(GENDER)
         }
     }
 

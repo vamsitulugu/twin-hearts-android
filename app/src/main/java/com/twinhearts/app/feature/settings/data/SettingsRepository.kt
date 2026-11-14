@@ -154,10 +154,10 @@ class SettingsRepositoryImpl @Inject constructor(
         }
         // The server is the truth: keep the phone's "paired" flag and partner name in step with it.
         val connected = status as? PartnerStatus.Connected
-        if (connected != null && (!session.paired || session.partnerName != connected.partnerName)) {
-            sessionStore.save(session.copy(paired = true, partnerName = connected.partnerName))
-        } else if (connected == null && session.paired) {
-            sessionStore.save(session.copy(paired = false))
+        if (connected != null) {
+            sessionStore.update { it.copy(paired = true, partnerName = connected.partnerName) }
+        } else if (session.paired) {
+            sessionStore.update { it.copy(paired = false) }
         }
         if (connected != null) return AppResult.Success(PartnerOverview(status, emptyList()))
         val incoming = when (val result = safeApiCall { api.pendingList(session.userId) }) {
