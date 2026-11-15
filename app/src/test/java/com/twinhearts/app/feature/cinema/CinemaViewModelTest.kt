@@ -70,6 +70,24 @@ class CinemaViewModelTest {
         coEvery { repository.open(me) } returns AppResult.Success("https://twinhearts.vercel.app/cinema/")
         assertEquals(UiState.Error(AppError.Unknown), host().state.value)
     }
+
+    @Test
+    fun movieButton3D_opensTheRoomAndInvitesMyPartnerInTheSameRequest() {
+        coEvery { repository.identity() } returns me
+        coEvery { repository.open(me, true) } returns AppResult.Success(link)
+        val vm = CinemaViewModel(SavedStateHandle(mapOf("invite" to true)), repository)
+        assertTrue(vm.state.value is UiState.Content)
+        coVerify(exactly = 1) { repository.open(me, true) }
+        coVerify(exactly = 0) { repository.open(me, false) }
+    }
+
+    @Test
+    fun plainOpen_doesNotInvite_theServerStillMakesMeTheGuestIfMyPartnerIsAlreadyInside() {
+        coEvery { repository.identity() } returns me
+        coEvery { repository.open(me, false) } returns AppResult.Success(link)
+        assertTrue(host().state.value is UiState.Content)
+        coVerify(exactly = 1) { repository.open(me, false) }
+    }
 }
 
 class CinemaInviteViewModelTest {

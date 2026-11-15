@@ -15,6 +15,9 @@ fun NavGraphBuilder.movieGraph(navController: NavHostController) {
     composable<Routes.Movie> {
         MovieScreen(
             onBack = { navController.popBackStack() },
+            // Both buttons open the ONE cinema screen: whoever is first becomes the host, the other joins the room as the guest.
+            // "invite" (the 3D MOVIE button) also invites my partner in the same request.
+            onOpenCinema = { invite -> navController.navigate(Routes.Cinema(invite = invite)) { launchSingleTop = true } },
             callHooks = MovieCallHooks(
                 start = rememberCallStarter(),
                 bubble = { WatchCallOverlay(Modifier.fillMaxSize()) },

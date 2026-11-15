@@ -12,7 +12,10 @@ import retrofit2.http.Query
  * Read from `routes/cinema.js` in us-app (R-65). Errors come back as `{ "error": "text" }`.
  */
 interface CinemaApi {
-    /** Host opens (or re-opens) a session. Answer: `{ session, url }`; [url] is the cinema link. */
+    /**
+     * Opens the couple's cinema room. The server decides the role: the first phone in is the host, a phone that arrives while the
+     * partner's room is live joins it as the guest. Answer: `{ session, url, role }`; [url] is the cinema link for ME.
+     */
     @POST("api/cinema/create") suspend fun create(@Body body: CreateBody): LinkDto
 
     /** The invite waiting for me, or `{ invite: null }`. */
@@ -27,7 +30,7 @@ interface CinemaApi {
     @POST("api/cinema/{id}/decline") suspend fun decline(@Path("id") id: String, @Body body: WhoBody): OkDto
 }
 
-@Serializable data class CreateBody(val coupleId: String, val role: String, val slot: Int)
+@Serializable data class CreateBody(val coupleId: String, val role: String, val slot: Int, val invite: Boolean = false)
 
 @Serializable data class WhoBody(val coupleId: String, val role: String)
 

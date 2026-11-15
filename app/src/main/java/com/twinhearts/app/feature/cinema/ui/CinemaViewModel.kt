@@ -18,7 +18,8 @@ import javax.inject.Inject
 
 /**
  * Why this file exists: finds the cinema link for this screen.
- * - No `sessionId` in the route: I am the host, so the server opens a session for me.
+ * - No `sessionId` in the route: I open the couple's room; the server makes me the host if I am first, or puts me in my
+ *   partner's room as the guest if they are already inside (or arrived at the same moment). `invite` also invites them.
  * - A `sessionId`: I am the partner and just accepted the invite for that session.
  * The state is the link to load (already carrying the back link), or an error with retry (R-41).
  */
@@ -30,6 +31,7 @@ class CinemaViewModel @Inject constructor(
 
     // Route arguments arrive in the SavedStateHandle under their own names (see Routes.Cinema).
     private val sessionId: String? = savedState.get<String>("sessionId")
+    private val invite: Boolean = savedState.get<Boolean>("invite") ?: false
 
     private val _state = MutableStateFlow<UiState<String>>(UiState.Loading)
     val state: StateFlow<UiState<String>> = _state.asStateFlow()
@@ -46,7 +48,7 @@ class CinemaViewModel @Inject constructor(
                 _state.value = UiState.Error(AppError.Unauthorized())
                 return@launch
             }
-            val result = if (sessionId == null) repository.open(who) else repository.accept(who, sessionId)
+            val result = if (sessionId == null) repository.open(who, invite) else repository.accept(who, sessionId)
             _state.value = when (result) {
                 is AppResult.Failure -> UiState.Error(result.error)
                 is AppResult.Success -> {

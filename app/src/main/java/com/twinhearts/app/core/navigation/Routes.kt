@@ -39,8 +39,10 @@ object Routes {
     /**
      * Twin Cinema (3D movie theatre, shown live from the web inside the app). Opened from the Home "Cinema" chip as the host
      * ([sessionId] = null: the server opens a session) or from my partner's invite ([sessionId] = the invite to accept).
+     * With [sessionId] = null the server also decides who I am: if my partner is already inside (or arrives at the same moment)
+     * I join their room as the guest, no invite needed. [invite] = true (Movie page 3D button) invites my partner in the same request.
      */
-    @Serializable data class Cinema(val sessionId: String? = null)
+    @Serializable data class Cinema(val sessionId: String? = null, val invite: Boolean = false)
 
     // Meet Planner, opened from the Home "Meet Planner" chip
     @Serializable data object MeetPlanner

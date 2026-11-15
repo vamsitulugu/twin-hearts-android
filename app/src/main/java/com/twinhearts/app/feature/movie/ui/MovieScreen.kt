@@ -48,10 +48,6 @@ import com.twinhearts.app.core.design.LoadingSkeleton
 import com.twinhearts.app.core.design.SerifFamily
 import com.twinhearts.app.core.design.TwinBackground
 import com.twinhearts.app.core.design.TwinTheme
-import com.twinhearts.app.feature.movie.cinema.ui.CinemaInviteDialog
-import com.twinhearts.app.feature.movie.cinema.ui.CinemaOpenDialog
-import com.twinhearts.app.feature.movie.cinema.ui.CinemaTheatre
-import com.twinhearts.app.feature.movie.cinema.ui.CinemaViewModel
 import com.twinhearts.app.feature.movie.domain.formatBytes
 import com.twinhearts.app.feature.movie.domain.model.RoomStatus
 import com.twinhearts.app.feature.movie.ui.components.CountdownContent
@@ -72,13 +68,12 @@ import com.twinhearts.app.feature.movie.ui.components.MovieStyled
 @Composable
 private fun MovieScreenContent(
     onBack: () -> Unit,
+    onOpenCinema: (invite: Boolean) -> Unit,
     callHooks: MovieCallHooks? = null,
     watchVm: WatchViewModel = hiltViewModel(),
     browseVm: BrowseViewModel = hiltViewModel(),
-    cinemaVm: CinemaViewModel = hiltViewModel(),
 ) {
     val state by watchVm.state.collectAsStateWithLifecycle()
-    val cinema by cinemaVm.state.collectAsStateWithLifecycle()
     val upload by watchVm.upload.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val proGate = rememberProGate()
@@ -98,23 +93,8 @@ private fun MovieScreenContent(
     LaunchedEffect(watchVm, browseVm) {
         merge(watchVm.messages, browseVm.messages).collect { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
     }
-    LaunchedEffect(cinemaVm) {
-        cinemaVm.messages.collect { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
-    }
-    LaunchedEffect(cinemaVm) {
-        cinemaVm.notes.collect { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
-    }
-    // My partner's invite card (checked every 6 seconds while this screen is on, like the web app).
-    LaunchedEffect(cinemaVm) {
-        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { cinemaVm.pollInvites() }
-    }
-    // Both READY on the lobby: when my partner opens the 3D theatre, follow straight in. Both land on the avatar page together.
-    val bothReadyFor3D = state.room?.let {
-        it.myReady && it.partnerReady && it.moviesMatch && it.status != RoomStatus.StartRequested
-    } == true
-    LaunchedEffect(cinemaVm, bothReadyFor3D) {
-        if (bothReadyFor3D) lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { cinemaVm.followPartner { watchVm.localMovie() } }
-    }
+    // The 3D theatre is its own screen (Routes.Cinema). Invites from my partner are shown by the app-wide CinemaInviteWatcher on
+    // every screen, including this one, so this page no longer polls or shows a second invite card of its own.
     // Sentences the server wrote for the user are shown as they are.
     LaunchedEffect(watchVm) {
         watchVm.notes.collect { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
@@ -133,7 +113,7 @@ private fun MovieScreenContent(
     TwinBackground(Modifier.fillMaxSize()) {
         when (state.stage) {
             // The 3D theatre plays this same room itself: no second (native) player underneath it.
-            WatchStage.Watching -> state.room?.takeIf { cinema.launch == null }?.let { room ->
+            WatchStage.Watching -> state.room?.let { room ->
                 PlayerScreen(
                     room = room,
                     streamUrl = state.streamUrl,
@@ -177,7 +157,7 @@ private fun MovieScreenContent(
                             busy = state.busy,
                             onReady = { watchVm.setReady(true) },
                             onStart = watchVm::requestStart,
-                            onStart3D = { watchVm.pass3D { cinemaVm.start3D(room.myTitle.orEmpty(), watchVm.localMovie()) } },
+                            onStart3D = { watchVm.pass3D { onOpenCinema(true) } },
                             onCancelStart = watchVm::cancelStart,
                             onCancelMovie = { subtitle = null; watchVm.cancelMovie() },
                             onChange = { changing = true; tab = WATCH_TAB },
@@ -197,7 +177,7 @@ private fun MovieScreenContent(
                         onCancelUpload = watchVm::cancelUpload,
                         onDismissUpload = watchVm::dismissUpload,
                         onDeleteShared = watchVm::deleteShared,
-                        onOpenCinema = cinemaVm::openSheet,
+                        onOpenCinema = { onOpenCinema(false) },
                     )
                 }
             }
@@ -212,23 +192,6 @@ private fun MovieScreenContent(
             onDecline = watchVm::cancelStart,
         )
     }
-    if (cinema.sheet) {
-        CinemaOpenDialog(
-            partnerName = cinema.partnerName,
-            busy = cinema.busy,
-            onOpen = { title -> cinemaVm.openLobby(title.ifBlank { state.room?.myTitle.orEmpty() }, watchVm.localMovie()) },
-            onDismiss = cinemaVm::closeSheet,
-        )
-    }
-    cinema.invite?.let { inv ->
-        CinemaInviteDialog(
-            invite = inv,
-            busy = cinema.busy,
-            onAccept = { cinemaVm.accept(inv, watchVm.localMovie()) },
-            onDecline = { cinemaVm.decline(inv) },
-        )
-    }
-    cinema.launch?.let { launch -> CinemaTheatre(launch = launch, onClose = cinemaVm::closeTheatre) }
     if (showHistory) {
         HistorySheet(
             history = state.history,
@@ -270,10 +233,10 @@ private fun Header(onHistory: () -> Unit) {
 @Composable
 fun MovieScreen(
     onBack: () -> Unit,
+    onOpenCinema: (invite: Boolean) -> Unit = {},
     callHooks: MovieCallHooks? = null,
     watchVm: WatchViewModel = hiltViewModel(),
     browseVm: BrowseViewModel = hiltViewModel(),
-    cinemaVm: CinemaViewModel = hiltViewModel(),
 ) {
-    MovieStyled { MovieScreenContent(onBack = onBack, callHooks = callHooks, watchVm = watchVm, browseVm = browseVm, cinemaVm = cinemaVm) }
+    MovieStyled { MovieScreenContent(onBack = onBack, onOpenCinema = onOpenCinema, callHooks = callHooks, watchVm = watchVm, browseVm = browseVm) }
 }
