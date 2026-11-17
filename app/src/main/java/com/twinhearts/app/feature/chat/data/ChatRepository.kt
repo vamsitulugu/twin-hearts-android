@@ -136,6 +136,15 @@ interface ChatRepository {
 
     /** The whole chat as plain text. */
     suspend fun exportText(who: ChatIdentity): AppResult<String>
+
+    /** Sends the messages that were waiting for a connection. `true` when nothing is left to retry. */
+    suspend fun flushOutbox(): Boolean = true
+
+    /** `true` when the message with this [clientId] is saved and will be sent on its own when online. */
+    suspend fun isQueued(clientId: String): Boolean = false
+
+    /** Text messages still waiting for a connection, to show again (with a clock) after the app restarts. */
+    suspend fun queued(who: ChatIdentity): List<ChatMessage> = emptyList()
     suspend fun gifs(query: String): AppResult<List<GifItem>>
 }
 
@@ -147,6 +156,8 @@ class ChatRepositoryImpl @Inject constructor(
     private val gifKey: GifKeyProvider,
     private val json: Json,
     private val cache: com.twinhearts.app.core.data.StateCache,
+    private val outbox: ChatOutbox,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val appContext: android.content.Context,
 ) : ChatRepository {
 
     override suspend fun identity(): ChatIdentity? =
@@ -351,8 +362,57 @@ class ChatRepositoryImpl @Inject constructor(
     private suspend fun post(who: ChatIdentity, body: SendMessageBody): AppResult<ChatMessage> =
         when (val r = safeApiCall { api.send(body) }) {
             is AppResult.Success -> r.data.toMessageDto()?.toDomain(who.myRole)?.let { AppResult.Success(it) } ?: AppResult.Failure(AppError.Unknown)
-            is AppResult.Failure -> r
+            is AppResult.Failure -> {
+                // No connection: keep the message (everything in it is already uploaded) and let Android
+                // send it by itself when the phone is online again. Same clientId, so never twice.
+                if (r.error is AppError.Network) {
+                    outbox.add(OutboxItem(who.coupleId, body, System.currentTimeMillis()))
+                    ChatOutboxWorker.schedule(appContext)
+                }
+                r
+            }
         }
+
+    override suspend fun isQueued(clientId: String): Boolean = outbox.contains(clientId)
+
+    override suspend fun queued(who: ChatIdentity): List<ChatMessage> =
+        outbox.all()
+            .filter { it.coupleId == who.coupleId && it.body.type == "text" && !it.body.text.isNullOrBlank() }
+            .map {
+                ChatMessage(
+                    id = ChatMessage.LOCAL_ID,
+                    clientId = it.body.clientId,
+                    mine = true,
+                    kind = com.twinhearts.app.feature.chat.domain.model.MessageKind.Text,
+                    text = it.body.text,
+                    mediaUrl = null,
+                    createdAt = java.time.Instant.ofEpochMilli(it.queuedAtMillis),
+                    delivery = com.twinhearts.app.feature.chat.domain.model.DeliveryState.Sending,
+                )
+            }
+
+    override suspend fun flushOutbox(): Boolean {
+        val session = sessionStore.session.first()
+        for (item in outbox.all()) {
+            // Another person signed in on this phone since: that message is not theirs to send.
+            if (session == null || session.coupleId != item.coupleId) {
+                outbox.remove(item.body.clientId)
+                continue
+            }
+            when (val r = safeApiCall { api.send(item.body) }) {
+                is AppResult.Success -> outbox.remove(item.body.clientId)
+                is AppResult.Failure -> when (val e = r.error) {
+                    // Still no connection: stop here so messages keep their order, and try again later.
+                    is AppError.Network -> return false
+                    // The server answered "no" (bad request, signed out ...): trying again cannot help.
+                    is AppError.Unauthorized -> outbox.remove(item.body.clientId)
+                    is AppError.Server -> if (e.code in 400..499 && e.code != 429) outbox.remove(item.body.clientId) else return false
+                    is AppError.Unknown -> outbox.remove(item.body.clientId)
+                }
+            }
+        }
+        return true
+    }
 
     // ───────────── message actions ─────────────
 

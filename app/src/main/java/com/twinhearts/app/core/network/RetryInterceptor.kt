@@ -37,6 +37,10 @@ class RetryInterceptor(private val maxAttempts: Int = 4) : Interceptor {
                 if (!retryCode || last || !repeatable || chain.call().isCanceled()) return response
                 response.close()
             } catch (e: IOException) {
+                // The phone itself says there is no internet (airplane mode, no signal): waiting through
+                // 1 s + 2 s + 4 s of retries cannot help. Fail at once so the screen shows its saved copy
+                // and the chat queues the message; the connection coming back triggers the real retry.
+                if (!NetworkState.online) throw e
                 val neverSent = e is UnknownHostException || e is ConnectException ||
                     (e is SocketTimeoutException && e.message?.contains("connect", ignoreCase = true) == true)
                 if (last || !repeatable || chain.call().isCanceled() || !(safeToRepeat || neverSent)) throw e

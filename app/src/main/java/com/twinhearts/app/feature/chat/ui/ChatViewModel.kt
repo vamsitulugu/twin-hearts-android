@@ -188,11 +188,22 @@ class ChatViewModel @Inject constructor(
                 }
                 is AppResult.Failure -> _state.update { it.copy(loading = false, loadError = result.error) }
             }
+            restoreQueued(who)
             refreshPresence()
             refreshScheduled()
             refreshServerSettings(who)
             val draft = local.draft(who.coupleId)
             _state.update { it.copy(draft = draft) }
+        }
+    }
+
+    /** Messages typed without a connection and still waiting to be sent: show them again, with a clock. */
+    private suspend fun restoreQueued(who: ChatIdentity) {
+        val waiting = repository.queued(who)
+        if (waiting.isEmpty()) return
+        _state.update { s ->
+            val known = s.messages.map { it.clientId }.toSet()
+            s.copy(messages = mergeMessages(s.messages, waiting.filter { it.clientId !in known }))
         }
     }
 
@@ -530,9 +541,15 @@ class ChatViewModel @Inject constructor(
                         poll(full = true)
                     }
                     is AppResult.Failure -> {
-                        TwinSound.error()
-                        setDelivery(local.clientId, DeliveryState.Failed)
-                        _state.update { it.copy(banner = ChatBanner.Failure(result.error)) }
+                        if (result.error is AppError.Network && repository.isQueued(local.clientId)) {
+                            // No connection, but the message is saved on the phone and Android sends it
+                            // by itself when the internet is back. Keep the clock: nothing for the person to do.
+                            setDelivery(local.clientId, DeliveryState.Sending)
+                        } else {
+                            TwinSound.error()
+                            setDelivery(local.clientId, DeliveryState.Failed)
+                            _state.update { it.copy(banner = ChatBanner.Failure(result.error)) }
+                        }
                     }
                 }
             }

@@ -29,6 +29,7 @@ class TwinHeartsApp : Application() {
     @Inject lateinit var serverWarmer: ServerWarmer
     @Inject lateinit var telemetry: AppTelemetry
     @Inject lateinit var appPresence: AppPresence
+    @Inject lateinit var connectivity: com.twinhearts.app.core.network.ConnectivityObserver // created at start so the app always knows if it is online
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 

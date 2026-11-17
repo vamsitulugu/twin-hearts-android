@@ -37,6 +37,7 @@ import com.razorpay.PaymentResultWithDataListener
 import com.twinhearts.app.core.pro.PaymentBridge
 import com.twinhearts.app.feature.ads.data.AdsManager
 import com.twinhearts.app.core.notifications.NotificationNavigator
+import com.twinhearts.app.core.design.GlobalOfflineBanner
 import com.twinhearts.app.core.notifications.TwinNotifier
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -51,6 +52,7 @@ class MainActivity : FragmentActivity(), PaymentResultWithDataListener {
     @Inject lateinit var serverWarmer: com.twinhearts.app.core.network.ServerWarmer
     @Inject lateinit var telemetry: AppTelemetry
     @Inject lateinit var appConfig: AppConfigRepository
+    @Inject lateinit var connectivity: com.twinhearts.app.core.network.ConnectivityObserver
 
     @Inject lateinit var dataStore: androidx.datastore.core.DataStore<androidx.datastore.preferences.core.Preferences>
 
@@ -99,6 +101,7 @@ class MainActivity : FragmentActivity(), PaymentResultWithDataListener {
                 Box(Modifier.fillMaxSize()) {
                     TwinApp()
                     UpdateGate(appConfig.update.collectAsState().value)
+                    GlobalOfflineBanner(online = connectivity.online.collectAsState().value)
                     if (locked) com.twinhearts.app.core.security.AppLockScreen(onUnlock = { askUnlock() })
                     if (showSplash) {
                         TwinSplash(

@@ -132,6 +132,7 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+    implementation(libs.androidx.work.runtime.ktx) // sends chat messages that were waiting for a connection
 
     implementation(libs.coil.compose)
     implementation(libs.androidx.media3.exoplayer)
