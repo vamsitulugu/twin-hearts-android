@@ -22,4 +22,4 @@ app/debug/
 
 # IDE files
 .vs/
-.idea/
+.idea/.kotlin/
