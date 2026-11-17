@@ -212,6 +212,9 @@
     <string name="settings_privacy_policy">Privacy policy</string>
     <string name="settings_privacy_policy_sub">All data is private to your couple only</string>
     <string name="settings_privacy_url" translatable="false">https://twinhearts.vercel.app/privacy-policy.html</string>
+    <string name="settings_delete_account_url" translatable="false">https://twinhearts.vercel.app/delete-account.html</string>
+    <string name="settings_delete_account">Delete my account</string>
+    <string name="settings_delete_account_sub">Permanently removes your account and everything your couple saved</string>
 
     <!-- Shared -->
     <string name="settings_ok">OK</string>

@@ -32,6 +32,7 @@ razorpay = "1.6.40"
 # Push notifications (Firebase Cloud Messaging). The BoM picks matching versions.
 firebaseBom = "33.7.0"
 googleServices = "4.4.2"
+biometric = "1.1.0"
 # AdMob. 24.0.0 is the newest line that builds with Kotlin 2.0.21 (24.1.0 and up need Kotlin 2.1+).
 playServicesAds = "24.0.0"
 # Continue with Google (Credential Manager). 1.3.0 / 1.1.1 are stable and build with Kotlin 2.0.21.
@@ -87,6 +88,7 @@ turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine
 
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
+androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
 
 [plugins]
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }

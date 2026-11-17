@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.AutoFixHigh
 import androidx.compose.material.icons.rounded.ChatBubbleOutline
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Lock
@@ -290,6 +291,13 @@ internal fun AboutPage(actions: SettingsActions, launchers: SettingsLaunchers, m
                 title = stringResource(R.string.settings_privacy_policy),
                 subtitle = stringResource(R.string.settings_privacy_policy_sub),
                 onClick = launchers.openPrivacyPolicy,
+            )
+            SettingsRow(
+                icon = Icons.Rounded.Delete,
+                iconTint = colorResource(R.color.settings_ico_privacy),
+                title = stringResource(R.string.settings_delete_account),
+                subtitle = stringResource(R.string.settings_delete_account_sub),
+                onClick = launchers.openDeleteAccount,
             )
         }
     }

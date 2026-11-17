@@ -79,6 +79,7 @@ class SettingsLaunchers(
     val choosePhotoFolder: () -> Unit = {},
     val toggleNotifications: () -> Unit = {},
     val openPrivacyPolicy: () -> Unit = {},
+    val openDeleteAccount: () -> Unit = {},
     val openHelp: () -> Unit = {},
 )
 

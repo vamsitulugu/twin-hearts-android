@@ -30,4 +30,7 @@
 
     <string name="core_pending_message">This screen is built in a later step.</string>
     <string name="core_debug_gallery">Open design gallery (debug)</string>
+    <string name="app_lock_title">Twin Hearts is locked</string>
+    <string name="app_lock_hint">Use your fingerprint, face or phone PIN</string>
+    <string name="app_lock_unlock">Unlock</string>
 </resources>

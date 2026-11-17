@@ -9,7 +9,7 @@ import android.graphics.Color
 import android.content.Intent
 import android.os.Bundle
 import android.os.SystemClock
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -26,6 +26,7 @@ import androidx.lifecycle.lifecycleScope
 import com.twinhearts.app.core.appconfig.AppConfigRepository
 import com.twinhearts.app.core.appconfig.UpdateGate
 import com.twinhearts.app.core.telemetry.AppTelemetry
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import com.twinhearts.app.core.design.TwinSplash
 import com.twinhearts.app.core.design.TwinTheme
@@ -42,7 +43,7 @@ import javax.inject.Inject
 
 /** The single Activity (R-05). Draws edge-to-edge and hosts the whole Compose app. */
 @AndroidEntryPoint
-class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
+class MainActivity : FragmentActivity(), PaymentResultWithDataListener {
     @Inject lateinit var paymentBridge: PaymentBridge
     @Inject lateinit var adsManager: AdsManager
     @Inject lateinit var notificationNavigator: NotificationNavigator
@@ -51,6 +52,12 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     @Inject lateinit var telemetry: AppTelemetry
     @Inject lateinit var appConfig: AppConfigRepository
 
+    @Inject lateinit var dataStore: androidx.datastore.core.DataStore<androidx.datastore.preferences.core.Preferences>
+
+    /** App lock: true while the lock screen covers the app. */
+    private var locked by mutableStateOf(false)
+    private var leftAt = 0L
+    private var asking = false
     private var splashStart = 0L
     @Volatile private var splashReady = false
 
@@ -92,6 +99,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                 Box(Modifier.fillMaxSize()) {
                     TwinApp()
                     UpdateGate(appConfig.update.collectAsState().value)
+                    if (locked) com.twinhearts.app.core.security.AppLockScreen(onUnlock = { askUnlock() })
                     if (showSplash) {
                         TwinSplash(
                             startedAtUptimeMillis = splashStart,
@@ -121,6 +129,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
             appConfig.refresh()
         }
         notifier.onAppOpened() // chat and call notifications are done once the app is open
+        lifecycleScope.launch { checkAppLock() }
         // Ads: checks Pro first, then consent, then starts the ad SDK. Does nothing for Pro couples.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
@@ -132,10 +141,33 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     }
 
     override fun onStop() {
+        leftAt = SystemClock.elapsedRealtime()
         adsManager.onAppStop() // the ad timer only counts time the app is open on screen
         super.onStop()
     }
 
+
+    /** Locks the app on a fresh start, or after being away longer than the grace time, when the Settings switch is on. */
+    private suspend fun checkAppLock() {
+        if (locked) return
+        val enabled = runCatching {
+            dataStore.data.first()[com.twinhearts.app.core.data.AppPrefKeys.APP_LOCK] ?: false
+        }.getOrDefault(false)
+        val away = leftAt == 0L || SystemClock.elapsedRealtime() - leftAt > com.twinhearts.app.core.security.AppLockGate.GRACE_MS
+        if (enabled && away && com.twinhearts.app.core.security.AppLockGate.canAuthenticate(this)) {
+            locked = true
+            askUnlock()
+        }
+    }
+
+    private fun askUnlock() {
+        if (asking) return
+        asking = true
+        com.twinhearts.app.core.security.AppLockGate.prompt(this, getString(R.string.app_lock_title)) { ok ->
+            asking = false
+            if (ok) locked = false
+        }
+    }
 
     private companion object {
         /** Safety: never keep the system splash longer than this if the Compose splash is late. */

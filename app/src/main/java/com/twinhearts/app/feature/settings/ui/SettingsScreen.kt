@@ -71,6 +71,7 @@ fun SettingsScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val uriHandler = LocalUriHandler.current
     val privacyUrl = stringResource(R.string.settings_privacy_url)
+    val deleteAccountUrl = stringResource(R.string.settings_delete_account_url)
 
     LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->
@@ -147,6 +148,7 @@ fun SettingsScreen(
             }
         },
         openPrivacyPolicy = { uriHandler.openUri(privacyUrl) },
+        openDeleteAccount = { uriHandler.openUri(deleteAccountUrl) },
         openHelp = onOpenHelp,
     )
 
