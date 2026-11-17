@@ -75,6 +75,40 @@ fun rememberCallStarter(viewModel: CallViewModel = hiltViewModel()): (video: Boo
 }
 
 /**
+ * The Voice / Video buttons inside the Twin Cinema. Starts a cinema call (the web cinema's "watch together" call, so it connects to
+ * a partner on the web too). While a voice call is running, Video asks for the camera and upgrades the SAME call.
+ */
+@Composable
+fun rememberWatchCallStarter(viewModel: CallViewModel = hiltViewModel()): (video: Boolean) -> Unit {
+    val engine = viewModel.engine
+    var upgrade by remember { mutableStateOf(false) }
+    var wantVideo by remember { mutableStateOf(false) }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { granted ->
+        when {
+            !granted.values.all { it } -> engine.permissionDenied()
+            upgrade -> engine.upgradeWatchToVideo()
+            else -> engine.startWatchCall(wantVideo)
+        }
+    }
+    return remember(engine, launcher) {
+        { video: Boolean ->
+            val st = engine.state.value
+            if (!st.inCall) {
+                upgrade = false
+                wantVideo = video
+                launcher.launch(
+                    if (video) arrayOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA)
+                    else arrayOf(Manifest.permission.RECORD_AUDIO),
+                )
+            } else if (video && st.watch && st.phase == com.twinhearts.app.feature.calls.domain.CallPhase.Connected && st.localVideo == null) {
+                upgrade = true
+                launcher.launch(arrayOf(Manifest.permission.CAMERA))
+            }
+        }
+    }
+}
+
+/**
  * Same as [rememberCallStarter] but for the in-game 📹: the call is tagged with the game id, so the web
  * game shows its small accept card / side-by-side window instead of the full-screen call page.
  */

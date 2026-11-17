@@ -16,6 +16,11 @@ class CinemaCallHooks(
     val toggleMute: () -> Unit,
     val toggleSpeaker: () -> Unit,
     val flipCamera: () -> Unit,
+    /** The theatre tells us its id (the web's registerWatchSession); a call is only joined inside the same theatre. */
+    val register: (String?) -> Unit,
+    val unregister: () -> Unit,
+    /** My mic / camera state as JSON for the avatar badge: {"on":1,"muted":false,"level":0.1,"cam":1}. */
+    val mic: () -> String,
     /** Draws the call window over the cinema, and the Accept / Decline card when my partner calls. */
     val overlay: @Composable BoxScope.() -> Unit,
 )

@@ -1,6 +1,8 @@
 package com.twinhearts.app.feature.calls.data
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.media.Ringtone
 import android.media.ToneGenerator
@@ -15,6 +17,7 @@ import com.twinhearts.app.feature.calls.domain.CallIdentity
 import com.twinhearts.app.feature.calls.domain.CallPhase
 import com.twinhearts.app.feature.calls.domain.EndReason
 import com.twinhearts.app.feature.calls.domain.VideoUpgrade
+import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -46,6 +49,7 @@ import org.webrtc.PeerConnection
 import org.webrtc.PeerConnectionFactory
 import org.webrtc.SessionDescription
 import org.webrtc.VideoTrack
+import kotlin.random.Random
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -70,6 +74,8 @@ data class CallState(
     val reconnecting: Boolean = false,
     /** Set when this is the in-game face-to-face video (the game id, e.g. "tod"); null for a normal call. */
     val gameCtx: String? = null,
+    /** True for a Twin Cinema call (the web app's "watch together" call): no ringing, joins by itself, drawn over the theatre. */
+    val watch: Boolean = false,
 ) {
     /** True from the first ring until the call is over. */
     val inCall: Boolean get() = phase != CallPhase.Idle && phase != CallPhase.Ended
@@ -132,6 +138,14 @@ class CallEngine @Inject constructor(
     private var upgradeJob: Job? = null
     private var pollJob: Job? = null
     private var foreground = 0
+
+    /** The theatre this phone is inside (the web registers "cinema:<session>"), the running cinema call's ids, and an offer that came a moment too early. */
+    private data class WatchTag(val session: String, val media: String)
+    private var watchSession: String? = null
+    private var watchTag: WatchTag? = null
+    private var pendingWatch: Pair<JsonObject, Long>? = null
+    private var levelJob: Job? = null
+    @Volatile private var micLevelNow = 0f
 
     init {
         // A call in progress gets a notification so Android keeps the microphone and camera alive in the background.
@@ -215,6 +229,7 @@ class CallEngine @Inject constructor(
         val ctx = payload.text("gameCtx")?.takeIf { it.isNotBlank() && it != "false" && it != "0" }
         // "v:<game>" is the in-game voice call (GameVoiceEngine). Never ours.
         if (ctx != null && ctx.startsWith("v:")) return
+        if (payload.text("context") == "watch_together") { handleWatch(payload); return } // a Twin Cinema call (same signals as the web cinema)
         val type = payload.text("type")
         if (type == "offer") {
             // A new call: a tagged offer is the web game's face-to-face video; an untagged one is a normal call.
@@ -222,7 +237,6 @@ class CallEngine @Inject constructor(
             // Answer / ice / end / decline must belong to the call that is running (same tag, or both untagged).
             return
         }
-        if (payload.text("context") == "watch_together") return // Watch Together has its own screen
         when (payload.text("type")) {
             "offer" -> onOffer(payload)
             "answer" -> onAnswer(payload)
@@ -235,6 +249,194 @@ class CallEngine @Inject constructor(
             "video-upgrade-offer" -> onUpgradeOffer(payload)
             "video-upgrade-answer" -> onUpgradeAnswer(payload)
             else -> Unit
+        }
+    }
+
+    // ───────────── Twin Cinema calls (web <-> Android) ─────────────
+    // The web cinema tags its call signals with context=watch_together, watchSessionId ("cinema:<session>") and mediaSessionId.
+    // Ice candidates carry no tag. A call is only joined when it belongs to the theatre this phone registered.
+
+    private suspend fun handleWatch(payload: JsonObject) {
+        val sid = payload.text("watchSessionId")
+        val tag = watchTag
+        when (payload.text("type")) {
+            "offer" -> onWatchOffer(payload)
+            "answer" -> if (tag != null && sid == tag.session && payload.text("mediaSessionId") == tag.media) onAnswer(payload)
+            "end" -> if (tag != null && sid == tag.session) onRemoteEnd()
+            "watch-upgrade-offer" -> if (tag != null && sid == tag.session && payload.text("mediaSessionId") == tag.media) onWatchUpgradeOffer(payload)
+            "watch-upgrade-answer" -> if (tag != null && sid == tag.session && payload.text("mediaSessionId") == tag.media) onWatchUpgradeAnswer(payload)
+            else -> Unit
+        }
+    }
+
+    /** The cinema page tells us which theatre it is (like the web's registerWatchSession). An offer that came a moment earlier is joined now. */
+    fun registerWatchSession(id: String?) {
+        watchSession = id?.takeIf { it.isNotBlank() }
+        val held = pendingWatch
+        if (watchSession == null) { pendingWatch = null; return }
+        if (held != null && held.first.text("watchSessionId") == watchSession && System.currentTimeMillis() - held.second < STALE_OFFER_MS) {
+            pendingWatch = null
+            onWatchOffer(held.first)
+        }
+    }
+
+    /** Leaving the theatre / the movie ending hangs up its call. */
+    fun clearWatchSession() {
+        watchSession = null
+        pendingWatch = null
+        if (watchTag != null) hangUp()
+    }
+
+    private fun hasPermission(permission: String) =
+        ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+
+    private fun onWatchOffer(payload: JsonObject) {
+        val sid = payload.text("watchSessionId") ?: return
+        val sentAt = payload.text("ts")?.toLongOrNull() ?: 0L
+        if (sentAt > 0 && System.currentTimeMillis() - sentAt > STALE_OFFER_MS) return
+        if (watchSession != sid) { pendingWatch = payload to System.currentTimeMillis(); return } // not inside that theatre (yet): keep it for a moment
+        val phase = _state.value.phase
+        if (phase != CallPhase.Idle && phase != CallPhase.Ended) return
+        val sdp = (payload["sdp"] as? JsonObject)?.text("sdp") ?: return
+        val video = payload.text("callType") == "video"
+        pendingOfferSdp = sdp
+        iAmCaller = false
+        logged = true // cinema calls never write a "Voice call" line into the chat
+        callCtx = null
+        watchTag = WatchTag(sid, payload.text("mediaSessionId").orEmpty())
+        _state.value = CallState(
+            phase = CallPhase.Incoming, video = video, partnerName = who?.partnerName.orEmpty(),
+            egl = egl.eglBaseContext, watch = true,
+        )
+        ringJob?.cancel()
+        ringJob = scope.launch {
+            delay(INCOMING_RING_MS)
+            if (_state.value.phase == CallPhase.Incoming) finish(EndReason.Missed, tellPartner = false)
+        }
+        // Like the web: no ringing and no Accept button. Already allowed -> join at once; otherwise the small card over the cinema asks.
+        if (hasPermission(Manifest.permission.RECORD_AUDIO) && (!video || hasPermission(Manifest.permission.CAMERA))) accept()
+    }
+
+    /** Starts a cinema call (the theatre must be registered, the permissions already granted). */
+    fun startWatchCall(video: Boolean) {
+        scope.launch {
+            lock.withLock {
+                val sid = watchSession ?: return@withLock
+                if (_state.value.inCall) return@withLock
+                val me = who ?: repository.identity()?.also { who = it }
+                if (me == null) {
+                    _state.value = CallState(phase = CallPhase.Ended, endReason = EndReason.Failed)
+                    return@withLock
+                }
+                resetForNewCall()
+                iAmCaller = true
+                logged = true
+                callCtx = null
+                watchTag = WatchTag(sid, sid + ":" + System.currentTimeMillis() + ":" + Random.nextInt(0x10000, 0xFFFFF).toString(36))
+                _state.value = CallState(
+                    phase = CallPhase.Calling, video = video, partnerName = me.partnerName,
+                    speaker = true, egl = egl.eglBaseContext, watch = true, // a movie call starts on the loudspeaker, like the web
+                )
+                try {
+                    enterCallAudio(speaker = true)
+                    val s = RtcSession(context, factory, egl, repository.iceServers(), video, this@CallEngine)
+                    if (!_state.value.inCall) { s.close(); return@withLock }
+                    session = s
+                    _state.update { it.copy(localVideo = s.localVideo) }
+                    val offer = s.createOffer()
+                    s.setLocal(offer)
+                    if (session !== s) return@withLock
+                    send(
+                        buildJsonObject {
+                            put("type", "offer")
+                            put("sdp", buildJsonObject { put("type", "offer"); put("sdp", offer.description) })
+                            put("callType", if (video) "video" else "voice")
+                            put("ts", System.currentTimeMillis())
+                        },
+                    )
+                    openLocalIce()
+                    ringJob?.cancel()
+                    ringJob = scope.launch {
+                        delay(WATCH_WAIT_MS)
+                        if (_state.value.phase == CallPhase.Calling) finish(EndReason.NoAnswer, tellPartner = true)
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    fail()
+                }
+            }
+        }
+    }
+
+    /** The 📹 button during a voice cinema call: add my camera to the SAME call (camera permission already granted). */
+    fun upgradeWatchToVideo() {
+        scope.launch {
+            lock.withLock {
+                val s = session ?: return@withLock
+                if (watchTag == null || _state.value.phase != CallPhase.Connected || s.hasCamera || s.waitingForAnswer) return@withLock
+                val opened = runCatching { s.startCamera() }.getOrDefault(false)
+                if (!opened) {
+                    _state.update { it.copy(upgradeNotice = UpgradeNotice.Failed) }
+                    return@withLock
+                }
+                val offer = s.createOffer()
+                s.setLocal(offer)
+                _state.update { it.copy(video = true, localVideo = s.localVideo, speaker = true) }
+                setSpeaker(true)
+                send(
+                    buildJsonObject {
+                        put("type", "watch-upgrade-offer")
+                        put("sdp", buildJsonObject { put("type", "offer"); put("sdp", offer.description) })
+                    },
+                )
+            }
+        }
+    }
+
+    /** The web partner turned on video in our call: answer with my camera when it is allowed, otherwise just watch. */
+    private suspend fun onWatchUpgradeOffer(payload: JsonObject) = lock.withLock {
+        val s = session ?: return@withLock
+        val sdp = (payload["sdp"] as? JsonObject)?.text("sdp") ?: return@withLock
+        if (hasPermission(Manifest.permission.CAMERA)) runCatching { s.startCamera() }
+        s.setRemote(SessionDescription(SessionDescription.Type.OFFER, sdp))
+        drainRemoteIce(s)
+        val answer = s.createAnswer()
+        s.setLocal(answer)
+        send(
+            buildJsonObject {
+                put("type", "watch-upgrade-answer")
+                put("sdp", buildJsonObject { put("type", "answer"); put("sdp", answer.description) })
+            },
+        )
+        _state.update { it.copy(video = true, localVideo = s.localVideo, speaker = true) }
+        setSpeaker(true)
+    }
+
+    private suspend fun onWatchUpgradeAnswer(payload: JsonObject) = lock.withLock {
+        val s = session ?: return@withLock
+        if (!s.waitingForAnswer) return@withLock
+        val sdp = (payload["sdp"] as? JsonObject)?.text("sdp") ?: return@withLock
+        s.setRemote(SessionDescription(SessionDescription.Type.ANSWER, sdp))
+        drainRemoteIce(s)
+    }
+
+    /** For the avatar badge in the cinema, as JSON: {"on":1,"muted":false,"level":0.12,"cam":1}. cam: 1 camera on, 0 off, -1 voice only. Any thread. */
+    fun micJson(): String {
+        val st = _state.value
+        if (!st.watch || st.phase != CallPhase.Connected) return "{\"on\":0}"
+        val cam = if (st.video) (if (st.cameraOff) 0 else 1) else -1
+        return "{\"on\":1,\"muted\":${st.muted},\"level\":$micLevelNow,\"cam\":$cam}"
+    }
+
+    private fun startLevelJob() {
+        levelJob?.cancel()
+        levelJob = scope.launch {
+            while (true) {
+                val s = session
+                if (s != null && !_state.value.muted) s.readMicLevel { micLevelNow = it } else micLevelNow = 0f
+                delay(LEVEL_POLL_MS)
+            }
         }
     }
 
@@ -363,12 +565,13 @@ class CallEngine @Inject constructor(
                 stopRingtone()
                 ringJob?.cancel()
                 val video = _state.value.video
+                val loud = video || _state.value.watch
                 try {
-                    enterCallAudio(speaker = video)
+                    enterCallAudio(speaker = loud)
                     val s = RtcSession(context, factory, egl, repository.iceServers(), video, this@CallEngine)
                     if (!_state.value.inCall) { s.close(); return@withLock } // ended while connecting
                     session = s
-                    _state.update { it.copy(phase = CallPhase.Connecting, speaker = video, localVideo = s.localVideo) }
+                    _state.update { it.copy(phase = CallPhase.Connecting, speaker = loud, localVideo = s.localVideo) }
                     s.setRemote(SessionDescription(SessionDescription.Type.OFFER, offerSdp))
                     drainRemoteIce(s)
                     val answer = s.createAnswer()
@@ -595,6 +798,7 @@ class CallEngine @Inject constructor(
         stopRingback()
         TwinSound.callConnected()
         _state.update { it.copy(phase = CallPhase.Connected, seconds = 0) }
+        if (_state.value.watch) startLevelJob()
         timerJob?.cancel()
         timerJob = scope.launch {
             while (true) {
@@ -634,9 +838,19 @@ class CallEngine @Inject constructor(
     }
 
     /** Posts one signal; tries again a couple of times because the free server may answer "busy". */
-    private suspend fun send(payload: JsonObject, ctx: String? = callCtx) {
+    private suspend fun send(payload: JsonObject, ctx: String? = callCtx, watch: WatchTag? = watchTag) {
         val me = who ?: return
-        val tagged = if (ctx == null) payload else JsonObject(payload + ("gameCtx" to JsonPrimitive(ctx)))
+        var tagged = if (ctx == null) payload else JsonObject(payload + ("gameCtx" to JsonPrimitive(ctx)))
+        // Cinema calls: the web only accepts these signals when they carry the theatre and call ids (ice candidates stay untagged).
+        if (watch != null && payload.text("type") in WATCH_TAGGED) {
+            tagged = JsonObject(
+                tagged + mapOf(
+                    "context" to JsonPrimitive("watch_together"),
+                    "watchSessionId" to JsonPrimitive(watch.session),
+                    "mediaSessionId" to JsonPrimitive(watch.media),
+                ),
+            )
+        }
         repeat(SEND_TRIES) { attempt ->
             if (repository.send(me, tagged) is AppResult.Success) return
             if (attempt < SEND_TRIES - 1) delay(SEND_RETRY_MS)
@@ -662,6 +876,9 @@ class CallEngine @Inject constructor(
         val me = who
         val wasCaller = iAmCaller
         val endCtx = callCtx // resetCallMemory() clears it, but the closing "end" must still carry it
+        val endWatch = watchTag
+        levelJob?.cancel()
+        micLevelNow = 0f
         val shouldLog = wasCaller && !logged && me != null && endCtx == null
         logged = true
         _state.value = before.copy(
@@ -675,11 +892,11 @@ class CallEngine @Inject constructor(
         resetCallMemory()
         scope.launch {
             if (me != null && tellPartner) {
-                val type = when (reason) {
-                    EndReason.Declined -> "decline"
+                val type = when {
+                    reason == EndReason.Declined && endWatch == null -> "decline"
                     else -> "end"
                 }
-                send(buildJsonObject { put("type", type) }, endCtx)
+                send(buildJsonObject { put("type", type) }, endCtx, endWatch)
             }
             if (me != null && shouldLog) {
                 val status = when {
@@ -703,6 +920,7 @@ class CallEngine @Inject constructor(
 
     private fun resetCallMemory() {
         callCtx = null
+        watchTag = null
         pendingOfferSdp = null
         remoteIceQueue.clear()
         localIceQueue.clear()
@@ -782,5 +1000,8 @@ class CallEngine @Inject constructor(
         const val SEND_TRIES = 3
         const val SEND_RETRY_MS = 500L
         const val RELEASE_DELAY_MS = 600L
+        const val WATCH_WAIT_MS = 45_000L
+        const val LEVEL_POLL_MS = 300L
+        val WATCH_TAGGED = setOf("offer", "answer", "end", "watch-upgrade-offer", "watch-upgrade-answer")
     }
 }

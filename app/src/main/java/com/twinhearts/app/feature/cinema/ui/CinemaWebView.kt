@@ -141,8 +141,10 @@ internal fun CinemaWebView(url: String, onLeave: () -> Unit, modifier: Modifier 
     DisposableEffect(lifecycleOwner, webView) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_PAUSE -> webView.onPause()
-                Lifecycle.Event.ON_RESUME -> webView.onResume()
+                // The page is told too (twin:pause / twin:resume): it re-opens its room connections and asks the partner for the scene,
+                // so a locked phone or a trip to another app comes back into the same movie.
+                Lifecycle.Event.ON_PAUSE -> { webView.evaluateJavascript("window.dispatchEvent(new Event('twin:pause'))", null); webView.onPause() }
+                Lifecycle.Event.ON_RESUME -> { webView.onResume(); webView.evaluateJavascript("window.dispatchEvent(new Event('twin:resume'))", null) }
                 else -> Unit
             }
         }
@@ -180,6 +182,9 @@ private class CinemaCallJs(private val view: WebView, private val hooks: CinemaC
     @JavascriptInterface fun mute() { view.post { hooks.toggleMute() } }
     @JavascriptInterface fun speaker() { view.post { hooks.toggleSpeaker() } }
     @JavascriptInterface fun flip() { view.post { hooks.flipCamera() } }
+    @JavascriptInterface fun register(id: String?) { view.post { hooks.register(id) } }
+    @JavascriptInterface fun unregister() { view.post { hooks.unregister() } }
+    @JavascriptInterface fun mic(): String = hooks.mic()
 }
 
 /**
@@ -187,10 +192,10 @@ private class CinemaCallJs(private val view: WebView, private val hooks: CinemaC
  * natively over the cinema ([CinemaCallHooks.overlay]), so the cinema must not draw a second one.
  */
 private const val CALL_SHIM = "if(!window.Call&&window.TwinCall){window.Call={" +
-    "registerWatchSession:function(){},clearWatchSession:function(){TwinCall.end()}," +
+    "registerWatchSession:function(id){TwinCall.register(id||'')},clearWatchSession:function(){TwinCall.unregister()}," +
     "startWatchCall:function(t){TwinCall.start(t)},endWatchCall:function(){TwinCall.end()}," +
     "getWatchState:function(){return{active:false}},getRemoteStream:function(){return null}," +
-    "getRemoteCamOn:function(){return false},toggleMute:function(){TwinCall.mute()}," +
+    "getRemoteCamOn:function(){return false},getMicState:function(){try{return JSON.parse(TwinCall.mic())}catch(e){return null}},toggleMute:function(){TwinCall.mute()}," +
     "toggleSpeaker:function(){TwinCall.speaker()},flipCamera:function(){TwinCall.flip();return Promise.resolve()}}}"
 
 /** Remembers the one "choose a file" request the WebView is waiting on, so it is always answered exactly once. */

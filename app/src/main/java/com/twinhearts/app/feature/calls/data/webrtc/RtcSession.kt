@@ -188,6 +188,22 @@ class RtcSession(
         cameraTrack?.setEnabled(enabled)
     }
 
+    /** How loud my microphone is right now (0..1), read from the connection's statistics. Calls [onLevel] on a WebRTC thread. */
+    fun readMicLevel(onLevel: (Float) -> Unit) {
+        if (closed) return
+        runCatching {
+            peer.getStats { report ->
+                var level = 0f
+                for (stat in report.statsMap.values) {
+                    if (stat.type == "media-source" && stat.members["kind"] == "audio") {
+                        (stat.members["audioLevel"] as? Number)?.let { level = it.toFloat() }
+                    }
+                }
+                onLevel(level)
+            }
+        }
+    }
+
     fun switchCamera() {
         capturer?.switchCamera(null)
     }

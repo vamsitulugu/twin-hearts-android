@@ -10,7 +10,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.twinhearts.app.feature.calls.domain.CallPhase
 import com.twinhearts.app.feature.calls.ui.CallViewModel
 import com.twinhearts.app.feature.calls.ui.CinemaCallOverlay
-import com.twinhearts.app.feature.calls.ui.rememberCallStarter
+import com.twinhearts.app.feature.calls.ui.rememberWatchCallStarter
 import com.twinhearts.app.feature.cinema.ui.CinemaCallHooks
 import androidx.compose.ui.Modifier
 import com.twinhearts.app.feature.cinema.ui.CinemaScreen
@@ -23,7 +23,7 @@ fun NavGraphBuilder.cinemaGraph(navController: NavHostController) {
     composable<Routes.Cinema> {
         // Voice / Video buttons inside the theatre use the app's own call engine (the web cinema borrows its parent page's one).
         val engine = hiltViewModel<CallViewModel>().engine
-        val start = rememberCallStarter()
+        val start = rememberWatchCallStarter()
         val hooks = remember(engine, start) {
             CinemaCallHooks(
                 start = start,
@@ -31,6 +31,9 @@ fun NavGraphBuilder.cinemaGraph(navController: NavHostController) {
                 toggleMute = { engine.toggleMute() },
                 toggleSpeaker = { engine.toggleSpeaker() },
                 flipCamera = { engine.switchCamera() },
+                register = { engine.registerWatchSession(it) },
+                unregister = { engine.clearWatchSession() },
+                mic = { engine.micJson() },
                 overlay = { CinemaCallOverlay(Modifier.fillMaxSize()) },
             )
         }
