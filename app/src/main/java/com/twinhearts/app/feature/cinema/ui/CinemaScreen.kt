@@ -1,6 +1,7 @@
 package com.twinhearts.app.feature.cinema.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -25,16 +26,16 @@ import com.twinhearts.app.core.design.TwinTheme
 
 /** The Cinema page: finds the link, then shows the cinema full screen. Leaving always goes back through [onClose]. */
 @Composable
-fun CinemaScreen(onClose: () -> Unit, viewModel: CinemaViewModel = hiltViewModel()) {
+fun CinemaScreen(onClose: () -> Unit, callHooks: CinemaCallHooks? = null, viewModel: CinemaViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    CinemaContent(state = state, onRetry = viewModel::load, onClose = onClose)
+    CinemaContent(state = state, onRetry = viewModel::load, onClose = onClose, callHooks = callHooks)
 }
 
 /** Stateless part (R-42): one branch per state (R-41). */
 @Composable
-internal fun CinemaContent(state: UiState<String>, onRetry: () -> Unit, onClose: () -> Unit) {
+internal fun CinemaContent(state: UiState<String>, onRetry: () -> Unit, onClose: () -> Unit, callHooks: CinemaCallHooks? = null) {
     when (state) {
-        is UiState.Content -> CinemaPlayer(url = state.data, onClose = onClose)
+        is UiState.Content -> CinemaPlayer(url = state.data, onClose = onClose, callHooks = callHooks)
         is UiState.Error -> ErrorState(
             message = state.error.asText(),
             onRetry = onRetry,
@@ -47,11 +48,16 @@ internal fun CinemaContent(state: UiState<String>, onRetry: () -> Unit, onClose:
 
 /** The WebView plus the "Leave cinema?" question when the phone's Back button is pressed. */
 @Composable
-private fun CinemaPlayer(url: String, onClose: () -> Unit) {
+private fun CinemaPlayer(url: String, onClose: () -> Unit, callHooks: CinemaCallHooks?) {
     var askLeave by rememberSaveable { mutableStateOf(false) }
     BackHandler { askLeave = true }
     // The cinema's own Leave button closes straight away: the person already chose to leave.
-    CinemaWebView(url = url, onLeave = onClose)
+    // Leaving the theatre also hangs up its call (the web cinema does the same).
+    val leave = { callHooks?.end?.invoke(); onClose() }
+    Box(Modifier.fillMaxSize()) {
+        CinemaWebView(url = url, onLeave = leave, callHooks = callHooks)
+        callHooks?.overlay?.invoke(this)
+    }
     if (askLeave) {
         AlertDialog(
             onDismissRequest = { askLeave = false },
@@ -59,7 +65,7 @@ private fun CinemaPlayer(url: String, onClose: () -> Unit) {
             title = { Text(stringResource(R.string.cinema_leave_title), color = TwinTheme.colors.ink) },
             text = { Text(stringResource(R.string.cinema_leave_message), color = TwinTheme.colors.inkMuted) },
             confirmButton = {
-                TextButton(onClick = { askLeave = false; onClose() }) {
+                TextButton(onClick = { askLeave = false; leave() }) {
                     Text(stringResource(R.string.cinema_leave_confirm), color = TwinTheme.colors.error)
                 }
             },

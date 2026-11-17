@@ -8,6 +8,7 @@ import android.content.ContextWrapper
 import android.graphics.Bitmap
 import android.net.Uri
 import android.view.ViewGroup
+import android.webkit.JavascriptInterface
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -59,7 +60,7 @@ import com.twinhearts.app.feature.cinema.domain.CinemaLinks
  */
 @SuppressLint("SetJavaScriptEnabled") // the cinema is a JavaScript app; only its own website is allowed to load
 @Composable
-internal fun CinemaWebView(url: String, onLeave: () -> Unit, modifier: Modifier = Modifier) {
+internal fun CinemaWebView(url: String, onLeave: () -> Unit, modifier: Modifier = Modifier, callHooks: CinemaCallHooks? = null) {
     val context = LocalContext.current
     val currentOnLeave by rememberUpdatedState(onLeave)
     var loaded by remember { mutableStateOf(false) }
@@ -86,6 +87,7 @@ internal fun CinemaWebView(url: String, onLeave: () -> Unit, modifier: Modifier 
                 setSupportMultipleWindows(false)
                 javaScriptCanOpenWindowsAutomatically = false
             }
+            if (callHooks != null) addJavascriptInterface(CinemaCallJs(this, callHooks), "TwinCall")
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                     val target = request.url.toString()
@@ -105,6 +107,7 @@ internal fun CinemaWebView(url: String, onLeave: () -> Unit, modifier: Modifier 
 
                 override fun onPageFinished(view: WebView, pageUrl: String?) {
                     loaded = true
+                    if (callHooks != null) view.evaluateJavascript(CALL_SHIM, null)
                 }
 
                 override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
@@ -165,6 +168,30 @@ internal fun CinemaWebView(url: String, onLeave: () -> Unit, modifier: Modifier 
         }
     }
 }
+
+/**
+ * The cinema page asks `window.Call` (the web app's call engine, which only exists in its parent page) to start calls.
+ * Inside the app there is no parent page, so this hands those requests to the app's own native call engine.
+ * Methods run on a WebView thread, so everything is posted to the main thread (the permission prompt needs it).
+ */
+private class CinemaCallJs(private val view: WebView, private val hooks: CinemaCallHooks) {
+    @JavascriptInterface fun start(type: String?) { view.post { hooks.start(type == "video") } }
+    @JavascriptInterface fun end() { view.post { hooks.end() } }
+    @JavascriptInterface fun mute() { view.post { hooks.toggleMute() } }
+    @JavascriptInterface fun speaker() { view.post { hooks.toggleSpeaker() } }
+    @JavascriptInterface fun flip() { view.post { hooks.flipCamera() } }
+}
+
+/**
+ * Stands in for the web app's `window.Call`. getWatchState is always "not active" on purpose: the call window is drawn
+ * natively over the cinema ([CinemaCallHooks.overlay]), so the cinema must not draw a second one.
+ */
+private const val CALL_SHIM = "if(!window.Call&&window.TwinCall){window.Call={" +
+    "registerWatchSession:function(){},clearWatchSession:function(){TwinCall.end()}," +
+    "startWatchCall:function(t){TwinCall.start(t)},endWatchCall:function(){TwinCall.end()}," +
+    "getWatchState:function(){return{active:false}},getRemoteStream:function(){return null}," +
+    "getRemoteCamOn:function(){return false},toggleMute:function(){TwinCall.mute()}," +
+    "toggleSpeaker:function(){TwinCall.speaker()},flipCamera:function(){TwinCall.flip();return Promise.resolve()}}}"
 
 /** Remembers the one "choose a file" request the WebView is waiting on, so it is always answered exactly once. */
 private class FileChooserHolder {

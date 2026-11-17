@@ -168,7 +168,9 @@ private fun TwinNavigation(
     // A call from my partner opens the call page on any screen (the app must be open).
     IncomingCallWatcher(
         onIncoming = { video ->
-            if (navController.currentDestination?.hasRoute<Routes.Call>() != true) {
+            // In the cinema the Accept / Decline card is drawn over the theatre instead (leaving would close the room).
+            val here = navController.currentDestination
+            if (here?.hasRoute<Routes.Call>() != true && here?.hasRoute<Routes.Cinema>() != true) {
                 navController.navigate(Routes.Call(video = video, incoming = true)) { launchSingleTop = true }
             }
         },
@@ -313,7 +315,7 @@ private fun TwinNavigation(
                 val ownsBottomInset = selectedItem?.key == Routes.Chat || selectedItem?.key == Routes.TwinAi
                 val insets = if (showBottomBar || ownsBottomInset) Modifier else Modifier.navigationBarsPadding()
                 CallBannerHost(
-                    onCallScreen = destination?.hasRoute<Routes.Call>() == true,
+                    onCallScreen = destination?.hasRoute<Routes.Call>() == true || destination?.hasRoute<Routes.Cinema>() == true,
                     onOpen = { video ->
                         // incoming = true: the call is already running, this page must not start another.
                         navController.navigate(Routes.Call(video = video, incoming = true)) { launchSingleTop = true }
